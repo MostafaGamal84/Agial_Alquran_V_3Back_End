@@ -1,0 +1,7 @@
+D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.Core\obj\Debug\net8.0\Orbits.GeneralProject.Core.csproj.AssemblyReference.cache
+D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.Core\obj\Debug\net8.0\Orbits.GeneralProject.Core.GeneratedMSBuildEditorConfig.editorconfig
+D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.Core\obj\Debug\net8.0\Orbits.GeneralProject.Core.AssemblyInfoInputs.cache
+D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.Core\obj\Debug\net8.0\Orbits.GeneralProject.Core.AssemblyInfo.cs
+D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.Core\obj\Debug\net8.0\Orbits.GeneralProject.Core.csproj.CoreCompileInputs.cache
+D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.Core\obj\Debug\net8.0\EFCorePluralizer.cs
+D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.Core\obj\Debug\net8.0\Orbits.GeneralProject.Core.sourcelink.json
