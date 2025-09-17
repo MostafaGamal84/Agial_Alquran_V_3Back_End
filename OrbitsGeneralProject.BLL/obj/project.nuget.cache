@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "BBemT/kP/aU=",
+  "dgSpecHash": "a7BraG2I5gM=",
   "success": true,
-  "projectFilePath": "D:\\Private\\Ajyal_Alquran_V_3\\OrbitsGeneralProject.BLL\\Orbits.GeneralProject.BLL.csproj",
+  "projectFilePath": "D:\\Private\\Ajyal_Alquran_V_3\\Agial_Alquran_V_3_Backend\\OrbitsGeneralProject.BLL\\Orbits.GeneralProject.BLL.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Mostafa Gamal\\.nuget\\packages\\automapper\\12.0.1\\automapper.12.0.1.nupkg.sha512",
     "C:\\Users\\Mostafa Gamal\\.nuget\\packages\\azure.core\\1.6.0\\azure.core.1.6.0.nupkg.sha512",

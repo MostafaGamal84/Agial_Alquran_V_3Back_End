@@ -14,5 +14,10 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? StudentId { get; set; }
         public string? Notes { get; set; }
         public bool? IsDeleted { get; set; }
+        public int? ManagerReportTypeId { get; set; }
+
+        public virtual User? Manager { get; set; }
+        public virtual ManagerReportType? ManagerReportType { get; set; }
+        public virtual User? Student { get; set; }
     }
 }

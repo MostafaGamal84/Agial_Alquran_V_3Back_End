@@ -13,7 +13,7 @@ namespace Orbits.GeneralProject.BLL.StaticEnums
         jpeg = 3,
         docs = 4,
         pdf=5,
-        excel=6
+       
     }
 
     

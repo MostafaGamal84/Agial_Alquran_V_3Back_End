@@ -17,5 +17,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ScheduleDate { get; set; }
         public DateTime? AttendDate { get; set; }
         public string? Notes { get; set; }
+
+        public virtual User? Manager { get; set; }
+        public virtual User? Student { get; set; }
     }
 }

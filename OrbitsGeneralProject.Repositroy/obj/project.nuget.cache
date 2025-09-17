@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "4bqQSCGvLnU=",
+  "dgSpecHash": "6AvYQ7Ro2bI=",
   "success": true,
-  "projectFilePath": "D:\\Private\\Ajyal_Alquran_V_3\\OrbitsGeneralProject.Repositroy\\Orbits.GeneralProject.Repositroy.csproj",
+  "projectFilePath": "D:\\Private\\Ajyal_Alquran_V_3\\Agial_Alquran_V_3_Backend\\OrbitsGeneralProject.Repositroy\\Orbits.GeneralProject.Repositroy.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Mostafa Gamal\\.nuget\\packages\\azure.core\\1.6.0\\azure.core.1.6.0.nupkg.sha512",
     "C:\\Users\\Mostafa Gamal\\.nuget\\packages\\azure.identity\\1.3.0\\azure.identity.1.3.0.nupkg.sha512",

@@ -144,9 +144,15 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             #region Ignore Dynamic Variables for not existing fields
 
 
-            modelBuilder.Entity<Student>().Ignore(f => f.IsDeleted); 
-            modelBuilder.Entity<Teacher>().Ignore(f => f.IsDeleted);
+          
             modelBuilder.Entity<RefreshToken>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<ManagerCircle>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<Nationality>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<Governorate>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<StudentSubscribe>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<StudentPayment>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<TeacherSallary>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<ManagerSallary>().Ignore(f => f.IsDeleted);
 
 
 
@@ -156,6 +162,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             //if (!Database.GetDbConnection().GetType().Name.StartsWith("Effort", StringComparison.Ordinal))
             //{
             //TODO:UnComment this
+            //modelBuilder.ApplyGlobalFilters<IEntityBase>(e => e.Inactive == false, "Inactive");
 
             modelBuilder.ApplyGlobalFilters<IEntityBase>(e => e.IsDeleted == false, "IsDeleted");
             //}

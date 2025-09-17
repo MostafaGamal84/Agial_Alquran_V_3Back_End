@@ -13,5 +13,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? ChallengeId { get; set; }
         public int? ParticipantId { get; set; }
         public int? Points { get; set; }
+
+        public virtual Challenge? Challenge { get; set; }
+        public virtual User? Participant { get; set; }
     }
 }

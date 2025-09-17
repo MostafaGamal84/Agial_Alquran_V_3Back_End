@@ -5,6 +5,11 @@ namespace Orbits.GeneralProject.Core.Entities
 {
     public partial class Challenge:EntityBase
     {
+        public Challenge()
+        {
+            ChallengeParticipants = new HashSet<ChallengeParticipant>();
+        }
+
         public int Id { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
@@ -17,5 +22,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? WinningScore { get; set; }
         public bool? IsActive { get; set; }
         public int? Winner { get; set; }
+
+        public virtual ICollection<ChallengeParticipant> ChallengeParticipants { get; set; }
     }
 }

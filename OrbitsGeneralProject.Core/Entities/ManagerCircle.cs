@@ -12,5 +12,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ModefiedAt { get; set; }
         public int? ManagerId { get; set; }
         public int? CircleId { get; set; }
+
+        public virtual Circle? Circle { get; set; }
+        public virtual User? Manager { get; set; }
     }
 }

@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
+using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.DTO.Dashboard;
 using Orbits.GeneralProject.Repositroy.Base;
@@ -18,8 +19,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         };
 
         private readonly IRepository<StudentPayment> _studentPaymentRepository;
-        private readonly IRepository<Student> _studentRepository;
-        private readonly IRepository<Teacher> _teacherRepository;
+        private readonly IRepository<User> _UserRepository;
         private readonly IRepository<CircleReport> _circleReportRepository;
         private readonly IRepository<TeacherSallary> _teacherSalaryRepository;
         private readonly IRepository<ManagerSallary> _managerSalaryRepository;
@@ -27,15 +27,13 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         public DashboardBLL(
             IMapper mapper,
             IRepository<StudentPayment> studentPaymentRepository,
-            IRepository<Student> studentRepository,
-            IRepository<Teacher> teacherRepository,
+            IRepository<User> UserRepository,
             IRepository<CircleReport> circleReportRepository,
             IRepository<TeacherSallary> teacherSalaryRepository,
             IRepository<ManagerSallary> managerSalaryRepository) : base(mapper)
         {
             _studentPaymentRepository = studentPaymentRepository;
-            _studentRepository = studentRepository;
-            _teacherRepository = teacherRepository;
+            _UserRepository = UserRepository;
             _circleReportRepository = circleReportRepository;
             _teacherSalaryRepository = teacherSalaryRepository;
             _managerSalaryRepository = managerSalaryRepository;
@@ -105,18 +103,18 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 decimal previousMonthNetIncome = Round(previousMonthEarnings - previousMonthTeacherPayouts - previousMonthManagerPayouts);
                 decimal lifetimeNetIncome = Round(totalEarnings - totalTeacherPayouts - totalManagerPayouts);
 
-                int totalStudents = await _studentRepository.GetAll().CountAsync();
-                int totalTeachers = await _teacherRepository.GetAll().CountAsync();
+                int totalStudents = await _UserRepository.Where(x=>x.UserTypeId == (int)UserTypesEnum.Student).CountAsync();
+                int totalTeachers = await _UserRepository.Where(x => x.UserTypeId == (int)UserTypesEnum.Teacher).CountAsync();
                 int totalCircleReports = await _circleReportRepository.GetAll().CountAsync();
 
-                int currentMonthNewStudents = await _studentRepository
-                    .Where(student => student.CreatedAt.HasValue &&
-                                       student.CreatedAt.Value >= currentMonthStart && student.CreatedAt.Value < nextMonthStart)
+                int currentMonthNewStudents = await _UserRepository
+                    .Where(student => student.UserTypeId == (int)UserTypesEnum.Student && student.RegisterAt.HasValue &&
+                                       student.RegisterAt.Value >= currentMonthStart && student.RegisterAt.Value < nextMonthStart)
                     .CountAsync();
 
-                int previousMonthNewStudents = await _studentRepository
-                    .Where(student => student.CreatedAt.HasValue &&
-                                       student.CreatedAt.Value >= previousMonthStart && student.CreatedAt.Value < currentMonthStart)
+                int previousMonthNewStudents = await _UserRepository
+                    .Where(student => student.UserTypeId == (int)UserTypesEnum.Student &&  student.RegisterAt.HasValue &&
+                                       student.RegisterAt.Value >= previousMonthStart && student.RegisterAt.Value < currentMonthStart)
                     .CountAsync();
 
                 int currentMonthCircleReports = await _circleReportRepository

@@ -16,7 +16,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
         /// <value> True if inactive, false if not. </value>
         ///-------------------------------------------------------------------------------------------------
 
-       
+
 
         ///-------------------------------------------------------------------------------------------------
         /// <summary>   Gets or sets a value indicating whether this object is deleted. </summary>

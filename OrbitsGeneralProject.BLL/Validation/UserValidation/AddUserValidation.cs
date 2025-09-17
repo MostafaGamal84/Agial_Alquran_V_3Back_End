@@ -27,8 +27,11 @@ namespace Orbits.GeneralProject.BLL.Validation.UserValidation
             }).WithMessage(UserValidationReponseConstants.WhiteSpace);
             RuleFor(l => l.Email).NotNull().WithMessage(UserValidationReponseConstants.EmailNotNullOrEmpty).NotEmpty().WithMessage(UserValidationReponseConstants.EmailNotNullOrEmpty).MinimumLength(6).WithMessage(UserValidationReponseConstants.EmailNotNullOrEmpty)
                 .EmailAddress(FluentValidation.Validators.EmailValidationMode.Net4xRegex).WithMessage(UserValidationReponseConstants.ValidEmail);
-            RuleFor(l => l.Mobile).NotNull().WithMessage(UserValidationReponseConstants.PhoneNumberLength).NotEmpty().WithMessage(UserValidationReponseConstants.PhoneNumberLength).Length(10).WithMessage(UserValidationReponseConstants.PhoneNumberLength)
-                .Matches(new Regex(@"^([0-9]{10})")).WithMessage(UserValidationReponseConstants.ValidPhoneNumber);
+            RuleFor(l => l.Mobile)
+     .NotNull().WithMessage(UserValidationReponseConstants.PhoneNumberLength)
+     .NotEmpty().WithMessage(UserValidationReponseConstants.PhoneNumberLength)
+     .Matches(new Regex(@"^\+?[0-9]{10,15}$"))
+         .WithMessage(UserValidationReponseConstants.ValidPhoneNumber);
         }
 
     }

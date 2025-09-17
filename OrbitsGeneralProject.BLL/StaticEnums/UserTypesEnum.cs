@@ -9,8 +9,8 @@ namespace Orbits.GeneralProject.BLL.StaticEnums
     public enum UserTypesEnum
     {
         Admin = 1 ,
-        Manager = 2,
-        BranchLeader = 3,
+        BranchLeader = 2,
+        Manager = 3,
         Teacher = 4 ,
         Student = 5 ,
        

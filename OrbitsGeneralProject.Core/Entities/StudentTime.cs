@@ -13,5 +13,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? StudentId { get; set; }
         public int? TimeId { get; set; }
         public bool? IsDeleted { get; set; }
+
+        public virtual User? Student { get; set; }
+        public virtual Time? Time { get; set; }
     }
 }

@@ -10,6 +10,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<Challenge> Challenges { get; set; } = null!;
         public virtual DbSet<ChallengeParticipant> ChallengeParticipants { get; set; } = null!;
         public virtual DbSet<ChallengeRole> ChallengeRoles { get; set; } = null!;
+        public virtual DbSet<Circle> Circles { get; set; } = null!;
         public virtual DbSet<CircleReport> CircleReports { get; set; } = null!;
         public virtual DbSet<Family> Families { get; set; } = null!;
         public virtual DbSet<Governorate> Governorates { get; set; } = null!;
@@ -23,16 +24,14 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<Permission> Permissions { get; set; } = null!;
         public virtual DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
         public virtual DbSet<Role> Roles { get; set; } = null!;
-        public virtual DbSet<Student> Students { get; set; } = null!;
         public virtual DbSet<StudentPayment> StudentPayments { get; set; } = null!;
+        public virtual DbSet<StudentSubscribe> StudentSubscribes { get; set; } = null!;
         public virtual DbSet<StudentTime> StudentTimes { get; set; } = null!;
         public virtual DbSet<Subscribe> Subscribes { get; set; } = null!;
         public virtual DbSet<SubscribeType> SubscribeTypes { get; set; } = null!;
-        public virtual DbSet<Teacher> Teachers { get; set; } = null!;
-        public virtual DbSet<TeacherCircle> TeacherCircles { get; set; } = null!;
+        public virtual DbSet<TeacherReportRecord> TeacherReportRecords { get; set; } = null!;
         public virtual DbSet<TeacherSallary> TeacherSallaries { get; set; } = null!;
         public virtual DbSet<TeacherSchedule> TeacherSchedules { get; set; } = null!;
-        public virtual DbSet<TheHolyQuranSurah> TheHolyQuranSurahs { get; set; } = null!;
         public virtual DbSet<Time> Times { get; set; } = null!;
         public virtual DbSet<User> Users { get; set; } = null!;
         public virtual DbSet<UserType> UserTypes { get; set; } = null!;
@@ -72,6 +71,16 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Challenge)
+                    .WithMany(p => p.ChallengeParticipants)
+                    .HasForeignKey(d => d.ChallengeId)
+                    .HasConstraintName("FK_ChallengeParticipant_Challenge");
+
+                entity.HasOne(d => d.Participant)
+                    .WithMany(p => p.ChallengeParticipants)
+                    .HasForeignKey(d => d.ParticipantId)
+                    .HasConstraintName("FK_ChallengeParticipant_Participant");
             });
 
             modelBuilder.Entity<ChallengeRole>(entity =>
@@ -79,6 +88,43 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Role)
+                    .WithMany(p => p.ChallengeRoles)
+                    .HasForeignKey(d => d.RoleId)
+                    .HasConstraintName("FK_ChallengeRoles_Roles");
+            });
+
+            modelBuilder.Entity<Circle>(entity =>
+            {
+                entity.ToTable("Circle");
+
+                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Teacher)
+                    .WithMany(p => p.Circles)
+                    .HasForeignKey(d => d.TeacherId)
+                    .HasConstraintName("FK_Circle_Teacher");
+            });
+
+            modelBuilder.Entity<CircleReport>(entity =>
+            {
+                entity.HasOne(d => d.Circle)
+                    .WithMany(p => p.CircleReports)
+                    .HasForeignKey(d => d.CircleId)
+                    .HasConstraintName("FK_CircleReports_Circle");
+
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.CircleReportStudents)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_CircleReports_Student");
+
+                entity.HasOne(d => d.Teacher)
+                    .WithMany(p => p.CircleReportTeachers)
+                    .HasForeignKey(d => d.TeacherId)
+                    .HasConstraintName("FK_CircleReports_Teacher");
             });
 
             modelBuilder.Entity<Family>(entity =>
@@ -106,6 +152,16 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Circle)
+                    .WithMany(p => p.ManagerCircles)
+                    .HasForeignKey(d => d.CircleId)
+                    .HasConstraintName("FK_ManagerCircle_Circle");
+
+                entity.HasOne(d => d.Manager)
+                    .WithMany(p => p.ManagerCircles)
+                    .HasForeignKey(d => d.ManagerId)
+                    .HasConstraintName("FK_ManagerCircle_Manager");
             });
 
             modelBuilder.Entity<ManagerReport>(entity =>
@@ -115,6 +171,21 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Manager)
+                    .WithMany(p => p.ManagerReportManagers)
+                    .HasForeignKey(d => d.ManagerId)
+                    .HasConstraintName("FK_ManagerReport_Manager");
+
+                entity.HasOne(d => d.ManagerReportType)
+                    .WithMany(p => p.ManagerReports)
+                    .HasForeignKey(d => d.ManagerReportTypeId)
+                    .HasConstraintName("FK_ManagerReport_ManagerReportType");
+
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.ManagerReportStudents)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_ManagerReport_Student");
             });
 
             modelBuilder.Entity<ManagerReportType>(entity =>
@@ -137,6 +208,11 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.Month).HasColumnType("datetime");
 
                 entity.Property(e => e.PayedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Manager)
+                    .WithMany(p => p.ManagerSallaries)
+                    .HasForeignKey(d => d.ManagerId)
+                    .HasConstraintName("FK_ManagerSallary_Manager");
             });
 
             modelBuilder.Entity<ManagerSchedule>(entity =>
@@ -150,6 +226,16 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ScheduleDate).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Manager)
+                    .WithMany(p => p.ManagerScheduleManagers)
+                    .HasForeignKey(d => d.ManagerId)
+                    .HasConstraintName("FK_ManagerSchedule_Manager");
+
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.ManagerScheduleStudents)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_ManagerSchedule_Student");
             });
 
             modelBuilder.Entity<ManagerStudent>(entity =>
@@ -159,6 +245,16 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Manager)
+                    .WithMany(p => p.ManagerStudentManagers)
+                    .HasForeignKey(d => d.ManagerId)
+                    .HasConstraintName("FK_ManagerStudent_Manager");
+
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.ManagerStudentStudents)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_ManagerStudent_Student");
             });
 
             modelBuilder.Entity<Nationality>(entity =>
@@ -195,23 +291,11 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.Role1).HasColumnName("Role");
-            });
 
-            modelBuilder.Entity<Student>(entity =>
-            {
-                entity.ToTable("Student");
-
-                entity.Property(e => e.Id).ValueGeneratedNever();
-
-                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
-
-                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
-
-                entity.HasOne(d => d.IdNavigation)
-                    .WithOne(p => p.Student)
-                    .HasForeignKey<Student>(d => d.Id)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("FK_Student_User");
+                entity.HasOne(d => d.UserType)
+                    .WithMany(p => p.Roles)
+                    .HasForeignKey(d => d.UserTypeId)
+                    .HasConstraintName("FK_Roles_UserType");
             });
 
             modelBuilder.Entity<StudentPayment>(entity =>
@@ -223,6 +307,50 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.PaymentDate).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.StudentPayments)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_StudentPayment_Student");
+
+                entity.HasOne(d => d.StudentSubscribe)
+                    .WithMany(p => p.StudentPayments)
+                    .HasForeignKey(d => d.StudentSubscribeId)
+                    .HasConstraintName("FK_StudentPayment_Subscribe");
+            });
+
+            modelBuilder.Entity<StudentSubscribe>(entity =>
+            {
+                entity.ToTable("StudentSubscribe");
+
+                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.CircleReport)
+                    .WithMany(p => p.StudentSubscribes)
+                    .HasForeignKey(d => d.CircleReportId)
+                    .HasConstraintName("FK_StudentSubscribe_CircleReport");
+
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.StudentSubscribes)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_StudentSubscribe_Student");
+
+                entity.HasOne(d => d.StudentPayment)
+                    .WithMany(p => p.StudentSubscribes)
+                    .HasForeignKey(d => d.StudentPaymentId)
+                    .HasConstraintName("FK_StudentSubscribe_StudentPayment");
+
+                entity.HasOne(d => d.StudentSubscribeNavigation)
+                    .WithMany(p => p.StudentSubscribes)
+                    .HasForeignKey(d => d.StudentSubscribeId)
+                    .HasConstraintName("FK_StudentSubscribe_Subscribe");
+
+                entity.HasOne(d => d.StudentSubscribeType)
+                    .WithMany(p => p.StudentSubscribes)
+                    .HasForeignKey(d => d.StudentSubscribeTypeId)
+                    .HasConstraintName("FK_StudentSubscribe_StudentSubscribeType");
             });
 
             modelBuilder.Entity<StudentTime>(entity =>
@@ -230,6 +358,16 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.StudentTimes)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_StudentTimes_Student");
+
+                entity.HasOne(d => d.Time)
+                    .WithMany(p => p.StudentTimes)
+                    .HasForeignKey(d => d.TimeId)
+                    .HasConstraintName("FK_StudentTimes_Times");
             });
 
             modelBuilder.Entity<Subscribe>(entity =>
@@ -251,6 +389,11 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.Usdprice)
                     .HasColumnType("decimal(5, 2)")
                     .HasColumnName("USDPrice");
+
+                entity.HasOne(d => d.SubscribeType)
+                    .WithMany(p => p.Subscribes)
+                    .HasForeignKey(d => d.SubscribeTypeId)
+                    .HasConstraintName("FK_Subscribe_SubscribeType");
             });
 
             modelBuilder.Entity<SubscribeType>(entity =>
@@ -266,30 +409,21 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
             });
 
-            modelBuilder.Entity<Teacher>(entity =>
+            modelBuilder.Entity<TeacherReportRecord>(entity =>
             {
-                entity.ToTable("Teacher");
-
-                entity.Property(e => e.Id).ValueGeneratedNever();
-
-                entity.Property(e => e.CircleId).HasMaxLength(100);
-
-                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
-
-                entity.HasOne(d => d.IdNavigation)
-                    .WithOne(p => p.Teacher)
-                    .HasForeignKey<Teacher>(d => d.Id)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("FK__Teacher__Id__55009F39");
-            });
-
-            modelBuilder.Entity<TeacherCircle>(entity =>
-            {
-                entity.ToTable("TeacherCircle");
+                entity.ToTable("TeacherReportRecord");
 
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
-                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+                entity.HasOne(d => d.CircleReport)
+                    .WithMany(p => p.TeacherReportRecords)
+                    .HasForeignKey(d => d.CircleReportId)
+                    .HasConstraintName("FK_TeacherReportRecord_CircleReport");
+
+                entity.HasOne(d => d.Teacher)
+                    .WithMany(p => p.TeacherReportRecords)
+                    .HasForeignKey(d => d.TeacherId)
+                    .HasConstraintName("FK_TeacherReportRecord_Teacher");
             });
 
             modelBuilder.Entity<TeacherSallary>(entity =>
@@ -303,6 +437,11 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.Month).HasColumnType("datetime");
 
                 entity.Property(e => e.PayedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Teacher)
+                    .WithMany(p => p.TeacherSallaries)
+                    .HasForeignKey(d => d.TeacherId)
+                    .HasConstraintName("FK_TeacherSallary_Teacher");
             });
 
             modelBuilder.Entity<TeacherSchedule>(entity =>
@@ -316,15 +455,16 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ScheduleDate).HasColumnType("datetime");
-            });
 
-            modelBuilder.Entity<TheHolyQuranSurah>(entity =>
-            {
-                entity.ToTable("TheHolyQuranSurah");
+                entity.HasOne(d => d.Student)
+                    .WithMany(p => p.TeacherScheduleStudents)
+                    .HasForeignKey(d => d.StudentId)
+                    .HasConstraintName("FK_TeacherSchedule_Student");
 
-                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
-
-                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+                entity.HasOne(d => d.Teacher)
+                    .WithMany(p => p.TeacherScheduleTeachers)
+                    .HasForeignKey(d => d.TeacherId)
+                    .HasConstraintName("FK_TeacherSchedule_Teacher");
             });
 
             modelBuilder.Entity<Time>(entity =>
@@ -353,6 +493,31 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.RegisterAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Circle)
+                    .WithMany(p => p.Users)
+                    .HasForeignKey(d => d.CircleId)
+                    .HasConstraintName("FK_Student_Circle");
+
+                entity.HasOne(d => d.Governorate)
+                    .WithMany(p => p.Users)
+                    .HasForeignKey(d => d.GovernorateId)
+                    .HasConstraintName("FK_User_Governorate");
+
+                entity.HasOne(d => d.Manager)
+                    .WithMany(p => p.InverseManager)
+                    .HasForeignKey(d => d.ManagerId)
+                    .HasConstraintName("FK_User_Manager");
+
+                entity.HasOne(d => d.Nationality)
+                    .WithMany(p => p.Users)
+                    .HasForeignKey(d => d.NationalityId)
+                    .HasConstraintName("FK_User_Nationality");
+
+                entity.HasOne(d => d.Teacher)
+                    .WithMany(p => p.InverseTeacher)
+                    .HasForeignKey(d => d.TeacherId)
+                    .HasConstraintName("FK_User_Teacher");
             });
 
             modelBuilder.Entity<UserType>(entity =>

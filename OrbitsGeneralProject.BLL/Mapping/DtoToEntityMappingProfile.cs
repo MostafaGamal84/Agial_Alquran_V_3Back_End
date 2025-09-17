@@ -1,7 +1,11 @@
 ﻿using AutoMapper;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.DTO.CircleDto;
+using Orbits.GeneralProject.DTO.CircleReportDtos;
 using Orbits.GeneralProject.DTO.Paging;
+using Orbits.GeneralProject.DTO.SubscribeDtos;
 using Orbits.GeneralProject.DTO.UserDto;
+using Orbits.GeneralProject.DTO.UserDtos;
 
 namespace Orbits.GeneralProject.BLL.Mapping
 {
@@ -10,9 +14,18 @@ namespace Orbits.GeneralProject.BLL.Mapping
         public DtoToEntityMappingProfile( )
         {
 
-            CreateMap<CreateUserDto, Student>()
-    .ForMember(dest => dest.IdNavigation, opt => opt.MapFrom(src => src));
-            CreateMap<CreateUserDto, User>();
+            CreateMap<DTO.UserDto.CreateUserDto, User>();
+            CreateMap<UpdateUserDto, User>();
+            CreateMap<CreateCircleDto, Circle>();
+            CreateMap<UpdateCircleDto, Circle>();
+            CreateMap<ManagerCirclesDto, ManagerCircle>();
+            CreateMap<CircleReportAddDto, CircleReport>()
+            .ForMember(x => x.StudentId, xx => xx.MapFrom(c => c.StudentId))
+            .ForMember(x => x.TeacherId, xx => xx.MapFrom(c => c.TeacherId));
+            CreateMap<CreateSubscribeDto, Subscribe>();
+            CreateMap<CreateSubscribeTypeDto, SubscribeType>();
+
+            ;
 
         }
     }

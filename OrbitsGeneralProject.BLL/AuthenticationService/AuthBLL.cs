@@ -237,19 +237,24 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
         //}
         public JwtSecurityToken GenerateToken(User user, DateTime expireOn)
         {
-            List<Claim> claims = new List<Claim>
-                        {
-                         new Claim (ClaimTypes.Name,user.FullName),
-                         new Claim (ClaimTypes.NameIdentifier,user.Id.ToString()),
-                         new Claim (ClaimTypes.Email,user.Email ?? ""),
-                         new Claim (ClaimTypes.Role , user.UserTypeId.ToString())
-                        };
-            var key = Encoding.ASCII.GetBytes(_authSetting.Key);
-            JwtSecurityToken tokenOptions = new JwtSecurityToken(
+            var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.Name, user.FullName ?? string.Empty),
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),          // nameid
+        new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),        // sub (fallback)
+        new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
+        new Claim(ClaimTypes.Role, (user.UserTypeId ?? 0).ToString())      // لو بتستخدم رقم للدور
+        // لو عايز اسم الدور كمان: new Claim(ClaimTypes.Role, roleName)
+    };
+
+            var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_authSetting.Key));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            return new JwtSecurityToken(
                 claims: claims,
                 expires: expireOn,
-                signingCredentials: new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256));
-            return tokenOptions;
+                signingCredentials: creds
+            );
         }
         public JwtSecurityToken GenerateRefreshToken(User user)
         {
@@ -264,25 +269,25 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
                 signingCredentials: new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256));
             return tokenOptions;
         }
-        //public ClaimsPrincipal GetPrincipalFromToken(string token)
-        //{
-        //    if (string.IsNullOrEmpty(token))
-        //        throw new ArgumentException($"'{nameof(token)}' cannot be null or empty.", nameof(token));
-        //    var jwtKey = _authSetting.Key;
-        //    var tokenValidationParameters = new TokenValidationParameters
-        //    {
-        //        ValidateAudience = false,
-        //        ValidateIssuer = false,
-        //        ValidateIssuerSigningKey = true,
-        //        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        //        ValidateLifetime = false
-        //    };
-        //    var tokenHandler = new JwtSecurityTokenHandler();
-        //    var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-        //    return securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase)
-        //        ? throw new SecurityTokenException("Invalid token")
-        //        : principal;
-        //}
+        public ClaimsPrincipal GetPrincipalFromToken(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                throw new ArgumentException($"'{nameof(token)}' cannot be null or empty.", nameof(token));
+            var jwtKey = _authSetting.Key;
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = false,
+                ValidateIssuer = false,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                ValidateLifetime = false
+            };
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
+            return securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase)
+                ? throw new SecurityTokenException("Invalid token")
+                : principal;
+        }
         //public async Task<IResponse<bool>> ActiveUser(ActivateUserDto dto)
         //{
         //    var output = new Response<bool>();

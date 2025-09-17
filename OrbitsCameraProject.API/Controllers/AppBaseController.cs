@@ -9,13 +9,20 @@ namespace OrbitsProject.API.Controllers
     [EnableRateLimiting("FixedPolicy")]
     public class AppBaseController : ControllerBase
     {
-        public int? UserId
+        public int UserId
         {
             get
             {
-                return User.FindFirstValue(ClaimTypes.NameIdentifier)!=null ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)):null;
+                var raw = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrWhiteSpace(raw))
+                    throw new UnauthorizedAccessException("User id claim is missing from the token.");
+
+                if (!int.TryParse(raw, out var id))
+                    throw new UnauthorizedAccessException("User id claim is invalid (not a number).");
+
+                return id;
             }
-             set { }
         }
         public int? RoleId
         {

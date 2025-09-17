@@ -13,5 +13,6 @@ namespace Orbits.GeneralProject.DTO.UserDto
         public int? NationalityId { get; set; }
         public int? GovernorateId { get; set; }
         public int? BranchId { get; set; }
+ 
     }
 }

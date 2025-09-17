@@ -5,6 +5,11 @@ namespace Orbits.GeneralProject.Core.Entities
 {
     public partial class Nationality:EntityBase
     {
+        public Nationality()
+        {
+            Users = new HashSet<User>();
+        }
+
         public int Id { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
@@ -12,5 +17,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ModefiedAt { get; set; }
         public string? Name { get; set; }
         public int? TelCode { get; set; }
+
+        public virtual ICollection<User> Users { get; set; }
     }
 }

@@ -506,5 +506,23 @@ namespace Orbits.GeneralProject.BLL
             return DateTime.Parse(gregorian.ToString("MM/dd/yyyy", arSA));
         }
 
+        public static bool HasAnyDataInRelatedTables<TEntity>(TEntity entity, params string[] toIgnore)
+        {
+            return entity.GetType()
+                .GetProperties()
+                .Where(prop => prop.PropertyType.IsGenericType &&
+                               prop.PropertyType.GetGenericTypeDefinition() == typeof(ICollection<>)
+                               && !toIgnore.Contains(prop.Name)
+                               )
+                .Any(prop =>
+                {
+                    var value = prop.GetValue(entity);
+                    if (value == null)
+                        return false;
+                    var countProperty = value.GetType().GetProperty("Count");
+                    return countProperty != null && (int)countProperty.GetValue(value) > 0;
+                });
+        }
+
     }
 }

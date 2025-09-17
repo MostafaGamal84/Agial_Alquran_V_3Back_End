@@ -1,15 +1,22 @@
-
-#region Configuration
-using Orbits.GeneralProject.BLL;
+﻿using Orbits.GeneralProject.BLL;
 using Orbits.GeneralProject.BLL.Mapping;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.Setting.Authentication;
 using Orbits.GeneralProject.DTO.Setting.Files;
 using Orbits.GeneralProject.Repositroy.Base;
+
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+
 using System.Data.SqlClient;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
-
+#region Configuration
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
@@ -19,37 +26,62 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 var env = builder.Environment.EnvironmentName;
 builder.WebHost.UseIIS();
 builder.WebHost.UseDefaultServiceProvider(options => options.ValidateScopes = false);
-builder.Configuration.SetBasePath(Directory.GetCurrentDirectory());
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-builder.Configuration.AddJsonFile($"appsettings.{env}.json", optional: false, reloadOnChange: true);
-builder.Configuration.AddEnvironmentVariables();
+
+builder.Configuration
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{env}.json", optional: false, reloadOnChange: true)
+    .AddEnvironmentVariables();
 #endregion
 
+// ----- Controllers
 builder.Services.AddControllers();
-#region config sec
-builder.Services.Configure<FileStorageSetting>(builder.Configuration.GetSection(AppsettingsEnum.FileStorageSetting.ToString()));
 
-builder.Services.Configure<AuthSetting>(
-    builder.Configuration.GetSection("AuthSetting"));
-#endregion config sec
-#region CORS
+// ----- Options (Config sections)
+builder.Services.Configure<FileStorageSetting>(builder.Configuration.GetSection(AppsettingsEnum.FileStorageSetting.ToString()));
+builder.Services.Configure<AuthSetting>(builder.Configuration.GetSection("AuthSetting"));
+
+// ----- CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("CorsPolicy", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    options.AddPolicy("CorsPolicy", p =>
+        p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
-#endregion
 
-#region HttpContextAccessor
+// ----- HttpContextAccessor
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-#endregion
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
+// ----- Swagger + Bearer
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "API", Version = "v1" });
 
-builder.Services.AddSwaggerGen();
+    var jwtSecurityScheme = new OpenApiSecurityScheme
+    {
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Description = "Put **ONLY** your JWT Bearer token here.",
+        Reference = new OpenApiReference
+        {
+            Id = "Bearer",
+            Type = ReferenceType.SecurityScheme
+        }
+    };
 
-#region BLL
+    c.AddSecurityDefinition("Bearer", jwtSecurityScheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { jwtSecurityScheme, Array.Empty<string>() }
+    });
+});
 
-foreach (var implementationType in typeof(BaseBLL).Assembly.GetTypes().Where(s => s.IsClass && s.Name.EndsWith("BLL") && !s.IsAbstract))
+// ----- BLL DI (scan)
+foreach (var implementationType in typeof(BaseBLL).Assembly.GetTypes()
+         .Where(t => t.IsClass && t.Name.EndsWith("BLL") && !t.IsAbstract))
 {
     foreach (var interfaceType in implementationType.GetInterfaces())
     {
@@ -57,51 +89,75 @@ foreach (var implementationType in typeof(BaseBLL).Assembly.GetTypes().Where(s =
     }
 }
 
-#endregion BLL
-//#region DexefStorageManager
-//builder.Services.AddScoped<IDexefStorageManager, DexefStorageManager>();
-//#endregion DexefStorageManager
-//builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-
-#region Repository
-
-builder.Services.AddScoped<IDbFactory, DbFactory>(s => new DbFactory(new SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+// ----- Repository
+builder.Services.AddScoped<IDbFactory, DbFactory>(s =>
+    new DbFactory(new SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-
-#endregion Repository
-
-#region Mapper
-
-builder.Services.AddAutoMapper(typeof(EntityToDtoMappingProfile), typeof(DtoToEntityMappingProfile), typeof(DtoMappingProfile));
-
-#endregion Mapper
-
-#region Repository
-
 builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 
-#endregion Repository
+// ----- AutoMapper
+builder.Services.AddAutoMapper(
+    typeof(EntityToDtoMappingProfile),
+    typeof(DtoToEntityMappingProfile),
+    typeof(DtoMappingProfile)
+);
+
+// ----- Cache
 builder.Services.AddMemoryCache();
-#region CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("CorsPolicy", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-});
-#endregion
+
+// ===== JWT Authentication =====
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // لا تعيد تسمية الـ claims داخليًا
+
+var authSetting = builder.Configuration.GetSection("AuthSetting").Get<AuthSetting>();
+if (authSetting == null || string.IsNullOrWhiteSpace(authSetting.Key))
+    throw new InvalidOperationException("AuthSetting:Key is missing in configuration.");
+
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authSetting.Key));
+
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false; // اجعلها true بالإنتاج على HTTPS
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateLifetime = true,
+
+            // مهم لتحديد ال Claims القياسية
+            NameClaimType = ClaimTypes.NameIdentifier,
+            RoleClaimType = ClaimTypes.Role
+        };
+    });
+
+// ===== Build app =====
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ----- Swagger (يمكن جعلها env-based لو تحب)
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseCors(policyName: "CorsPolicy");
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.UseStaticFiles();
-//#region Localization 
-//app.UseMiddleware<LocalizationMiddleware>();
-//#endregion
 
+// ----- CORS
+app.UseCors("CorsPolicy");
+
+// ----- HTTPS + Static
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+// ----- Authn/Authz (الترتيب مهم)
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ----- Map controllers
 app.MapControllers();
 
+// ----- Run
 app.Run();

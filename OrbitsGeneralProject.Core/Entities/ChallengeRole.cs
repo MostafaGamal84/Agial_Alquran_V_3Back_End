@@ -12,5 +12,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ModefiedAt { get; set; }
         public int? ChallengeId { get; set; }
         public int? RoleId { get; set; }
+
+        public virtual Role? Role { get; set; }
     }
 }

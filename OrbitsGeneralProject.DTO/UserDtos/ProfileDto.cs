@@ -8,15 +8,13 @@ namespace Orbits.GeneralProject.DTO.UserDtos
 {
     public class ProfileDto
     {
-        public string? UserName { get; set; }
-        public string? UserType { get; set; }
+        public int Id { get; set; }
+        public string? FullName { get; set; }
         public string? Email { get; set; }
         public string? Mobile { get; set; }
-        public string? JobName { get; set; }
-        public string? NationalId { get; set; }
-        public List<string>? Departments { get; set; }
-        public List<string>? Centers { get; set; }
-        public DateTime? BirthDate { get; set; }
-        public string? PhotoPath { get; set; }
+        public string? SecondMobile { get; set; }
+        public int? NationalityId { get; set; }
+        public int? GovernorateId { get; set; }
+        public int? BranchId { get; set; }
     }
 }

@@ -5,6 +5,11 @@ namespace Orbits.GeneralProject.Core.Entities
 {
     public partial class ManagerReportType:EntityBase
     {
+        public ManagerReportType()
+        {
+            ManagerReports = new HashSet<ManagerReport>();
+        }
+
         public int Id { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
@@ -12,5 +17,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ModefiedAt { get; set; }
         public string? ManagerReportTypeName { get; set; }
         public bool? IsDeleted { get; set; }
+
+        public virtual ICollection<ManagerReport> ManagerReports { get; set; }
     }
 }

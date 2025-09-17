@@ -8022,11 +8022,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Private\\Ajyal_Alquran_V_3\\OrbitsGeneralProject.Repositroy\\Orbits.GeneralProject.Repositroy.csproj",
+      "projectUniqueName": "D:\\Private\\Ajyal_Alquran_V_3\\Agial_Alquran_V_3_Backend\\OrbitsGeneralProject.Repositroy\\Orbits.GeneralProject.Repositroy.csproj",
       "projectName": "Orbits.GeneralProject.Repositroy",
-      "projectPath": "D:\\Private\\Ajyal_Alquran_V_3\\OrbitsGeneralProject.Repositroy\\Orbits.GeneralProject.Repositroy.csproj",
+      "projectPath": "D:\\Private\\Ajyal_Alquran_V_3\\Agial_Alquran_V_3_Backend\\OrbitsGeneralProject.Repositroy\\Orbits.GeneralProject.Repositroy.csproj",
       "packagesPath": "C:\\Users\\Mostafa Gamal\\.nuget\\packages\\",
-      "outputPath": "D:\\Private\\Ajyal_Alquran_V_3\\OrbitsGeneralProject.Repositroy\\obj\\",
+      "outputPath": "D:\\Private\\Ajyal_Alquran_V_3\\Agial_Alquran_V_3_Backend\\OrbitsGeneralProject.Repositroy\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -8047,8 +8047,8 @@
         "net7.0": {
           "targetAlias": "net7.0",
           "projectReferences": {
-            "D:\\Private\\Ajyal_Alquran_V_3\\OrbitsGeneralProject.Core\\Orbits.GeneralProject.Core.csproj": {
-              "projectPath": "D:\\Private\\Ajyal_Alquran_V_3\\OrbitsGeneralProject.Core\\Orbits.GeneralProject.Core.csproj"
+            "D:\\Private\\Ajyal_Alquran_V_3\\Agial_Alquran_V_3_Backend\\OrbitsGeneralProject.Core\\Orbits.GeneralProject.Core.csproj": {
+              "projectPath": "D:\\Private\\Ajyal_Alquran_V_3\\Agial_Alquran_V_3_Backend\\OrbitsGeneralProject.Core\\Orbits.GeneralProject.Core.csproj"
             }
           }
         }
@@ -8084,7 +8084,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
       }
     }
   }

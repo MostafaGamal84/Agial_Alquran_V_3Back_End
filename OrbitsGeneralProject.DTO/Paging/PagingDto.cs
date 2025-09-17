@@ -26,7 +26,7 @@ namespace Orbits.GeneralProject.DTO.Paging
         /// <value> The search term. </value>
         ///-------------------------------------------------------------------------------------------------
 
-        public virtual string SearchTerm { get; set; }
+        public virtual string? SearchTerm { get; set; }
 
         ///-------------------------------------------------------------------------------------------------
         /// <summary>   Gets or sets the filter. </summary>
@@ -34,11 +34,11 @@ namespace Orbits.GeneralProject.DTO.Paging
         /// <value> The filter. </value>
         ///-------------------------------------------------------------------------------------------------
 
-        public virtual string Filter { get; set; }
-        public virtual string Lang { get; set; } = "en";
+        public virtual string? Filter { get; set; }
+        public virtual string? Lang { get; set; } = "en";
 
-        public virtual string SortingDirection { get; set; } = "ASC";
-        public virtual string SortBy { get; set; } 
+        public virtual string? SortingDirection { get; set; } = "ASC";
+        public virtual string? SortBy { get; set; } 
 
     }
 

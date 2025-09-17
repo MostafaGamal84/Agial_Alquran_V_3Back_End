@@ -5,6 +5,12 @@ namespace Orbits.GeneralProject.Core.Entities
 {
     public partial class CircleReport:EntityBase
     {
+        public CircleReport()
+        {
+            StudentSubscribes = new HashSet<StudentSubscribe>();
+            TeacherReportRecords = new HashSet<TeacherReportRecord>();
+        }
+
         public int Id { get; set; }
         public double? Minutes { get; set; }
         public int? NewId { get; set; }
@@ -31,5 +37,11 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? CreatedBy { get; set; }
         public DateTime? ModifiedAt { get; set; }
         public int? ModifiedBy { get; set; }
+
+        public virtual Circle? Circle { get; set; }
+        public virtual User? Student { get; set; }
+        public virtual User? Teacher { get; set; }
+        public virtual ICollection<StudentSubscribe> StudentSubscribes { get; set; }
+        public virtual ICollection<TeacherReportRecord> TeacherReportRecords { get; set; }
     }
 }

@@ -52,6 +52,1139 @@
     ]
   },
   {
+    "ContainingType": "OrbitsProject.API.Controllers.CircleController",
+    "Method": "Create",
+    "RelativePath": "api/Circle/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.CircleDto.CreateCircleDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.CircleController",
+    "Method": "Delete",
+    "RelativePath": "api/Circle/Delete",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.CircleController",
+    "Method": "GetResultsByFilter",
+    "RelativePath": "api/Circle/GetResultsByFilter",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "managerId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "teacherId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.CircleDto.CircleDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.CircleController",
+    "Method": "Update",
+    "RelativePath": "api/Circle/Update",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.CircleDto.UpdateCircleDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.CircleReportController",
+    "Method": "Create",
+    "RelativePath": "api/CircleReport/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.CircleReportDtos.CircleReportAddDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.CircleReportController",
+    "Method": "GetResultsByFilter",
+    "RelativePath": "api/CircleReport/GetResultsByFilter",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "circleId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "studentId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.CircleReportDtos.CircleReportReDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.CircleReportController",
+    "Method": "Update",
+    "RelativePath": "api/CircleReport/Update",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.CircleReportDtos.CircleReportAddDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.DashboardController",
+    "Method": "GetMonthlyRevenue",
+    "RelativePath": "api/Dashboard/monthly-revenue",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "months",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.DashboardController",
+    "Method": "GetRepeatCustomers",
+    "RelativePath": "api/Dashboard/repeat-customers",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "months",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.DashboardController",
+    "Method": "GetRevenueByCurrency",
+    "RelativePath": "api/Dashboard/revenue-by-currency",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "startDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "endDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.DashboardController",
+    "Method": "GetSummary",
+    "RelativePath": "api/Dashboard/summary",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.LookUpController",
+    "Method": "GetAllGovernorate",
+    "RelativePath": "api/LookUp/GetAllGovernorate",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Collections.Generic.List\u00601[[Orbits.GeneralProject.DTO.LookupDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.LookUpController",
+    "Method": "GetAllNationality",
+    "RelativePath": "api/LookUp/GetAllNationality",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Collections.Generic.List\u00601[[Orbits.GeneralProject.DTO.RegionDtos.RegionDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.LookUpController",
+    "Method": "GetAllSubscribesByTypeId",
+    "RelativePath": "api/LookUp/GetAllSubscribesByTypeId",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Collections.Generic.List\u00601[[Orbits.GeneralProject.DTO.LookupDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.LookUpController",
+    "Method": "GetUsersByUserType",
+    "RelativePath": "api/LookUp/GetUsersByUserType",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserTypeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.LockUpDtos.UserLockUpDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.ManagerController",
+    "Method": "GetResultsByFilter",
+    "RelativePath": "api/Manager/GetResultsByFilter",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "userId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.ManagerDto.ManagerDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.StudentPaymentController",
+    "Method": "GetDashboard",
+    "RelativePath": "api/StudentPayment/Dashboard",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "studentId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "currencyId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "dataMonth",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "compareMonth",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.DTO.StudentSubscribDtos.StudentPaymentDtos.PaymentsFullDashboardDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.StudentPaymentController",
+    "Method": "GetPayment",
+    "RelativePath": "api/StudentPayment/GetPayment",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "paymentId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.StudentSubscribDtos.StudentPaymentDtos.StudentPaymentReDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.StudentPaymentController",
+    "Method": "GetInvoices",
+    "RelativePath": "api/StudentPayment/Invoices",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "tab",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "studentId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "createdFrom",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "createdTo",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "dueFrom",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "dueTo",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "month",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.StudentSubscribDtos.StudentPaymentDtos.StudentPaymentReDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.StudentPaymentController",
+    "Method": "UpdatePayment",
+    "RelativePath": "api/StudentPayment/UpdatePayment",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "ReceiptPath",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "PayStatue",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsCancelled",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.StudentSubscribController",
+    "Method": "Create",
+    "RelativePath": "api/StudentSubscrib/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.StudentSubscribDtos.AddStudentSubscribeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.StudentSubscribController",
+    "Method": "GetStudents",
+    "RelativePath": "api/StudentSubscrib/GetStudents",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "studentId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.StudentSubscribDtos.ViewStudentSubscribeReDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.StudentSubscribController",
+    "Method": "GetStudentSubscribesWithPayment",
+    "RelativePath": "api/StudentSubscrib/GetStudentSubscribesWithPayment",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "studentId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.StudentSubscribDtos.ViewStudentSubscribeReDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "CreateSubscribe",
+    "RelativePath": "api/Subscribe/CreateSubscribe",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.SubscribeDtos.CreateSubscribeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "CreateSubscribeType",
+    "RelativePath": "api/Subscribe/CreateSubscribeType",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.SubscribeDtos.CreateSubscribeTypeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "Delete",
+    "RelativePath": "api/Subscribe/Delete",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "DeleteType",
+    "RelativePath": "api/Subscribe/DeleteType",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "GetResultsByFilter",
+    "RelativePath": "api/Subscribe/GetResultsByFilter",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.SubscribeDtos.SubscribeReDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "GetTypeResultsByFilter",
+    "RelativePath": "api/Subscribe/GetTypeResultsByFilter",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.SubscribeDtos.SubscribeTypeReDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "Update",
+    "RelativePath": "api/Subscribe/Update",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.SubscribeDtos.CreateSubscribeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.SubscribeController",
+    "Method": "UpdateTypeUpdate",
+    "RelativePath": "api/Subscribe/UpdateType",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.SubscribeDtos.CreateSubscribeTypeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
     "ContainingType": "OrbitsProject.API.Controllers.UserController",
     "Method": "Create",
     "RelativePath": "api/User/Create",
@@ -68,6 +1201,159 @@
     "ReturnTypes": [
       {
         "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.UserController",
+    "Method": "DisableUser",
+    "RelativePath": "api/User/DisableUser",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "statue",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.UserController",
+    "Method": "GetProfile",
+    "RelativePath": "api/User/GetProfile",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.UserDtos.ProfileDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.UserController",
+    "Method": "Update",
+    "RelativePath": "api/User/Update",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "Orbits.GeneralProject.DTO.UserDtos.UpdateUserDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.UsersForGroupsController",
+    "Method": "GetUsersForSelects",
+    "RelativePath": "api/UsersForGroups/GetUsersForSelects",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SkipCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchTerm",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Filter",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Lang",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortingDirection",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SortBy",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MaxResultCount",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserTypeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "managerId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "teacherId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "branchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.Paging.PagedResultDto\u00601[[Orbits.GeneralProject.DTO.LockUpDtos.UserLockUpDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "MediaTypes": [
           "text/plain",
           "application/json",

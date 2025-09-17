@@ -126,13 +126,26 @@ namespace Orbits.GeneralProject.BLL.Constants
         public const string QuantityTypeIdRequired = "يجب إختيار النوع الذي سيتم تعديله";
     }
     #endregion
-    #region CenterValidationResponseConstants 
-    public static class CenterValidationResponseConstants
+    #region CircleValidationResponseConstants 
+    public static class CircleValidationResponseConstants
     {
         public const string NAME_Must_Not_Null = "الإسم لا يمكن اي يكون فارغا";
-        public const string Name_Max_Length = "لا يمكن أن يزيد اسم البلدية عن 250 حرف !";
+        public const string Name_Max_Length = "لا يمكن أن يزيد اسم الحلقة عن 250 حرف !";
         public const string ValidName = "لا يجب وضع علامات خاصة في الإسم";
-        public const string UserType = "يجب إختيار نوع البلدية";
+       
+    }
+    #endregion
+    #region CircleReportValidationResponseConstants 
+    public static class CircleReportValidationResponseConstants
+    {
+     
+        public const string Surah_Must_Not_Null = "اسم السورة لا يمكن اي يكون فارغا";
+        public const string Teacher_Must_Not_Null = "اسم المعلم لا يمكن اي يكون فارغا";
+        public const string Student_Must_Not_Null = "اسم الطالب لا يمكن اي يكون فارغا";
+        public const string Circle_Must_Not_Null = "اسم الحلقة لا يمكن اي يكون فارغا";
+        public const string Minutes_Must_Not_Null = " الدقائق لا يمكن اي تكون فارغة";
+
+
     }
     #endregion
     #region NeighborhoodValidationResponseConstants 
@@ -346,6 +359,8 @@ namespace Orbits.GeneralProject.BLL.Constants
         [Description("لا يمكن تكرار الإسم")]
         NameAlreadyExists = 7006,
 
+       
+
         [Description("اسم المستخدم موجود من قبل")]
         UserNameAlreadyExists = 7007,
 
@@ -400,11 +415,11 @@ namespace Orbits.GeneralProject.BLL.Constants
         FailedToUpdateIncidentWhenStatusNotWaitingForReview = 7029,
         [Description("لا يمكن تكليف هذا المستخدم لانه ليس تابع لنفس الإدارة أو البلدية لهذا البلاغ")]
         ThisUserNotFollowTheSameDepartmentOrCenter = 7030,
-        [Description("يوجد بلاغات مرتبطة بهذه درجة الخطورة")]
-        FailedToRemovePrioretyLevel= 7031,
-        [Description("ليس لك صلاحية التكليف")]
-        FailedToAssign= 7032,
-        [Description("لا يمكن اضافه القسم لهذا التصنيف")]
+        [Description("يوجد  طلاب مرتبطة بهذا الاشتراك")]
+        FailedToRemoveSubscribe= 7031,
+        [Description("يوجد  باقات مرتبطة بهذا النوع")]
+        FailedToRemoveSubscribeType = 7032,
+        [Description("لا يمكن اضافه ا لهذا التصنيف")]
         CanNotAddSubcategorytanotherDepartment =7033,
         [Description("هذا العنصر لدية ارتباطات ولا يمكن حذفه")]
         HasRelation = 7034,
@@ -466,7 +481,16 @@ namespace Orbits.GeneralProject.BLL.Constants
         CodeNotValidAnyMore = 7062,
         [Description("يجب تحديد النطاق الجغرافي")]
         MustSendCoordinates = 7063,
-
+        [Description("لا يمكن تكرار التقرير لنفس الطالب في نفس اليوم")]
+        ReportAlreadyExists = 7064,
+        [Description("لا يوجد طالب بهذا الاسم")]
+        StudentNotFound = 7065,
+        [Description("لا يوجد معلم بهذا الاسم")]
+        TeacherNotFound = 7066,
+        [Description("لا يوجد باقة لهذا الطالب")]
+        StudentSubscribeNotFound = 7067,
+        [Description("لا يوجد دقائق كافية لهذا الطالب")]
+        StudentMinutesNotFound = 7068,
     }
 
     #endregion BLL Responses MessageCodes
