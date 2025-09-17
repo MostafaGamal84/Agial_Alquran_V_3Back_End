@@ -6,6 +6,7 @@ using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.DTO.Dashboard;
 using Orbits.GeneralProject.Repositroy.Base;
 using System.Globalization;
+using System.Linq;
 
 namespace Orbits.GeneralProject.BLL.DashboardService
 {
@@ -23,6 +24,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         private readonly IRepository<CircleReport> _circleReportRepository;
         private readonly IRepository<TeacherSallary> _teacherSalaryRepository;
         private readonly IRepository<ManagerSallary> _managerSalaryRepository;
+        private readonly IRepository<Subscribe> _subscribeRepository;
+        private readonly IRepository<SubscribeType> _subscribeTypeRepository;
 
         public DashboardBLL(
             IMapper mapper,
@@ -30,13 +33,17 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             IRepository<User> UserRepository,
             IRepository<CircleReport> circleReportRepository,
             IRepository<TeacherSallary> teacherSalaryRepository,
-            IRepository<ManagerSallary> managerSalaryRepository) : base(mapper)
+            IRepository<ManagerSallary> managerSalaryRepository,
+            IRepository<Subscribe> subscribeRepository,
+            IRepository<SubscribeType> subscribeTypeRepository) : base(mapper)
         {
             _studentPaymentRepository = studentPaymentRepository;
             _UserRepository = UserRepository;
             _circleReportRepository = circleReportRepository;
             _teacherSalaryRepository = teacherSalaryRepository;
             _managerSalaryRepository = managerSalaryRepository;
+            _subscribeRepository = subscribeRepository;
+            _subscribeTypeRepository = subscribeTypeRepository;
         }
 
         public async Task<IResponse<DashboardSummaryDto>> GetSummaryAsync()
@@ -400,6 +407,132 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     TotalTeacherPayout = Round(totalTeacher),
                     TotalManagerPayout = Round(totalManager),
                     TotalNetIncome = Round(totalRevenue - totalTeacher - totalManager)
+                };
+
+                return output.CreateResponse(dto);
+            }
+            catch (Exception ex)
+            {
+                return output.CreateResponse(ex);
+            }
+        }
+
+        public async Task<IResponse<SubscriberTypeAnalyticsDto>> GetSubscribersByTypeAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            Response<SubscriberTypeAnalyticsDto> output = new();
+
+            try
+            {
+                var paymentsQuery = _studentPaymentRepository
+                    .Where(payment => payment.StudentId.HasValue && payment.StudentSubscribeId.HasValue);
+
+                if (startDate.HasValue)
+                {
+                    DateTime start = startDate.Value;
+                    paymentsQuery = paymentsQuery
+                        .Where(payment => payment.PaymentDate.HasValue && payment.PaymentDate.Value >= start);
+                }
+
+                if (endDate.HasValue)
+                {
+                    DateTime end = endDate.Value;
+                    paymentsQuery = paymentsQuery
+                        .Where(payment => payment.PaymentDate.HasValue && payment.PaymentDate.Value < end);
+                }
+
+                var subscriberTypeData = await (
+                    from payment in paymentsQuery
+                    join subscription in _subscribeRepository.GetAll()
+                        on payment.StudentSubscribeId equals subscription.Id
+                    join subscribeType in _subscribeTypeRepository.GetAll()
+                        on subscription.SubscribeTypeId equals subscribeType.Id into typeGroup
+                    from subscribeType in typeGroup.DefaultIfEmpty()
+                    select new
+                    {
+                        StudentId = payment.StudentId!.Value,
+                        TypeId = subscription.SubscribeTypeId,
+                        SubscribeTypeName = subscribeType != null ? subscribeType.Name : null,
+                        SubscriptionName = subscription.Name
+                    }).ToListAsync();
+
+                var normalizedData = subscriberTypeData
+                    .Select(entry =>
+                    {
+                        string label = entry.SubscribeTypeName ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(label))
+                        {
+                            label = entry.SubscriptionName ?? string.Empty;
+                        }
+
+                        if (string.IsNullOrWhiteSpace(label))
+                        {
+                            label = "Uncategorized";
+                        }
+
+                        return new
+                        {
+                            entry.StudentId,
+                            entry.TypeId,
+                            TypeName = label
+                        };
+                    })
+                    .ToList();
+
+                var breakdown = normalizedData
+                    .GroupBy(entry => new { entry.TypeId, entry.TypeName })
+                    .Select(group => new SubscriberTypeBreakdownDto
+                    {
+                        SubscribeTypeId = group.Key.TypeId,
+                        TypeName = group.Key.TypeName,
+                        SubscriberCount = group.Select(entry => entry.StudentId).Distinct().Count()
+                    })
+                    .OrderByDescending(dto => dto.SubscriberCount)
+                    .ToList();
+
+                int totalSubscriptions = breakdown.Sum(entry => entry.SubscriberCount);
+                int uniqueSubscribers = normalizedData.Select(entry => entry.StudentId).Distinct().Count();
+
+                foreach (var item in breakdown)
+                {
+                    item.Percentage = totalSubscriptions == 0
+                        ? 0m
+                        : Math.Round((decimal)item.SubscriberCount / totalSubscriptions * 100m, 2, MidpointRounding.AwayFromZero);
+                }
+
+                ChartDto chart = new()
+                {
+                    Categories = breakdown.Select(entry => entry.TypeName).ToList(),
+                    Series = new List<ChartSeriesDto>
+                    {
+                        new ChartSeriesDto
+                        {
+                            Name = "Subscribers",
+                            Data = breakdown.Select(entry => (decimal)entry.SubscriberCount).ToList()
+                        }
+                    }
+                };
+
+                PieChartDto pie = new()
+                {
+                    TotalValue = totalSubscriptions,
+                    Slices = breakdown.Select(entry => new PieChartSliceDto
+                    {
+                        Label = entry.TypeName,
+                        Value = entry.SubscriberCount,
+                        Percentage = entry.Percentage
+                    }).ToList()
+                };
+
+                SubscriberTypeAnalyticsDto dto = new()
+                {
+                    SubscribersByType = chart,
+                    Distribution = pie,
+                    Breakdown = breakdown,
+                    TotalSubscribers = totalSubscriptions,
+                    UniqueSubscribers = uniqueSubscribers,
+                    TotalSubscriptionTypes = breakdown.Count,
+                    StartDate = startDate,
+                    EndDate = endDate
                 };
 
                 return output.CreateResponse(dto);

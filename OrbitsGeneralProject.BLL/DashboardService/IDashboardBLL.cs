@@ -9,5 +9,6 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         Task<IResponse<RepeatCustomerRateDto>> GetRepeatCustomerRateAsync(int months = 6);
         Task<IResponse<MonthlyRevenueChartDto>> GetMonthlyRevenueAsync(int months = 6);
         Task<IResponse<PieChartDto>> GetRevenueByCurrencyAsync(DateTime? startDate = null, DateTime? endDate = null);
+        Task<IResponse<SubscriberTypeAnalyticsDto>> GetSubscribersByTypeAsync(DateTime? startDate = null, DateTime? endDate = null);
     }
 }
