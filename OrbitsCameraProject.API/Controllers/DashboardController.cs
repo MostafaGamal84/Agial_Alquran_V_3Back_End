@@ -37,5 +37,11 @@ namespace OrbitsProject.API.Controllers
         {
             return Ok(await _dashboardBLL.GetRevenueByCurrencyAsync(startDate, endDate));
         }
+
+        [HttpGet("subscribers/by-type")]
+        public async Task<IActionResult> GetSubscribersByType([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+        {
+            return Ok(await _dashboardBLL.GetSubscribersByTypeAsync(startDate, endDate));
+        }
     }
 }
