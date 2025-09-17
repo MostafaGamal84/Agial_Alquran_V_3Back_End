@@ -10,6 +10,7 @@ using Orbits.GeneralProject.DTO.SubscribeDtos;
 using Orbits.GeneralProject.Repositroy.Base;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -62,6 +63,8 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
             {
                 var studentSubscribesQuery = _StudentSubscribeRepository
                     .GetAll(true)
+                    .AsNoTracking()
+
                     .Where(x => x.StudentSubscribeTypeId.HasValue);
 
                 var subscriptions = await studentSubscribesQuery
@@ -130,11 +133,22 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
                         : Math.Round((decimal)item.SubscriptionCount / totalSubscriptions * 100m, 2, MidpointRounding.AwayFromZero);
                 }
 
+                List<SubscribeTypeLegendDto> legendItems = breakdown
+                    .Select(item => new SubscribeTypeLegendDto
+                    {
+                        Name = item.Name,
+                        Value = item.SubscriptionCount.ToString("N0", CultureInfo.InvariantCulture)
+                    })
+                    .ToList();
+
+
                 SubscribeTypeStatisticsDto statistics = new()
                 {
                     Labels = breakdown.Select(item => item.Name).ToList(),
                     Series = breakdown.Select(item => item.SubscriptionCount).ToList(),
                     Items = breakdown,
+                    Legends = legendItems,
+
                     TotalSubscriptions = totalSubscriptions,
                     UniqueSubscribers = uniqueSubscribers
                 };

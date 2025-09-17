@@ -10,6 +10,9 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 
         public List<SubscribeTypeStatisticItemDto> Items { get; set; } = new();
 
+        public List<SubscribeTypeLegendDto> Legends { get; set; } = new();
+
+
         public int TotalSubscriptions { get; set; }
 
         public int UniqueSubscribers { get; set; }
@@ -27,4 +30,12 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 
         public decimal Percentage { get; set; }
     }
+
+    public class SubscribeTypeLegendDto
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public string Value { get; set; } = string.Empty;
+    }
+
 }
