@@ -12,6 +12,7 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 
         public List<SubscribeTypeLegendDto> Legends { get; set; } = new();
 
+
         public int TotalSubscriptions { get; set; }
 
         public int UniqueSubscribers { get; set; }
@@ -36,4 +37,5 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 
         public string Value { get; set; } = string.Empty;
     }
+
 }

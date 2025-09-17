@@ -64,6 +64,7 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
                 var studentSubscribesQuery = _StudentSubscribeRepository
                     .GetAll(true)
                     .AsNoTracking()
+
                     .Where(x => x.StudentSubscribeTypeId.HasValue);
 
                 var subscriptions = await studentSubscribesQuery
@@ -140,12 +141,14 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
                     })
                     .ToList();
 
+
                 SubscribeTypeStatisticsDto statistics = new()
                 {
                     Labels = breakdown.Select(item => item.Name).ToList(),
                     Series = breakdown.Select(item => item.SubscriptionCount).ToList(),
                     Items = breakdown,
                     Legends = legendItems,
+
                     TotalSubscriptions = totalSubscriptions,
                     UniqueSubscribers = uniqueSubscribers
                 };
