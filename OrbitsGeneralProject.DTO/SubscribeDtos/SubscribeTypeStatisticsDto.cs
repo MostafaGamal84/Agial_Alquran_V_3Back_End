@@ -28,6 +28,7 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 
         public int Value { get; set; }
 
+
         public decimal Percentage { get; set; }
     }
 
@@ -41,4 +42,5 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 
         public decimal Percentage { get; set; }
     }
+
 }
