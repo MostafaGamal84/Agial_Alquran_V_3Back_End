@@ -27,7 +27,6 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
         public string Label { get; set; } = string.Empty;
 
         public int Value { get; set; }
-
         public decimal Percentage { get; set; }
     }
 
