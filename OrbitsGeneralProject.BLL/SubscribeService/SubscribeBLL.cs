@@ -79,7 +79,8 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
                 var studentSubscriptions = await _StudentSubscribeRepository
                     .GetAll(true)
                     .AsNoTracking()
-                    .Where(subscription => subscription.StudentSubscribeTypeId.HasValue && !subscription.IsDeleted)
+                    .Where(subscription => subscription.StudentSubscribeTypeId.HasValue)
+
                     .Select(subscription => new
                     {
                         TypeId = subscription.StudentSubscribeTypeId!.Value,
