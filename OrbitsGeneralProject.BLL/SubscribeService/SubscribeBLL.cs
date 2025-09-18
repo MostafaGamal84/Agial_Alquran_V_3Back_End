@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using FluentValidation.Results;
+using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.Core.Entities;
@@ -20,13 +21,15 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
         private readonly IMapper _mapper;
         private readonly IRepository<Subscribe> _SubscribeRepository;
         private readonly IRepository<SubscribeType> _SubscribeTypeRepository;
+        private readonly IRepository<StudentSubscribe> _StudentSubscribeRepository;
         private readonly IUnitOfWork _unitOfWork;
-        public SubscribeBLL(IMapper mapper, IRepository<Subscribe> SubscribeRepository, IUnitOfWork unitOfWork, IRepository<SubscribeType> subscribeTypeRepository) : base(mapper)
+        public SubscribeBLL(IMapper mapper, IRepository<Subscribe> SubscribeRepository, IUnitOfWork unitOfWork, IRepository<SubscribeType> subscribeTypeRepository, IRepository<StudentSubscribe> studentSubscribeRepository) : base(mapper)
         {
             _mapper = mapper;
             _SubscribeRepository = SubscribeRepository;
             _unitOfWork = unitOfWork;
             _SubscribeTypeRepository = subscribeTypeRepository;
+            _StudentSubscribeRepository = studentSubscribeRepository;
         }
         public IResponse<PagedResultDto<SubscribeReDto>> GetPagedList(FilteredResultRequestDto pagedDto)
         {
@@ -49,6 +52,122 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
               disableFilter: true,
               excluededColumns: null);
             return output.CreateResponse(list);
+        }
+
+        public async Task<IResponse<SubscribeTypeStatisticsDto>> GetTypeStatisticsAsync()
+        {
+            Response<SubscribeTypeStatisticsDto> output = new();
+
+            try
+            {
+                var subscribeTypes = await _SubscribeTypeRepository
+                    .GetAll(true)
+                    .AsNoTracking()
+                    .Where(type => type.IsDeleted != true)
+                    .Select(type => new
+                    {
+                        type.Id,
+                        Name = (type.Name ?? string.Empty).Trim()
+                    })
+                    .ToListAsync();
+
+                var activeTypeIds = subscribeTypes
+                    .Select(type => type.Id)
+                    .ToHashSet();
+
+                var studentSubscriptions = await _StudentSubscribeRepository
+                    .GetAll(true)
+                    .AsNoTracking()
+                    .Where(subscription => subscription.StudentSubscribeTypeId.HasValue && !subscription.IsDeleted)
+                    .Select(subscription => new
+                    {
+                        TypeId = subscription.StudentSubscribeTypeId!.Value,
+                        subscription.StudentId
+                    })
+                    .ToListAsync();
+
+                var filteredSubscriptions = studentSubscriptions
+                    .Where(subscription => activeTypeIds.Contains(subscription.TypeId))
+                    .ToList();
+
+                var groupedSubscriptions = filteredSubscriptions
+                    .GroupBy(subscription => subscription.TypeId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => new
+                        {
+                            SubscriptionCount = group.Count(),
+                            UniqueStudentCount = group
+                                .Select(subscription => subscription.StudentId)
+                                .Where(studentId => studentId.HasValue)
+                                .Select(studentId => studentId!.Value)
+                                .Distinct()
+                                .Count()
+                        });
+
+                int totalSubscriptions = groupedSubscriptions
+                    .Values
+                    .Sum(group => group.SubscriptionCount);
+
+                int totalUniqueSubscribers = filteredSubscriptions
+                    .Select(subscription => subscription.StudentId)
+                    .Where(studentId => studentId.HasValue)
+                    .Select(studentId => studentId!.Value)
+                    .Distinct()
+                    .Count();
+
+                decimal CalculatePercentage(int value, int total) => total == 0
+                    ? 0m
+                    : Math.Round((decimal)value / total * 100m, 2, MidpointRounding.AwayFromZero);
+
+                var breakdown = subscribeTypes
+                    .Select(type =>
+                    {
+                        groupedSubscriptions.TryGetValue(type.Id, out var counts);
+
+                        int subscriberCount = counts?.SubscriptionCount ?? 0;
+                        string displayName = string.IsNullOrWhiteSpace(type.Name) ? "غير محدد" : type.Name;
+
+                        return new SubscribeTypeBreakdownItemDto
+                        {
+                            SubscribeTypeId = type.Id,
+                            TypeName = displayName,
+                            SubscriberCount = subscriberCount,
+                            Percentage = CalculatePercentage(subscriberCount, totalSubscriptions)
+                        };
+                    })
+                    .OrderByDescending(item => item.SubscriberCount)
+                    .ThenBy(item => item.TypeName)
+                    .ToList();
+
+                SubscribeTypeDistributionDto distribution = new()
+                {
+                    TotalValue = totalSubscriptions,
+                    Slices = breakdown
+                        .Select(item => new SubscribeTypeDistributionSliceDto
+                        {
+                            Label = item.TypeName,
+                            Value = item.SubscriberCount,
+                            Percentage = item.Percentage
+                        })
+                        .ToList()
+                };
+
+                SubscribeTypeStatisticsDto statistics = new()
+                {
+                    Distribution = distribution,
+                    Breakdown = breakdown,
+                    TotalSubscribers = totalSubscriptions,
+                    UniqueSubscribers = totalUniqueSubscribers,
+                    TotalSubscriptionTypes = subscribeTypes.Count
+                };
+
+                return output.CreateResponse(statistics);
+            }
+            catch (Exception ex)
+            {
+                return output.CreateResponse(ex);
+            }
         }
         public async Task<IResponse<bool>> AddAsync(CreateSubscribeDto model, int userId)
         {
