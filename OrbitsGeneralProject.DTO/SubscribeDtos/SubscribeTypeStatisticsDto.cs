@@ -4,38 +4,43 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 {
     public class SubscribeTypeStatisticsDto
     {
-        public List<string> Labels { get; set; } = new();
+        public SubscribeTypeDistributionDto Distribution { get; set; } = new();
 
-        public List<int> Series { get; set; } = new();
+        public List<SubscribeTypeBreakdownItemDto> Breakdown { get; set; } = new();
 
-        public List<SubscribeTypeStatisticItemDto> Items { get; set; } = new();
-
-        public List<SubscribeTypeLegendDto> Legends { get; set; } = new();
-
-
-        public int TotalSubscriptions { get; set; }
+        public int TotalSubscribers { get; set; }
 
         public int UniqueSubscribers { get; set; }
+
+        public int TotalSubscriptionTypes { get; set; }
     }
 
-    public class SubscribeTypeStatisticItemDto
+    public class SubscribeTypeDistributionDto
     {
-        public int? SubscribeTypeId { get; set; }
+        public int TotalValue { get; set; }
 
-        public string Name { get; set; } = string.Empty;
+        public List<SubscribeTypeDistributionSliceDto> Slices { get; set; } = new();
+    }
 
-        public int SubscriptionCount { get; set; }
+    public class SubscribeTypeDistributionSliceDto
+    {
+        public string Label { get; set; } = string.Empty;
 
-        public int UniqueStudentCount { get; set; }
+        public int Value { get; set; }
+
 
         public decimal Percentage { get; set; }
     }
 
-    public class SubscribeTypeLegendDto
+    public class SubscribeTypeBreakdownItemDto
     {
-        public string Name { get; set; } = string.Empty;
+        public int SubscribeTypeId { get; set; }
 
-        public string Value { get; set; } = string.Empty;
+        public string TypeName { get; set; } = string.Empty;
+
+        public int SubscriberCount { get; set; }
+
+        public decimal Percentage { get; set; }
     }
 
 }

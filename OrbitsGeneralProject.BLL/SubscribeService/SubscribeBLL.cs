@@ -61,96 +61,106 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
 
             try
             {
-                var studentSubscribesQuery = _StudentSubscribeRepository
+                var subscribeTypes = await _SubscribeTypeRepository
                     .GetAll(true)
                     .AsNoTracking()
-
-                    .Where(x => x.StudentSubscribeTypeId.HasValue);
-
-                var subscriptions = await studentSubscribesQuery
-                    .Select(x => new
+                    .Where(type => type.IsDeleted != true)
+                    .Select(type => new
                     {
-                        x.StudentId,
-                        x.StudentSubscribeTypeId,
-                        SubscribeTypeName = x.StudentSubscribeType != null ? x.StudentSubscribeType.Name : null,
-                        SubscribeName = x.StudentSubscribeNavigation != null ? x.StudentSubscribeNavigation.Name : null
+                        type.Id,
+                        Name = (type.Name ?? string.Empty).Trim()
                     })
                     .ToListAsync();
 
-                var normalizedData = subscriptions
-                    .Select(entry =>
+                var activeTypeIds = subscribeTypes
+                    .Select(type => type.Id)
+                    .ToHashSet();
+
+                var studentSubscriptions = await _StudentSubscribeRepository
+                    .GetAll(true)
+                    .AsNoTracking()
+                    .Where(subscription => subscription.StudentSubscribeTypeId.HasValue && !subscription.IsDeleted)
+                    .Select(subscription => new
                     {
-                        string typeName = entry.SubscribeTypeName ?? string.Empty;
-
-                        if (string.IsNullOrWhiteSpace(typeName))
-                        {
-                            typeName = entry.SubscribeName ?? string.Empty;
-                        }
-
-                        if (string.IsNullOrWhiteSpace(typeName))
-                        {
-                            typeName = "Uncategorized";
-                        }
-
-                        return new
-                        {
-                            entry.StudentId,
-                            TypeId = entry.StudentSubscribeTypeId,
-                            TypeName = typeName
-                        };
+                        TypeId = subscription.StudentSubscribeTypeId!.Value,
+                        subscription.StudentId
                     })
+                    .ToListAsync();
+
+                var filteredSubscriptions = studentSubscriptions
+                    .Where(subscription => activeTypeIds.Contains(subscription.TypeId))
                     .ToList();
 
-                var breakdown = normalizedData
-                    .GroupBy(entry => new { entry.TypeId, entry.TypeName })
-                    .Select(group => new SubscribeTypeStatisticItemDto
-                    {
-                        SubscribeTypeId = group.Key.TypeId,
-                        Name = group.Key.TypeName,
-                        SubscriptionCount = group.Count(),
-                        UniqueStudentCount = group
-                            .Select(entry => entry.StudentId)
-                            .Where(id => id.HasValue)
-                            .Select(id => id!.Value)
-                            .Distinct()
-                            .Count()
-                    })
-                    .OrderByDescending(item => item.SubscriptionCount)
-                    .ToList();
+                var groupedSubscriptions = filteredSubscriptions
+                    .GroupBy(subscription => subscription.TypeId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => new
+                        {
+                            SubscriptionCount = group.Count(),
+                            UniqueStudentCount = group
+                                .Select(subscription => subscription.StudentId)
+                                .Where(studentId => studentId.HasValue)
+                                .Select(studentId => studentId!.Value)
+                                .Distinct()
+                                .Count()
+                        });
 
-                int totalSubscriptions = breakdown.Sum(item => item.SubscriptionCount);
-                int uniqueSubscribers = normalizedData
-                    .Select(entry => entry.StudentId)
-                    .Where(id => id.HasValue)
-                    .Select(id => id!.Value)
+                int totalSubscriptions = groupedSubscriptions
+                    .Values
+                    .Sum(group => group.SubscriptionCount);
+
+                int totalUniqueSubscribers = filteredSubscriptions
+                    .Select(subscription => subscription.StudentId)
+                    .Where(studentId => studentId.HasValue)
+                    .Select(studentId => studentId!.Value)
                     .Distinct()
                     .Count();
 
-                foreach (var item in breakdown)
-                {
-                    item.Percentage = totalSubscriptions == 0
-                        ? 0m
-                        : Math.Round((decimal)item.SubscriptionCount / totalSubscriptions * 100m, 2, MidpointRounding.AwayFromZero);
-                }
+                decimal CalculatePercentage(int value, int total) => total == 0
+                    ? 0m
+                    : Math.Round((decimal)value / total * 100m, 2, MidpointRounding.AwayFromZero);
 
-                List<SubscribeTypeLegendDto> legendItems = breakdown
-                    .Select(item => new SubscribeTypeLegendDto
+                var breakdown = subscribeTypes
+                    .Select(type =>
                     {
-                        Name = item.Name,
-                        Value = item.SubscriptionCount.ToString("N0", CultureInfo.InvariantCulture)
+                        groupedSubscriptions.TryGetValue(type.Id, out var counts);
+
+                        int subscriberCount = counts?.SubscriptionCount ?? 0;
+                        string displayName = string.IsNullOrWhiteSpace(type.Name) ? "غير محدد" : type.Name;
+
+                        return new SubscribeTypeBreakdownItemDto
+                        {
+                            SubscribeTypeId = type.Id,
+                            TypeName = displayName,
+                            SubscriberCount = subscriberCount,
+                            Percentage = CalculatePercentage(subscriberCount, totalSubscriptions)
+                        };
                     })
+                    .OrderByDescending(item => item.SubscriberCount)
+                    .ThenBy(item => item.TypeName)
                     .ToList();
 
+                SubscribeTypeDistributionDto distribution = new()
+                {
+                    TotalValue = totalSubscriptions,
+                    Slices = breakdown
+                        .Select(item => new SubscribeTypeDistributionSliceDto
+                        {
+                            Label = item.TypeName,
+                            Value = item.SubscriberCount,
+                            Percentage = item.Percentage
+                        })
+                        .ToList()
+                };
 
                 SubscribeTypeStatisticsDto statistics = new()
                 {
-                    Labels = breakdown.Select(item => item.Name).ToList(),
-                    Series = breakdown.Select(item => item.SubscriptionCount).ToList(),
-                    Items = breakdown,
-                    Legends = legendItems,
-
-                    TotalSubscriptions = totalSubscriptions,
-                    UniqueSubscribers = uniqueSubscribers
+                    Distribution = distribution,
+                    Breakdown = breakdown,
+                    TotalSubscribers = totalSubscriptions,
+                    UniqueSubscribers = totalUniqueSubscribers,
+                    TotalSubscriptionTypes = subscribeTypes.Count
                 };
 
                 return output.CreateResponse(statistics);
