@@ -23,9 +23,30 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int teacherId, DateTime? month = null);
 
         /// <summary>
+        /// Returns salary invoices optionally filtered by teacher and/or month.
+        /// </summary>
+        /// <param name="month">Optional month filter. The day component is ignored.</param>
+        /// <param name="teacherId">Optional teacher filter.</param>
+        Task<IResponse<IEnumerable<TeacherInvoiceDto>>> GetInvoicesAsync(DateTime? month = null, int? teacherId = null);
+
+        /// <summary>
+        /// Retrieves a salary invoice along with contextual summary information.
+        /// </summary>
+        /// <param name="invoiceId">The invoice identifier.</param>
+        Task<IResponse<TeacherSallaryDetailsDto>> GetInvoiceDetailsAsync(int invoiceId);
+
+        /// <summary>
         /// Retrieves a salary invoice by its identifier.
         /// </summary>
         /// <param name="invoiceId">The invoice identifier.</param>
         Task<IResponse<TeacherInvoiceDto>> GetInvoiceByIdAsync(int invoiceId);
+
+        /// <summary>
+        /// Updates the payment status of a salary invoice.
+        /// </summary>
+        /// <param name="invoiceId">The invoice identifier.</param>
+        /// <param name="dto">Payload describing the desired status.</param>
+        /// <param name="userId">User identifier for audit columns.</param>
+        Task<IResponse<TeacherInvoiceDto>> UpdateInvoiceStatusAsync(int invoiceId, UpdateTeacherSallaryStatusDto dto, int userId);
     }
 }
