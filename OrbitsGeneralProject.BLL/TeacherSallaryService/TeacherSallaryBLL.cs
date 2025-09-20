@@ -182,8 +182,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var query = _teacherSallaryRepository
-                    .Where(invoice => invoice.IsDeleted != true);
-
+                    .GetAll();
                 if (teacherId.HasValue)
                 {
                     query = query.Where(invoice => invoice.TeacherId == teacherId.Value);
@@ -254,7 +253,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var invoiceData = await _teacherSallaryRepository
-                    .Where(invoice => invoice.Id == invoiceId && invoice.IsDeleted != true)
+                    .Where(invoice => invoice.Id == invoiceId)
+
                     .Select(invoice => new
                     {
                         Invoice = invoice,
@@ -325,7 +325,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var invoice = await _teacherSallaryRepository
-                    .Where(i => i.Id == invoiceId && i.IsDeleted != true)
+                    .Where(i => i.Id == invoiceId)
+
                     .Include(i => i.Teacher)
                     .FirstOrDefaultAsync();
 
@@ -344,7 +345,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 await _unitOfWork.CommitAsync();
 
                 var updated = await ProjectInvoices(
-                        _teacherSallaryRepository.Where(i => i.Id == invoice.Id && i.IsDeleted != true))
+                        _teacherSallaryRepository.Where(i => i.Id == invoice.Id))
+
                     .FirstOrDefaultAsync();
 
                 if (updated == null)
@@ -367,7 +369,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var invoice = await ProjectInvoices(
-                        _teacherSallaryRepository.Where(invoice => invoice.Id == invoiceId && invoice.IsDeleted != true))
+                        _teacherSallaryRepository.Where(invoice => invoice.Id == invoiceId))
+
                     .FirstOrDefaultAsync();
 
                 if (invoice == null)
@@ -415,7 +418,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             var invoice = await ProjectInvoices(
                     _teacherSallaryRepository.Where(invoice =>
                         invoice.TeacherId == teacherId &&
-                        invoice.IsDeleted != true &&
+
                         invoice.Month.HasValue &&
                         invoice.Month.Value.Year == monthStart.Year &&
                         invoice.Month.Value.Month == monthStart.Month))
