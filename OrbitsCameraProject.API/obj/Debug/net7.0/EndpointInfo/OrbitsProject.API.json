@@ -2097,6 +2097,55 @@
         }
       }
     },
+    "/api/TeacherSallary/Invoices": {
+      "get": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIEnumerableIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIEnumerableIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIEnumerableIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/TeacherSallary/MonthlySummary": {
       "get": {
         "tags": [
@@ -2163,6 +2212,107 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/TeacherSallary/Invoice/{invoiceId}/Details": {
+      "get": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryDetailsDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryDetailsDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryDetailsDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/TeacherSallary/Invoice/{invoiceId}/Status": {
+      "put": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherSallaryStatusDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherSallaryStatusDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherSallaryStatusDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success",
@@ -3751,6 +3901,29 @@
         },
         "additionalProperties": false
       },
+      "TeacherInvoiceDtoIEnumerableIResponse": {
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TErrorField"
+            },
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeacherInvoiceDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "TeacherInvoiceDtoIResponse": {
         "type": "object",
         "properties": {
@@ -3830,6 +4003,37 @@
           },
           "data": {
             "$ref": "#/components/schemas/TeacherMonthlySummaryDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherSallaryDetailsDto": {
+        "type": "object",
+        "properties": {
+          "invoice": {
+            "$ref": "#/components/schemas/TeacherInvoiceDto"
+          },
+          "monthlySummary": {
+            "$ref": "#/components/schemas/TeacherMonthlySummaryDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherSallaryDetailsDtoIResponse": {
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TErrorField"
+            },
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TeacherSallaryDetailsDto"
           }
         },
         "additionalProperties": false
@@ -3921,6 +4125,20 @@
               "type": "integer",
               "format": "int32"
             },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateTeacherSallaryStatusDto": {
+        "type": "object",
+        "properties": {
+          "isPayed": {
+            "type": "boolean"
+          },
+          "payedAt": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         },

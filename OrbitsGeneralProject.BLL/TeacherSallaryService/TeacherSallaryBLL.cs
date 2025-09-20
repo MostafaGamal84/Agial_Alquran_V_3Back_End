@@ -182,7 +182,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var query = _teacherSallaryRepository
-                    .Where(invoice => invoice.IsDeleted != true);
+                    .Where(x=>x.TeacherId != null);
 
                 if (teacherId.HasValue)
                 {
