@@ -175,6 +175,44 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
+        public async Task<IResponse<IEnumerable<TeacherInvoiceDto>>> GetInvoicesAsync(DateTime? month = null, int? teacherId = null)
+        {
+            var response = new Response<IEnumerable<TeacherInvoiceDto>>();
+
+            try
+            {
+                var query = _teacherSallaryRepository
+                    .Where(invoice => invoice.IsDeleted != true);
+
+                if (teacherId.HasValue)
+                {
+                    query = query.Where(invoice => invoice.TeacherId == teacherId.Value);
+                }
+
+                if (month.HasValue)
+                {
+                    var monthStart = new DateTime(month.Value.Year, month.Value.Month, 1);
+                    var monthEnd = monthStart.AddMonths(1);
+
+                    query = query.Where(invoice =>
+                        invoice.Month.HasValue &&
+                        invoice.Month.Value >= monthStart &&
+                        invoice.Month.Value < monthEnd);
+                }
+
+                var invoices = await ProjectInvoices(query)
+                    .OrderByDescending(invoice => invoice.Month)
+                    .ThenBy(invoice => invoice.TeacherName)
+                    .ToListAsync();
+
+                return response.CreateResponse(invoices);
+            }
+            catch (Exception ex)
+            {
+                return response.CreateResponse(ex);
+            }
+        }
+
         public async Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int teacherId, DateTime? month = null)
         {
             var response = new Response<TeacherMonthlySummaryDto>();
@@ -199,74 +237,122 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     monthStart = monthStart.AddMonths(-1);
                 }
 
-                DateTime monthEnd = monthStart.AddMonths(1);
+                var summary = await BuildMonthlySummaryAsync(teacher.Id, teacher.FullName, monthStart);
 
-                var teacherRecords = await _teacherReportRepository
-                    .Where(record =>
-                        record.TeacherId == teacher.Id &&
-                        record.IsDeleted != true &&
-                        record.CreatedAt.HasValue &&
-                        record.CreatedAt.Value >= monthStart &&
-                        record.CreatedAt.Value < monthEnd)
-                    .Include(record => record.CircleReport)
-                    .Select(record => new
+                return response.CreateResponse(summary);
+            }
+            catch (Exception ex)
+            {
+                return response.CreateResponse(ex);
+            }
+        }
+
+        public async Task<IResponse<TeacherSallaryDetailsDto>> GetInvoiceDetailsAsync(int invoiceId)
+        {
+            var response = new Response<TeacherSallaryDetailsDto>();
+
+            try
+            {
+                var invoiceData = await _teacherSallaryRepository
+                    .Where(invoice => invoice.Id == invoiceId && invoice.IsDeleted != true)
+                    .Select(invoice => new
                     {
-                        Minutes = record.Minutes ?? 0,
-                        Salary = (double?)(record.CircleSallary ?? 0) ?? 0d,
-                        AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null
-                    })
-                    .ToListAsync();
-
-                int totalReports = teacherRecords.Count;
-                int totalMinutes = teacherRecords.Sum(r => r.Minutes);
-                double totalSalary = teacherRecords.Sum(r => r.Salary);
-                int presentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent);
-                int absentWithExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse);
-                int absentWithoutExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse);
-
-                totalSalary = Math.Round(totalSalary, 2, MidpointRounding.AwayFromZero);
-
-                var invoice = await _teacherSallaryRepository
-                    .Where(invoice =>
-                        invoice.TeacherId == teacher.Id &&
-                        invoice.Month.HasValue &&
-                        invoice.Month.Value.Year == monthStart.Year &&
-                        invoice.Month.Value.Month == monthStart.Month)
-                    .Select(invoice => new TeacherInvoiceDto
-                    {
-                        Id = invoice.Id,
-                        TeacherId = invoice.TeacherId,
-                        TeacherName = invoice.Teacher != null ? invoice.Teacher.FullName : null,
-                        Month = invoice.Month,
-                        Salary = invoice.Sallary,
-                        IsPayed = invoice.IsPayed,
-                        PayedAt = invoice.PayedAt,
-                        ReceiptPath = invoice.ReceiptPath,
-                        CreatedAt = invoice.CreatedAt,
-                        ModefiedAt = invoice.ModefiedAt
+                        Invoice = invoice,
+                        TeacherName = invoice.Teacher != null ? invoice.Teacher.FullName : null
                     })
                     .FirstOrDefaultAsync();
 
-                if (invoice != null && string.IsNullOrWhiteSpace(invoice.TeacherName))
+                if (invoiceData == null)
                 {
-                    invoice.TeacherName = teacher.FullName;
+                    return response.CreateResponse(MessageCodes.NotFound);
                 }
 
-                var summary = new TeacherMonthlySummaryDto
+                var invoiceDto = new TeacherInvoiceDto
                 {
-                    TeacherId = teacher.Id,
-                    TeacherName = teacher.FullName,
-                    Month = monthStart,
-                    TotalReports = totalReports,
-                    TotalMinutes = totalMinutes,
-                    PresentCount = presentCount,
-                    AbsentWithExcuseCount = absentWithExcuseCount,
-                    AbsentWithoutExcuseCount = absentWithoutExcuseCount,
-                    TotalSalary = totalSalary,
-                    Invoice = invoice
+                    Id = invoiceData.Invoice.Id,
+                    TeacherId = invoiceData.Invoice.TeacherId,
+                    TeacherName = invoiceData.TeacherName,
+                    Month = invoiceData.Invoice.Month,
+                    Salary = invoiceData.Invoice.Sallary,
+                    IsPayed = invoiceData.Invoice.IsPayed,
+                    PayedAt = invoiceData.Invoice.PayedAt,
+                    ReceiptPath = invoiceData.Invoice.ReceiptPath,
+                    CreatedAt = invoiceData.Invoice.CreatedAt,
+                    ModefiedAt = invoiceData.Invoice.ModefiedAt
                 };
 
-                return response.CreateResponse(summary);
+                TeacherMonthlySummaryDto? summary = null;
+
+                if (invoiceDto.TeacherId.HasValue && invoiceDto.Month.HasValue)
+                {
+                    var teacherName = invoiceDto.TeacherName;
+
+                    if (string.IsNullOrWhiteSpace(teacherName))
+                    {
+                        teacherName = await _userRepository
+                            .Where(user => user.Id == invoiceDto.TeacherId.Value && !user.IsDeleted)
+                            .Select(user => user.FullName)
+                            .FirstOrDefaultAsync();
+                    }
+
+                    var monthStart = new DateTime(invoiceDto.Month.Value.Year, invoiceDto.Month.Value.Month, 1);
+                    summary = await BuildMonthlySummaryAsync(invoiceDto.TeacherId.Value, teacherName, monthStart);
+
+                    if (summary != null && summary.Invoice == null)
+                    {
+                        summary.Invoice = invoiceDto;
+                    }
+                }
+
+                var details = new TeacherSallaryDetailsDto
+                {
+                    Invoice = invoiceDto,
+                    MonthlySummary = summary
+                };
+
+                return response.CreateResponse(details);
+            }
+            catch (Exception ex)
+            {
+                return response.CreateResponse(ex);
+            }
+        }
+
+        public async Task<IResponse<TeacherInvoiceDto>> UpdateInvoiceStatusAsync(int invoiceId, UpdateTeacherSallaryStatusDto dto, int userId)
+        {
+            var response = new Response<TeacherInvoiceDto>();
+
+            try
+            {
+                var invoice = await _teacherSallaryRepository
+                    .Where(i => i.Id == invoiceId && i.IsDeleted != true)
+                    .Include(i => i.Teacher)
+                    .FirstOrDefaultAsync();
+
+                if (invoice == null)
+                {
+                    return response.CreateResponse(MessageCodes.NotFound);
+                }
+
+                invoice.IsPayed = dto.IsPayed;
+                invoice.PayedAt = dto.IsPayed
+                    ? dto.PayedAt ?? DateTime.UtcNow
+                    : null;
+                invoice.ModefiedAt = DateTime.UtcNow;
+                invoice.ModefiedBy = userId;
+
+                await _unitOfWork.CommitAsync();
+
+                var updated = await ProjectInvoices(
+                        _teacherSallaryRepository.Where(i => i.Id == invoice.Id && i.IsDeleted != true))
+                    .FirstOrDefaultAsync();
+
+                if (updated == null)
+                {
+                    return response.CreateResponse(MessageCodes.NotFound);
+                }
+
+                return response.CreateResponse(updated);
             }
             catch (Exception ex)
             {
@@ -280,21 +366,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
             try
             {
-                var invoice = await _teacherSallaryRepository
-                    .Where(invoice => invoice.Id == invoiceId)
-                    .Select(invoice => new TeacherInvoiceDto
-                    {
-                        Id = invoice.Id,
-                        TeacherId = invoice.TeacherId,
-                        TeacherName = invoice.Teacher != null ? invoice.Teacher.FullName : null,
-                        Month = invoice.Month,
-                        Salary = invoice.Sallary,
-                        IsPayed = invoice.IsPayed,
-                        PayedAt = invoice.PayedAt,
-                        ReceiptPath = invoice.ReceiptPath,
-                        CreatedAt = invoice.CreatedAt,
-                        ModefiedAt = invoice.ModefiedAt
-                    })
+                var invoice = await ProjectInvoices(
+                        _teacherSallaryRepository.Where(invoice => invoice.Id == invoiceId && invoice.IsDeleted != true))
                     .FirstOrDefaultAsync();
 
                 if (invoice == null)
@@ -308,6 +381,81 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             {
                 return response.CreateResponse(ex);
             }
+        }
+
+        private async Task<TeacherMonthlySummaryDto> BuildMonthlySummaryAsync(int teacherId, string? teacherName, DateTime monthStart)
+        {
+            DateTime monthEnd = monthStart.AddMonths(1);
+
+            var teacherRecords = await _teacherReportRepository
+                .Where(record =>
+                    record.TeacherId == teacherId &&
+                    record.IsDeleted != true &&
+                    record.CreatedAt.HasValue &&
+                    record.CreatedAt.Value >= monthStart &&
+                    record.CreatedAt.Value < monthEnd)
+                .Include(record => record.CircleReport)
+                .Select(record => new
+                {
+                    Minutes = record.Minutes ?? 0,
+                    Salary = (double?)(record.CircleSallary ?? 0) ?? 0d,
+                    AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null
+                })
+                .ToListAsync();
+
+            int totalReports = teacherRecords.Count;
+            int totalMinutes = teacherRecords.Sum(r => r.Minutes);
+            double totalSalary = teacherRecords.Sum(r => r.Salary);
+            int presentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent);
+            int absentWithExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse);
+            int absentWithoutExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse);
+
+            totalSalary = Math.Round(totalSalary, 2, MidpointRounding.AwayFromZero);
+
+            var invoice = await ProjectInvoices(
+                    _teacherSallaryRepository.Where(invoice =>
+                        invoice.TeacherId == teacherId &&
+                        invoice.IsDeleted != true &&
+                        invoice.Month.HasValue &&
+                        invoice.Month.Value.Year == monthStart.Year &&
+                        invoice.Month.Value.Month == monthStart.Month))
+                .FirstOrDefaultAsync();
+
+            if (invoice != null && string.IsNullOrWhiteSpace(invoice.TeacherName))
+            {
+                invoice.TeacherName = teacherName;
+            }
+
+            return new TeacherMonthlySummaryDto
+            {
+                TeacherId = teacherId,
+                TeacherName = teacherName,
+                Month = monthStart,
+                TotalReports = totalReports,
+                TotalMinutes = totalMinutes,
+                PresentCount = presentCount,
+                AbsentWithExcuseCount = absentWithExcuseCount,
+                AbsentWithoutExcuseCount = absentWithoutExcuseCount,
+                TotalSalary = totalSalary,
+                Invoice = invoice
+            };
+        }
+
+        private static IQueryable<TeacherInvoiceDto> ProjectInvoices(IQueryable<TeacherSallary> query)
+        {
+            return query.Select(invoice => new TeacherInvoiceDto
+            {
+                Id = invoice.Id,
+                TeacherId = invoice.TeacherId,
+                TeacherName = invoice.Teacher != null ? invoice.Teacher.FullName : null,
+                Month = invoice.Month,
+                Salary = invoice.Sallary,
+                IsPayed = invoice.IsPayed,
+                PayedAt = invoice.PayedAt,
+                ReceiptPath = invoice.ReceiptPath,
+                CreatedAt = invoice.CreatedAt,
+                ModefiedAt = invoice.ModefiedAt
+            });
         }
     }
 }

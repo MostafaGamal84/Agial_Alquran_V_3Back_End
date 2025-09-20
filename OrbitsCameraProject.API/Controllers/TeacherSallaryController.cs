@@ -30,6 +30,19 @@ namespace OrbitsProject.API.Controllers
         }
 
         /// <summary>
+        /// Returns salary invoices optionally filtered by month or teacher.
+        /// </summary>
+        /// <param name="month">Optional month filter.</param>
+        /// <param name="teacherId">Optional teacher filter.</param>
+        [HttpGet("Invoices")]
+        [ProducesResponseType(typeof(IResponse<IEnumerable<TeacherInvoiceDto>>), 200)]
+        public async Task<IActionResult> GetInvoices([FromQuery] DateTime? month = null, [FromQuery] int? teacherId = null)
+        {
+            var result = await _teacherSallaryBll.GetInvoicesAsync(month, teacherId);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Returns a monthly summary for a teacher including attendance breakdown and salary totals.
         /// </summary>
         /// <param name="teacherId">Optional teacher identifier. Defaults to the authenticated user.</param>
@@ -52,6 +65,31 @@ namespace OrbitsProject.API.Controllers
         public async Task<IActionResult> GetInvoice(int invoiceId)
         {
             var result = await _teacherSallaryBll.GetInvoiceByIdAsync(invoiceId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Retrieves detailed information for a specific salary invoice.
+        /// </summary>
+        /// <param name="invoiceId">The invoice identifier.</param>
+        [HttpGet("Invoice/{invoiceId:int}/Details")]
+        [ProducesResponseType(typeof(IResponse<TeacherSallaryDetailsDto>), 200)]
+        public async Task<IActionResult> GetInvoiceDetails(int invoiceId)
+        {
+            var result = await _teacherSallaryBll.GetInvoiceDetailsAsync(invoiceId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Updates the payment status of a salary invoice.
+        /// </summary>
+        /// <param name="invoiceId">The invoice identifier.</param>
+        /// <param name="dto">Payload describing the desired status.</param>
+        [HttpPut("Invoice/{invoiceId:int}/Status")]
+        [ProducesResponseType(typeof(IResponse<TeacherInvoiceDto>), 200)]
+        public async Task<IActionResult> UpdateInvoiceStatus(int invoiceId, [FromBody] UpdateTeacherSallaryStatusDto dto)
+        {
+            var result = await _teacherSallaryBll.UpdateInvoiceStatusAsync(invoiceId, dto, UserId);
             return Ok(result);
         }
     }
