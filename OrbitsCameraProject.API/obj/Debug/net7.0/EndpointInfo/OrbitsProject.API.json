@@ -647,6 +647,38 @@
         }
       }
     },
+    "/api/Dashboard/subscribers/by-type": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/LookUp/GetUsersByUserType": {
       "get": {
         "tags": [
@@ -1724,6 +1756,35 @@
         }
       }
     },
+    "/api/Subscribe/TypeStatistics": {
+      "get": {
+        "tags": [
+          "Subscribe"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscribeTypeStatisticsDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscribeTypeStatisticsDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscribeTypeStatisticsDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/Subscribe/CreateSubscribe": {
       "post": {
         "tags": [
@@ -1989,6 +2050,136 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/TeacherSallary/GenerateMonthly": {
+      "post": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryGenerationResultDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryGenerationResultDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryGenerationResultDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/TeacherSallary/MonthlySummary": {
+      "get": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "parameters": [
+          {
+            "name": "teacherId",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherMonthlySummaryDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherMonthlySummaryDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherMonthlySummaryDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/TeacherSallary/Invoice/{invoiceId}": {
+      "get": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
                 }
               }
             }
@@ -3322,6 +3513,63 @@
         },
         "additionalProperties": false
       },
+      "SubscribeTypeBreakdownItemDto": {
+        "type": "object",
+        "properties": {
+          "subscribeTypeId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "typeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "subscriberCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubscribeTypeDistributionDto": {
+        "type": "object",
+        "properties": {
+          "totalValue": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscribeTypeDistributionSliceDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubscribeTypeDistributionSliceDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
       "SubscribeTypeReDto": {
         "type": "object",
         "properties": {
@@ -3382,6 +3630,53 @@
         },
         "additionalProperties": false
       },
+      "SubscribeTypeStatisticsDto": {
+        "type": "object",
+        "properties": {
+          "distribution": {
+            "$ref": "#/components/schemas/SubscribeTypeDistributionDto"
+          },
+          "breakdown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscribeTypeBreakdownItemDto"
+            },
+            "nullable": true
+          },
+          "totalSubscribers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uniqueSubscribers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalSubscriptionTypes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubscribeTypeStatisticsDtoIResponse": {
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TErrorField"
+            },
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/SubscribeTypeStatisticsDto"
+          }
+        },
+        "additionalProperties": false
+      },
       "TErrorField": {
         "type": "object",
         "properties": {
@@ -3400,6 +3695,198 @@
           "fieldLang": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherInvoiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teacherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "teacherName": {
+            "type": "string",
+            "nullable": true
+          },
+          "month": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "salary": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "isPayed": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "payedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "receiptPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "modefiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherInvoiceDtoIResponse": {
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TErrorField"
+            },
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TeacherInvoiceDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherMonthlySummaryDto": {
+        "type": "object",
+        "properties": {
+          "teacherId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teacherName": {
+            "type": "string",
+            "nullable": true
+          },
+          "month": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalReports": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "presentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "absentWithExcuseCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "absentWithoutExcuseCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalSalary": {
+            "type": "number",
+            "format": "double"
+          },
+          "invoice": {
+            "$ref": "#/components/schemas/TeacherInvoiceDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherMonthlySummaryDtoIResponse": {
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TErrorField"
+            },
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TeacherMonthlySummaryDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherSallaryGenerationResultDto": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdInvoices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedInvoices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skippedPaidInvoices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skippedZeroValueInvoices": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalTeachers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalSalary": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeacherSallaryGenerationResultDtoIResponse": {
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TErrorField"
+            },
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TeacherSallaryGenerationResultDto"
           }
         },
         "additionalProperties": false

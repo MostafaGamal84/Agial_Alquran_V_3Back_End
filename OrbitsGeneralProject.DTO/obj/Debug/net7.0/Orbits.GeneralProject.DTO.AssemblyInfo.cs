@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Orbits.GeneralProject.DTO")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8869f58adb227e7c55279b2843e3edae78cfd986")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4ded8f1c42fc05e062ec44579dded7497ba3c036")]
 [assembly: System.Reflection.AssemblyProductAttribute("Orbits.GeneralProject.DTO")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Orbits.GeneralProject.DTO")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
