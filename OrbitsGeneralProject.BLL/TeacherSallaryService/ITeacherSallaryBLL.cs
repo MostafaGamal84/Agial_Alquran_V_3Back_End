@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.DTO.TeacherSallaryDtos;
 
@@ -16,11 +17,12 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         Task<IResponse<TeacherSallaryGenerationResultDto>> GenerateMonthlyInvoicesAsync(DateTime? month = null, int? createdBy = null);
 
         /// <summary>
-        /// Calculates a teacher's activity summary for a specific month including attendance breakdown and salary totals.
+        /// Calculates teacher activity summaries for a specific month including attendance breakdowns and salary totals.
         /// </summary>
-        /// <param name="teacherId">The teacher identifier.</param>
+        /// <param name="teacherId">Optional teacher identifier filter.</param>
         /// <param name="month">Optional month filter. When omitted the previous calendar month is used.</param>
-        Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int teacherId, DateTime? month = null);
+        /// <returns>A single summary for the requested teacher or a combined summary for all teachers when no identifier is supplied.</returns>
+        Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null);
 
         /// <summary>
         /// Returns salary invoices optionally filtered by teacher and/or month.

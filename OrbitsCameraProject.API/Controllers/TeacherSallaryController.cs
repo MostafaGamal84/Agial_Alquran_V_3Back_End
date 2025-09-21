@@ -51,16 +51,15 @@ namespace OrbitsProject.API.Controllers
         }
 
         /// <summary>
-        /// Returns a monthly summary for a teacher including attendance breakdown and salary totals.
+        /// Returns monthly summaries including attendance breakdown and salary totals.
         /// </summary>
-        /// <param name="teacherId">Optional teacher identifier. Defaults to the authenticated user.</param>
+        /// <param name="teacherId">Optional teacher identifier. When omitted summaries for all teachers are returned.</param>
         /// <param name="month">Optional month (the day component is ignored).</param>
         [HttpGet("MonthlySummary")]
         [ProducesResponseType(typeof(IResponse<TeacherMonthlySummaryDto>), 200)]
         public async Task<IActionResult> GetMonthlySummary([FromQuery] int? teacherId = null, [FromQuery] DateTime? month = null)
         {
-            var targetTeacherId = teacherId ?? UserId;
-            var result = await _teacherSallaryBll.GetMonthlySummaryAsync(targetTeacherId, month);
+            var result = await _teacherSallaryBll.GetMonthlySummaryAsync(teacherId, month);
             return Ok(result);
         }
 
