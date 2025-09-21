@@ -21,7 +21,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         /// </summary>
         /// <param name="teacherId">Optional teacher identifier filter.</param>
         /// <param name="month">Optional month filter. When omitted the previous calendar month is used.</param>
-        Task<IResponse<IEnumerable<TeacherMonthlySummaryDto>>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null);
+        /// <returns>A single summary for the requested teacher or a combined summary for all teachers when no identifier is supplied.</returns>
+        Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null);
 
         /// <summary>
         /// Returns salary invoices optionally filtered by teacher and/or month.

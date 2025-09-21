@@ -221,7 +221,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        public async Task<IResponse<IEnumerable<TeacherMonthlySummaryDto>>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null)
+        public async Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null)
         {
             var response = new Response<IEnumerable<TeacherMonthlySummaryDto>>();
 
@@ -231,47 +231,84 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 DateTime monthStart = new(reference.Year, reference.Month, 1);
 
                 if (!month.HasValue)
-                {
-                    monthStart = monthStart.AddMonths(-1);
-                }
 
-                var teachersQuery = _userRepository
-                    .Where(user => !user.IsDeleted);
-
-                if (teacherId.HasValue)
-                {
-                    teachersQuery = teachersQuery.Where(user => user.Id == teacherId.Value);
-                }
-                else
-                {
-                    teachersQuery = teachersQuery.Where(user => user.UserTypeId == (int)UserTypesEnum.Teacher);
-                }
-
-                var teachers = await teachersQuery
-                    .OrderBy(user => user.FullName)
-                    .ThenBy(user => user.Id)
-                    .Select(user => new { user.Id, user.FullName })
-                    .ToListAsync();
-
-                if (teacherId.HasValue && teachers.Count == 0)
-                {
-                    return response.CreateResponse(MessageCodes.TeacherNotFound);
-                }
-
-                if (teachers.Count == 0)
                 {
                     return response.CreateResponse(Array.Empty<TeacherMonthlySummaryDto>());
                 }
 
-                var summaries = new List<TeacherMonthlySummaryDto>(teachers.Count);
-
-                foreach (var teacher in teachers)
+                if (teacherId.HasValue)
                 {
+                    var teacher = await _userRepository
+                        .Where(user => user.Id == teacherId.Value && !user.IsDeleted)
+                        .Select(user => new { user.Id, user.FullName })
+                        .FirstOrDefaultAsync();
+
+                    if (teacher == null)
+                    {
+                        return response.CreateResponse(MessageCodes.TeacherNotFound);
+                    }
+
                     var summary = await BuildMonthlySummaryAsync(teacher.Id, teacher.FullName, monthStart);
-                    summaries.Add(summary);
+                    return response.CreateResponse(summary);
                 }
 
-                return response.CreateResponse(summaries);
+                var activeTeacherIds = await _userRepository
+                    .Where(user => !user.IsDeleted && user.UserTypeId == (int)UserTypesEnum.Teacher)
+                    .Select(user => user.Id)
+                    .ToListAsync();
+
+                if (activeTeacherIds.Count == 0)
+                {
+                    return response.CreateResponse(new TeacherMonthlySummaryDto
+                    {
+                        TeacherId = 0,
+                        TeacherName = null,
+                        Month = monthStart,
+                        TotalReports = 0,
+                        TotalMinutes = 0,
+                        PresentCount = 0,
+                        AbsentWithExcuseCount = 0,
+                        AbsentWithoutExcuseCount = 0,
+                        TotalSalary = 0,
+                        Invoice = null
+                    });
+                }
+
+                DateTime monthEnd = monthStart.AddMonths(1);
+
+                var teacherRecords = await _teacherReportRepository
+                    .Where(record =>
+                        record.TeacherId.HasValue &&
+                        activeTeacherIds.Contains(record.TeacherId.Value) &&
+                        record.IsDeleted != true &&
+                        record.CreatedAt.HasValue &&
+                        record.CreatedAt.Value >= monthStart &&
+                        record.CreatedAt.Value < monthEnd)
+                    .Select(record => new
+                    {
+                        Minutes = record.Minutes ?? 0,
+                        Salary = (double?)(record.CircleSallary ?? 0) ?? 0d,
+                        AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null
+                    })
+                    .ToListAsync();
+
+                var totalSalary = Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
+
+                var aggregateSummary = new TeacherMonthlySummaryDto
+                {
+                    TeacherId = 0,
+                    TeacherName = null,
+                    Month = monthStart,
+                    TotalReports = teacherRecords.Count,
+                    TotalMinutes = teacherRecords.Sum(r => r.Minutes),
+                    PresentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent),
+                    AbsentWithExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse),
+                    AbsentWithoutExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse),
+                    TotalSalary = totalSalary,
+                    Invoice = null
+                };
+
+                return response.CreateResponse(aggregateSummary);
             }
             catch (Exception ex)
             {
