@@ -93,7 +93,7 @@ namespace OrbitsProject.API.Controllers
         /// </summary>
         /// <param name="invoiceId">The invoice identifier.</param>
         /// <param name="dto">Payload describing the desired status.</param>
-        [HttpPut("Invoice/{invoiceId:int}/Status")]
+        [HttpPost("Invoice/{invoiceId:int}/Status")]
         [ProducesResponseType(typeof(IResponse<TeacherInvoiceDto>), 200)]
         public async Task<IActionResult> UpdateInvoiceStatus(int invoiceId, [FromBody] UpdateTeacherSallaryStatusDto dto)
         {
@@ -175,17 +175,17 @@ namespace OrbitsProject.API.Controllers
 
             var errorCode = response.Errors?.FirstOrDefault()?.Code;
 
-            if (errorCode == MessageCodes.NotFound.StringValue())
+            if (errorCode == MessageCodes.NotFound.ToString())
             {
                 return NotFound(response);
             }
 
-            if (errorCode == MessageCodes.UnAuthorizedAccess.StringValue())
+            if (errorCode == MessageCodes.UnAuthorizedAccess.ToString())
             {
                 return StatusCode(StatusCodes.Status403Forbidden, response);
             }
 
-            if (errorCode == MessageCodes.Exception.StringValue())
+            if (errorCode == MessageCodes.Exception.ToString())
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, response);
             }

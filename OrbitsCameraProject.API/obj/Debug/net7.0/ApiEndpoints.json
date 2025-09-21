@@ -1,5 +1,201 @@
 [
   {
+    "ContainingType": "OrbitsProject.API.Controllers.AdminTeacherSalaryController",
+    "Method": "GenerateInvoices",
+    "RelativePath": "admin/teacher-salary/generate",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "month",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherSallaryGenerationResultDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.AdminTeacherSalaryController",
+    "Method": "GetInvoices",
+    "RelativePath": "admin/teacher-salary/invoices",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "month",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "teacherId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Collections.Generic.IEnumerable\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherInvoiceDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.AdminTeacherSalaryController",
+    "Method": "GetInvoiceDetails",
+    "RelativePath": "admin/teacher-salary/invoices/{invoiceId}/details",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoiceId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherSallaryDetailsDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.AdminTeacherSalaryController",
+    "Method": "UpdateInvoicePayment",
+    "RelativePath": "admin/teacher-salary/invoices/{invoiceId}/payment",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoiceId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "Orbits.GeneralProject.DTO.TeacherSallaryDtos.UpdateTeacherSallaryStatusDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherInvoiceDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.AdminTeacherSalaryController",
+    "Method": "UploadInvoiceReceipt",
+    "RelativePath": "admin/teacher-salary/invoices/{invoiceId}/receipt",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoiceId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "InvoiceId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "Receipt",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "System.Nullable\u00601[[System.Double, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "PayStatue",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsCancelled",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherInvoiceDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.AdminTeacherSalaryController",
+    "Method": "GetMonthlySummary",
+    "RelativePath": "admin/teacher-salary/monthly-summary",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "teacherId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "month",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherMonthlySummaryDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
     "ContainingType": "OrbitsProject.API.Controllers.AccountController",
     "Method": "Login",
     "RelativePath": "api/Account/Login",
@@ -1253,6 +1449,22 @@
   },
   {
     "ContainingType": "OrbitsProject.API.Controllers.TeacherSallaryController",
+    "Method": "GetPaymentReceipt",
+    "RelativePath": "api/TeacherSallary/GetPaymentReceipt",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoiceId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.TeacherSallaryController",
     "Method": "GetInvoice",
     "RelativePath": "api/TeacherSallary/Invoice/{invoiceId}",
     "HttpMethod": "GET",
@@ -1307,7 +1519,7 @@
     "ContainingType": "OrbitsProject.API.Controllers.TeacherSallaryController",
     "Method": "UpdateInvoiceStatus",
     "RelativePath": "api/TeacherSallary/Invoice/{invoiceId}/Status",
-    "HttpMethod": "PUT",
+    "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
@@ -1387,6 +1599,52 @@
     "ReturnTypes": [
       {
         "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherMonthlySummaryDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "OrbitsProject.API.Controllers.TeacherSallaryController",
+    "Method": "UpdatePayment",
+    "RelativePath": "api/TeacherSallary/UpdatePayment",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "System.Nullable\u00601[[System.Double, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "ReceiptPath",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "PayStatue",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsCancelled",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Boolean, System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "MediaTypes": [
           "text/plain",
           "application/json",

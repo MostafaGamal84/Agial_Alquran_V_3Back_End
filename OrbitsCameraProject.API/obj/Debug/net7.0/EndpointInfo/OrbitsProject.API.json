@@ -101,6 +101,332 @@
         }
       }
     },
+    "/admin/teacher-salary/invoices": {
+      "get": {
+        "tags": [
+          "AdminTeacherSalary"
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIEnumerableIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIEnumerableIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIEnumerableIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/teacher-salary/invoices/{invoiceId}/details": {
+      "get": {
+        "tags": [
+          "AdminTeacherSalary"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryDetailsDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryDetailsDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryDetailsDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/teacher-salary/invoices/{invoiceId}/payment": {
+      "patch": {
+        "tags": [
+          "AdminTeacherSalary"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherSallaryStatusDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherSallaryStatusDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherSallaryStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/teacher-salary/invoices/{invoiceId}/receipt": {
+      "post": {
+        "tags": [
+          "AdminTeacherSalary"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "style": "simple",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "InvoiceId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "Receipt": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "PayStatue": {
+                    "type": "boolean"
+                  },
+                  "IsCancelled": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "encoding": {
+                "InvoiceId": {
+                  "style": "form"
+                },
+                "Receipt": {
+                  "style": "form"
+                },
+                "Amount": {
+                  "style": "form"
+                },
+                "PayStatue": {
+                  "style": "form"
+                },
+                "IsCancelled": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/teacher-salary/monthly-summary": {
+      "get": {
+        "tags": [
+          "AdminTeacherSalary"
+        ],
+        "parameters": [
+          {
+            "name": "teacherId",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherMonthlySummaryDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherMonthlySummaryDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherMonthlySummaryDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/teacher-salary/generate": {
+      "post": {
+        "tags": [
+          "AdminTeacherSalary"
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryGenerationResultDtoIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryGenerationResultDtoIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherSallaryGenerationResultDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/Circle/GetResultsByFilter": {
       "get": {
         "tags": [
@@ -2278,7 +2604,7 @@
       }
     },
     "/api/TeacherSallary/Invoice/{invoiceId}/Status": {
-      "put": {
+      "post": {
         "tags": [
           "TeacherSallary"
         ],
@@ -2330,6 +2656,104 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TeacherInvoiceDtoIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/TeacherSallary/GetPaymentReceipt": {
+      "get": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/TeacherSallary/UpdatePayment": {
+      "post": {
+        "tags": [
+          "TeacherSallary"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Id": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "ReceiptPath": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "PayStatue": {
+                    "type": "boolean"
+                  },
+                  "IsCancelled": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "encoding": {
+                "Id": {
+                  "style": "form"
+                },
+                "Amount": {
+                  "style": "form"
+                },
+                "ReceiptPath": {
+                  "style": "form"
+                },
+                "PayStatue": {
+                  "style": "form"
+                },
+                "IsCancelled": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanIResponse"
                 }
               }
             }

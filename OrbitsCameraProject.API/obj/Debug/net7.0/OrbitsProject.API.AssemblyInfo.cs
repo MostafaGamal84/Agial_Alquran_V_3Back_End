@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OrbitsProject.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+28add2ebf6a9ee425134d26d66ad0a85e0dd4c77")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2fe1f92dba0b6ea5364fd539b5f0d40b188da3e2")]
 [assembly: System.Reflection.AssemblyProductAttribute("OrbitsProject.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OrbitsProject.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
