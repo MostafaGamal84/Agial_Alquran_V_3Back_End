@@ -1,4 +1,10 @@
+using System;
+using System.IO;
+using System.Linq;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.TeacherSallaryService;
 using Orbits.GeneralProject.DTO.TeacherSallaryDtos;
@@ -10,10 +16,12 @@ namespace OrbitsProject.API.Controllers
     public class TeacherSallaryController : AppBaseController
     {
         private readonly ITeacherSallaryBLL _teacherSallaryBll;
+        private readonly IHostEnvironment _hostEnvironment;
 
-        public TeacherSallaryController(ITeacherSallaryBLL teacherSallaryBll)
+        public TeacherSallaryController(ITeacherSallaryBLL teacherSallaryBll, IHostEnvironment hostEnvironment)
         {
             _teacherSallaryBll = teacherSallaryBll;
+            _hostEnvironment = hostEnvironment;
         }
 
         /// <summary>
@@ -91,6 +99,98 @@ namespace OrbitsProject.API.Controllers
         {
             var result = await _teacherSallaryBll.UpdateInvoiceStatusAsync(invoiceId, dto, UserId);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Returns the stored PDF receipt for a specific teacher salary payment.
+        /// </summary>
+        /// <param name="invoiceId">The invoice identifier.</param>
+        [HttpGet("GetPaymentReceipt")]
+        public async Task<IActionResult> GetPaymentReceipt([FromQuery] int invoiceId)
+        {
+            var receiptResponse = await _teacherSallaryBll.GetPaymentReceiptPathAsync(invoiceId);
+
+            if (!receiptResponse.IsSuccess)
+            {
+                return MapError(receiptResponse);
+            }
+
+            if (string.IsNullOrWhiteSpace(receiptResponse.Data))
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var rootPath = Path.GetFullPath(_hostEnvironment.ContentRootPath);
+                if (!rootPath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+                {
+                    rootPath += Path.DirectorySeparatorChar;
+                }
+
+                var sanitizedRelativePath = receiptResponse.Data
+                    .Replace('\\', Path.DirectorySeparatorChar)
+                    .Replace('/', Path.DirectorySeparatorChar)
+                    .TrimStart(Path.DirectorySeparatorChar);
+
+                var physicalPath = Path.GetFullPath(Path.Combine(rootPath, sanitizedRelativePath));
+
+                if (!physicalPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase) || !System.IO.File.Exists(physicalPath))
+                {
+                    return NotFound();
+                }
+
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(physicalPath);
+                var fileName = Path.GetFileName(physicalPath);
+
+                return File(fileBytes, "application/pdf", fileName);
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    Message = "Failed to read the requested receipt file."
+                });
+            }
+        }
+
+        /// <summary>
+        /// Updates teacher salary payment metadata and uploads the optional receipt file.
+        /// </summary>
+        /// <param name="dto">Multipart form payload.</param>
+        [HttpPost("UpdatePayment")]
+        [ProducesResponseType(typeof(IResponse<bool>), 200)]
+        public async Task<IActionResult> UpdatePayment([FromForm] UpdateTeacherPaymentDto dto)
+        {
+            var result = await _teacherSallaryBll.UpdatePaymentAsync(dto, UserId);
+            return Ok(result);
+        }
+
+        private IActionResult MapError<T>(IResponse<T> response)
+        {
+            if (response.IsSuccess)
+            {
+                return Ok(response);
+            }
+
+            var errorCode = response.Errors?.FirstOrDefault()?.Code;
+
+            if (errorCode == MessageCodes.NotFound.StringValue())
+            {
+                return NotFound(response);
+            }
+
+            if (errorCode == MessageCodes.UnAuthorizedAccess.StringValue())
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+            }
+
+            if (errorCode == MessageCodes.Exception.StringValue())
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, response);
+            }
+
+            return BadRequest(response);
         }
     }
 }

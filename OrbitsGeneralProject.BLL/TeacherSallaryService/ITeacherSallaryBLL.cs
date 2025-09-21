@@ -48,5 +48,18 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         /// <param name="dto">Payload describing the desired status.</param>
         /// <param name="userId">User identifier for audit columns.</param>
         Task<IResponse<TeacherInvoiceDto>> UpdateInvoiceStatusAsync(int invoiceId, UpdateTeacherSallaryStatusDto dto, int userId);
+
+        /// <summary>
+        /// Updates payment information for a salary invoice including optional receipt upload.
+        /// </summary>
+        /// <param name="dto">Form payload containing the payment data.</param>
+        /// <param name="userId">User identifier for audit columns.</param>
+        Task<IResponse<bool>> UpdatePaymentAsync(UpdateTeacherPaymentDto dto, int userId);
+
+        /// <summary>
+        /// Resolves the stored receipt path for the requested invoice.
+        /// </summary>
+        /// <param name="invoiceId">The invoice identifier.</param>
+        Task<IResponse<string?>> GetPaymentReceiptPathAsync(int invoiceId);
     }
 }

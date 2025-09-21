@@ -1,7 +1,9 @@
+using System;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
+using Orbits.GeneralProject.BLL.FilesUploaderService;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.TeacherSallaryDtos;
@@ -19,18 +21,21 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         private readonly IRepository<TeacherSallary> _teacherSallaryRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IFileServiceBLL _fileService;
 
         public TeacherSallaryBLL(
             IMapper mapper,
             IRepository<TeacherReportRecord> teacherReportRepository,
             IRepository<TeacherSallary> teacherSallaryRepository,
             IRepository<User> userRepository,
-            IUnitOfWork unitOfWork) : base(mapper)
+            IUnitOfWork unitOfWork,
+            IFileServiceBLL fileService) : base(mapper)
         {
             _teacherReportRepository = teacherReportRepository;
             _teacherSallaryRepository = teacherSallaryRepository;
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
+            _fileService = fileService;
         }
 
         public async Task<IResponse<TeacherSallaryGenerationResultDto>> GenerateMonthlyInvoicesAsync(DateTime? month = null, int? createdBy = null)
@@ -356,6 +361,94 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 }
 
                 return response.CreateResponse(updated);
+            }
+            catch (Exception ex)
+            {
+                return response.CreateResponse(ex);
+            }
+        }
+
+        public async Task<IResponse<bool>> UpdatePaymentAsync(UpdateTeacherPaymentDto dto, int userId)
+        {
+            var response = new Response<bool>();
+
+            try
+            {
+                var invoice = await _teacherSallaryRepository.GetByIdAsync(dto.Id);
+                if (invoice == null || invoice.IsDeleted)
+                {
+                    return response.CreateResponse(MessageCodes.NotFound);
+                }
+
+                invoice.ModefiedBy = userId;
+                invoice.ModefiedAt = DateTime.UtcNow;
+
+                if (dto.Amount.HasValue)
+                {
+                    invoice.Sallary = Math.Round(dto.Amount.Value, 2, MidpointRounding.AwayFromZero);
+                }
+
+                var isCancelled = dto.IsCancelled == true;
+
+                if (isCancelled)
+                {
+                    invoice.IsPayed = false;
+                    invoice.PayedAt = null;
+                    invoice.ReceiptPath = null;
+                }
+                else
+                {
+                    if (dto.PayStatue.HasValue)
+                    {
+                        invoice.IsPayed = dto.PayStatue.Value;
+                        invoice.PayedAt = dto.PayStatue.Value ? DateTime.UtcNow : null;
+                    }
+
+                    if (dto.ReceiptPath != null)
+                    {
+                        var uploadResult = await _fileService.CreateFileAsync(dto.ReceiptPath, "TeacherInvoices/");
+                        if (!uploadResult.IsSuccess || uploadResult.Data == null || string.IsNullOrWhiteSpace(uploadResult.Data.FilePath))
+                        {
+                            if (uploadResult.Errors != null && uploadResult.Errors.Count > 0)
+                            {
+                                return response.AppendErrors(uploadResult.Errors);
+                            }
+
+                            return response.AppendError(MessageCodes.Failed, nameof(dto.ReceiptPath), "Failed to store receipt file.");
+                        }
+
+                        invoice.ReceiptPath = uploadResult.Data.FilePath;
+                    }
+                }
+
+                await _unitOfWork.CommitAsync();
+
+                return response.CreateResponse(true);
+            }
+            catch (Exception ex)
+            {
+                return response.CreateResponse(ex);
+            }
+        }
+
+        public async Task<IResponse<string?>> GetPaymentReceiptPathAsync(int invoiceId)
+        {
+            var response = new Response<string?>();
+
+            try
+            {
+                var invoice = await _teacherSallaryRepository.GetByIdAsync(invoiceId);
+                if (invoice == null || invoice.IsDeleted)
+                {
+                    return response.CreateResponse(MessageCodes.NotFound);
+                }
+
+                if (string.IsNullOrWhiteSpace(invoice.ReceiptPath))
+                {
+                    return response.AppendError(MessageCodes.NotFound, nameof(TeacherSallary.ReceiptPath), "Receipt not found.");
+                }
+
+                return response.CreateResponse(invoice.ReceiptPath);
             }
             catch (Exception ex)
             {
