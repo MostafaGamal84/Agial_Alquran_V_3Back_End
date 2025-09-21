@@ -223,7 +223,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
         public async Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null)
         {
-            var response = new Response<TeacherMonthlySummaryDto>();
+            var response = new Response<IEnumerable<TeacherMonthlySummaryDto>>();
 
             try
             {
@@ -231,8 +231,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 DateTime monthStart = new(reference.Year, reference.Month, 1);
 
                 if (!month.HasValue)
+
                 {
-                    monthStart = monthStart.AddMonths(-1);
+                    return response.CreateResponse(Array.Empty<TeacherMonthlySummaryDto>());
                 }
 
                 if (teacherId.HasValue)
