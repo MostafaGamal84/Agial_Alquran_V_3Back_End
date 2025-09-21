@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.FilesUploaderService;
+using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.TeacherSallaryDtos;
@@ -218,22 +221,12 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        public async Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int teacherId, DateTime? month = null)
+        public async Task<IResponse<IEnumerable<TeacherMonthlySummaryDto>>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null)
         {
-            var response = new Response<TeacherMonthlySummaryDto>();
+            var response = new Response<IEnumerable<TeacherMonthlySummaryDto>>();
 
             try
             {
-                var teacher = await _userRepository
-                    .Where(user => user.Id == teacherId && !user.IsDeleted)
-                    .Select(user => new { user.Id, user.FullName })
-                    .FirstOrDefaultAsync();
-
-                if (teacher == null)
-                {
-                    return response.CreateResponse(MessageCodes.TeacherNotFound);
-                }
-
                 DateTime reference = month ?? DateTime.UtcNow;
                 DateTime monthStart = new(reference.Year, reference.Month, 1);
 
@@ -242,9 +235,43 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     monthStart = monthStart.AddMonths(-1);
                 }
 
-                var summary = await BuildMonthlySummaryAsync(teacher.Id, teacher.FullName, monthStart);
+                var teachersQuery = _userRepository
+                    .Where(user => !user.IsDeleted);
 
-                return response.CreateResponse(summary);
+                if (teacherId.HasValue)
+                {
+                    teachersQuery = teachersQuery.Where(user => user.Id == teacherId.Value);
+                }
+                else
+                {
+                    teachersQuery = teachersQuery.Where(user => user.UserTypeId == (int)UserTypesEnum.Teacher);
+                }
+
+                var teachers = await teachersQuery
+                    .OrderBy(user => user.FullName)
+                    .ThenBy(user => user.Id)
+                    .Select(user => new { user.Id, user.FullName })
+                    .ToListAsync();
+
+                if (teacherId.HasValue && teachers.Count == 0)
+                {
+                    return response.CreateResponse(MessageCodes.TeacherNotFound);
+                }
+
+                if (teachers.Count == 0)
+                {
+                    return response.CreateResponse(Array.Empty<TeacherMonthlySummaryDto>());
+                }
+
+                var summaries = new List<TeacherMonthlySummaryDto>(teachers.Count);
+
+                foreach (var teacher in teachers)
+                {
+                    var summary = await BuildMonthlySummaryAsync(teacher.Id, teacher.FullName, monthStart);
+                    summaries.Add(summary);
+                }
+
+                return response.CreateResponse(summaries);
             }
             catch (Exception ex)
             {
