@@ -6,6 +6,7 @@ using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.DTO.CircleDto;
 using Orbits.GeneralProject.DTO.Paging;
+using System.Collections.Generic;
 
 namespace OrbitsProject.API.Controllers
 {
@@ -23,6 +24,10 @@ namespace OrbitsProject.API.Controllers
         [HttpGet("GetResultsByFilter"), ProducesResponseType(typeof(IResponse<PagedResultDto<CircleDto>>), 200)]
         public async Task<IActionResult> GetResultsByFilter([FromQuery] FilteredResultRequestDto paginationFilterModel ,int? managerId, int? teacherId)
            => Ok(_circleBLL.GetPagedList(paginationFilterModel, managerId, teacherId, UserId));
+
+        [HttpGet("Upcoming"), ProducesResponseType(typeof(IResponse<IEnumerable<UpcomingCircleDto>>), 200)]
+        public async Task<IActionResult> GetUpcoming([FromQuery] int? managerId = null, [FromQuery] int? teacherId = null, [FromQuery] int take = 4)
+           => Ok(await _circleBLL.GetUpcomingAsync(UserId, managerId, teacherId, take));
 
 
         [HttpPost("Create"), ProducesResponseType(typeof(IResponse<bool>), 200)]
