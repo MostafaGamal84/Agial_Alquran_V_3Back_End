@@ -1,6 +1,7 @@
 using AutoMapper;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using OfficeOpenXml.FormulaParsing.Excel.Functions.Math;
 using Orbits.GeneralProject.BLL.BaseReponse;
@@ -17,8 +18,11 @@ using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.DTO.UserDto;
 using Orbits.GeneralProject.DTO.UserDtos;
 using Orbits.GeneralProject.Repositroy.Base;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Orbits.GeneralProject.BLL.CircleService
 {
@@ -30,6 +34,19 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+
+        private const int DefaultUpcomingTake = 4;
+
+        private static readonly IReadOnlyDictionary<int, DayOfWeek> DayOfWeekLookup = new Dictionary<int, DayOfWeek>
+        {
+            { (int)DaysEnum.Saturday, DayOfWeek.Saturday },
+            { (int)DaysEnum.Sunday, DayOfWeek.Sunday },
+            { (int)DaysEnum.Monday, DayOfWeek.Monday },
+            { (int)DaysEnum.Tuesday, DayOfWeek.Tuesday },
+            { (int)DaysEnum.Wednesday, DayOfWeek.Wednesday },
+            { (int)DaysEnum.Thursday, DayOfWeek.Thursday },
+            { (int)DaysEnum.Friday, DayOfWeek.Friday }
+        };
         public CircleBLL(IMapper mapper, IRepository<Circle> circleRepository,
              IUnitOfWork unitOfWork,
              IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository) : base(mapper)
@@ -139,6 +156,177 @@ namespace Orbits.GeneralProject.BLL.CircleService
             }
 
             return output.CreateResponse(page);
+        }
+
+
+        public async Task<IResponse<IEnumerable<UpcomingCircleDto>>> GetUpcomingAsync(
+            int userId,
+            int? managerId = null,
+            int? teacherId = null,
+            int take = DefaultUpcomingTake)
+        {
+            var output = new Response<IEnumerable<UpcomingCircleDto>>();
+
+            var currentUser = await _userRepository.GetByIdAsync(userId);
+            if (currentUser == null)
+                return output.AppendError(MessageCodes.NotFound);
+
+            var userType = (UserTypesEnum)(currentUser.UserTypeId ?? 0);
+
+            int? explicitManagerId = managerId.HasValue && managerId.Value > 0 ? managerId.Value : (int?)null;
+            int? explicitTeacherId = teacherId.HasValue && teacherId.Value > 0 ? teacherId.Value : (int?)null;
+
+            int effectiveTake = take > 0 ? take : DefaultUpcomingTake;
+
+            var query = _circleRepository
+                .GetAll()
+                .Include(c => c.Teacher)
+                .Include(c => c.ManagerCircles)
+                    .ThenInclude(mc => mc.Manager)
+                .Where(c => c.IsDeleted != true);
+
+            if (explicitManagerId.HasValue)
+            {
+                query = query.Where(c => c.ManagerCircles.Any(mc => mc.ManagerId == explicitManagerId.Value));
+            }
+            else if (userType == UserTypesEnum.Manager)
+            {
+                query = query.Where(c => c.ManagerCircles.Any(mc => mc.ManagerId == userId));
+            }
+
+            if (explicitTeacherId.HasValue)
+            {
+                query = query.Where(c => c.TeacherId == explicitTeacherId.Value);
+            }
+            else if (userType == UserTypesEnum.Teacher)
+            {
+                query = query.Where(c => c.TeacherId == userId);
+            }
+
+            if (userType == UserTypesEnum.Student)
+            {
+                query = query.Where(c => c.Users.Any(u => u.Id == userId));
+            }
+
+            var circles = await query.ToListAsync();
+
+            if (circles.Count == 0)
+            {
+                return output.CreateResponse(new List<UpcomingCircleDto>());
+            }
+
+            DateTime referenceUtc = DateTime.UtcNow;
+
+            var projected = circles
+                .Select(circle => BuildUpcomingCircleDto(circle, referenceUtc))
+                .Where(dto => dto.NextOccurrenceDate.HasValue)
+                .ToList();
+
+            if (projected.Count == 0)
+            {
+                return output.CreateResponse(new List<UpcomingCircleDto>());
+            }
+
+            NormalizeSequentialOccurrences(projected);
+
+            var results = projected
+                .OrderBy(dto => dto.NextOccurrenceDate)
+                .ThenBy(dto => dto.Id)
+                .Take(effectiveTake)
+                .ToList();
+
+            return output.CreateResponse(results);
+        }
+
+        private UpcomingCircleDto BuildUpcomingCircleDto(Circle circle, DateTime referenceUtc)
+        {
+            DateTime? nextOccurrence = CalculateNextOccurrence(referenceUtc, circle.Time);
+
+            var managers = circle.ManagerCircles?
+                .Where(mc => mc.ManagerId.HasValue && mc.Manager != null)
+                .Select(mc => new ManagerCirclesDto
+                {
+                    ManagerId = mc.ManagerId,
+                    Manager = mc.Manager?.FullName,
+                    CircleId = circle.Id,
+                    Circle = circle.Name
+                })
+                .ToList() ?? new List<ManagerCirclesDto>();
+
+            return new UpcomingCircleDto
+            {
+                Id = circle.Id,
+                Name = circle.Name,
+                DayId = circle.Time,
+                DayName = ResolveDayName(circle.Time),
+                NextOccurrenceDate = nextOccurrence,
+                TeacherId = circle.TeacherId,
+                TeacherName = circle.Teacher?.FullName,
+                Managers = managers
+            };
+        }
+
+        private static DateTime? CalculateNextOccurrence(DateTime referenceUtc, int? dayId)
+        {
+            if (!dayId.HasValue)
+                return null;
+
+            if (!DayOfWeekLookup.TryGetValue(dayId.Value, out var targetDay))
+                return null;
+
+            int currentDay = (int)referenceUtc.DayOfWeek;
+            int targetDayValue = (int)targetDay;
+
+            int daysToAdd = (targetDayValue - currentDay + 7) % 7;
+            DateTime nextDate = referenceUtc.Date.AddDays(daysToAdd);
+
+            return nextDate;
+        }
+
+        private static string? ResolveDayName(int? dayId)
+        {
+            if (!dayId.HasValue)
+                return null;
+
+            if (!Enum.IsDefined(typeof(DaysEnum), dayId.Value))
+                return null;
+
+            return ((DaysEnum)dayId.Value).ToString();
+        }
+
+        private static void NormalizeSequentialOccurrences(IList<UpcomingCircleDto> circles)
+        {
+            if (circles == null || circles.Count == 0)
+                return;
+
+            var ordered = circles
+                .Where(c => c.NextOccurrenceDate.HasValue)
+                .OrderBy(c => c.NextOccurrenceDate)
+                .ThenBy(c => c.Id)
+                .ToList();
+
+            var occurrenceTracker = new Dictionary<(string NameKey, int DayKey, int TeacherKey), int>();
+
+            foreach (var circle in ordered)
+            {
+                if (!circle.DayId.HasValue)
+                    continue;
+
+                string nameKey = circle.Name?.Trim().ToLowerInvariant() ?? string.Empty;
+                int dayKey = circle.DayId.Value;
+                int teacherKey = circle.TeacherId ?? 0;
+                var key = (NameKey: nameKey, DayKey: dayKey, TeacherKey: teacherKey);
+
+                if (occurrenceTracker.TryGetValue(key, out var seenCount))
+                {
+                    circle.NextOccurrenceDate = circle.NextOccurrenceDate!.Value.AddDays(7 * seenCount);
+                    occurrenceTracker[key] = seenCount + 1;
+                }
+                else
+                {
+                    occurrenceTracker[key] = 1;
+                }
+            }
         }
 
 
