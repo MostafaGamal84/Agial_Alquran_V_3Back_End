@@ -11,6 +11,7 @@ using Orbits.GeneralProject.DTO.StudentSubscribDtos;
 using Orbits.GeneralProject.DTO.StudentSubscribDtos.StudentPaymentDtos;
 using Orbits.GeneralProject.DTO.SubscribeDtos;
 using Orbits.GeneralProject.DTO.UserDto;
+using System;
 
 namespace Orbits.GeneralProject.BLL.Mapping
 {
@@ -23,6 +24,12 @@ namespace Orbits.GeneralProject.BLL.Mapping
             CreateMap<Circle, CircleDto>()
                 .ForMember(d => d.Managers, o => o.MapFrom(s => s.ManagerCircles))
                 .ForMember(d => d.Students, o => o.MapFrom(s => s.Users.Where(X => X.UserTypeId == (int)UserTypesEnum.Student)))
+                .ForMember(d => d.DayId, o => o.MapFrom(s => s.Time))
+                .ForMember(d => d.DayName, o => o.MapFrom(s =>
+                    s.Time.HasValue && Enum.IsDefined(typeof(DaysEnum), s.Time.Value)
+                        ? ((DaysEnum)s.Time.Value).ToString()
+                        : null))
+                .ForMember(d => d.StartTime, o => o.MapFrom(s => s.StartTime))
 ;
             CreateMap<User, UserReturnDto>();
             CreateMap<User, ManagerDto>();
