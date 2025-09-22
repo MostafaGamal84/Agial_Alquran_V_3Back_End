@@ -1,7 +1,7 @@
-using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.DTO.LockUpDtos;
 using Orbits.GeneralProject.DTO.UserDto;
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace Orbits.GeneralProject.DTO.CircleDto
@@ -11,15 +11,14 @@ namespace Orbits.GeneralProject.DTO.CircleDto
 
         public int Id { get; set; }
         public string? Name { get; set; }
-        public int? Time { get; set; }
         public int? TeacherId { get; set; }
         public UserLockUpDto? Teacher { get; set; }
 
         [JsonPropertyName("day")]
-        public int? DayId { get; set; }
+        public ICollection<int>? DayIds { get; set; }
 
         [JsonPropertyName("dayName")]
-        public string? DayName { get; set; }
+        public ICollection<string>? DayNames { get; set; }
 
         [JsonPropertyName("startTime")]
         public TimeSpan? StartTime { get; set; }

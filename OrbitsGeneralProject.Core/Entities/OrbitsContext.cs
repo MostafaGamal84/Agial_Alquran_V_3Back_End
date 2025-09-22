@@ -110,6 +110,20 @@ namespace Orbits.GeneralProject.Core.Entities
                     .HasConstraintName("FK_Circle_Teacher");
             });
 
+            modelBuilder.Entity<CircleDay>(entity =>
+            {
+                entity.ToTable("CircleDay");
+
+                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Circle)
+                    .WithMany(p => p.CircleDays)
+                    .HasForeignKey(d => d.CircleId)
+                    .HasConstraintName("FK_CircleDay_Circle");
+            });
+
             modelBuilder.Entity<CircleReport>(entity =>
             {
                 entity.HasOne(d => d.Circle)

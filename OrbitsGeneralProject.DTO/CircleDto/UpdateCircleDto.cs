@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace Orbits.GeneralProject.DTO.CircleDto
@@ -7,11 +8,11 @@ namespace Orbits.GeneralProject.DTO.CircleDto
     {
         public int Id { get; set; }
         public string? Name { get; set; }
-        public int? Time { get; set; }
 
         public int? TeacherId { get; set; }
 
-        public int? DayId { get; set; }
+        [JsonPropertyName("day")]
+        public List<int>? DayIds { get; set; } = new List<int>();
 
         public TimeSpan? StartTime { get; set; }
 
