@@ -538,6 +538,65 @@
         }
       }
     },
+    "/api/Circle/Upcoming": {
+      "get": {
+        "tags": [
+          "Circle"
+        ],
+        "parameters": [
+          {
+            "name": "managerId",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 4
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingCircleDtoIEnumerableIResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingCircleDtoIEnumerableIResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingCircleDtoIEnumerableIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/Circle/Create": {
       "post": {
         "tags": [
@@ -3112,6 +3171,11 @@
             "type": "string",
             "nullable": true
           },
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
           "teacherId": {
             "type": "integer",
             "format": "int32",
@@ -3412,6 +3476,11 @@
         "properties": {
           "name": {
             "type": "string",
+            "nullable": true
+          },
+          "time": {
+            "type": "integer",
+            "format": "int32",
             "nullable": true
           },
           "teacherId": {
@@ -4523,6 +4592,73 @@
         },
         "additionalProperties": false
       },
+      "UpcomingCircleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "dayId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "dayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "nextOccurrenceDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "teacherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "teacherName": {
+            "type": "string",
+            "nullable": true
+          },
+          "managers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagerCirclesDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpcomingCircleDtoIEnumerableIResponse": {
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TErrorField"
+            },
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpcomingCircleDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "UpdateCircleDto": {
         "type": "object",
         "properties": {
@@ -4532,6 +4668,11 @@
           },
           "name": {
             "type": "string",
+            "nullable": true
+          },
+          "time": {
+            "type": "integer",
+            "format": "int32",
             "nullable": true
           },
           "teacherId": {

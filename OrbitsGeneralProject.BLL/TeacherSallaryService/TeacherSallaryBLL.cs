@@ -439,7 +439,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var invoice = await _teacherSallaryRepository.GetByIdAsync(dto.Id);
-                if (invoice == null || invoice.IsDeleted)
+                if (invoice == null || invoice.IsDeleted.Value)
                 {
                     return response.CreateResponse(MessageCodes.NotFound);
                 }
@@ -502,7 +502,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var invoice = await _teacherSallaryRepository.GetByIdAsync(invoiceId);
-                if (invoice == null || invoice.IsDeleted)
+                if (invoice == null || invoice.IsDeleted.Value)
                 {
                     return response.CreateResponse(MessageCodes.NotFound);
                 }

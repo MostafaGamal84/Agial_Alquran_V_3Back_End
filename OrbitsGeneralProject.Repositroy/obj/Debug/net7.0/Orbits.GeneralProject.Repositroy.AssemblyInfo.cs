@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Orbits.GeneralProject.Repositroy")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5d7530d16006e54e2bfed5854fb6effff169df71")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7a1763469c713be381c6f2eca1a394fba2ca64dd")]
 [assembly: System.Reflection.AssemblyProductAttribute("Orbits.GeneralProject.Repositroy")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Orbits.GeneralProject.Repositroy")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
