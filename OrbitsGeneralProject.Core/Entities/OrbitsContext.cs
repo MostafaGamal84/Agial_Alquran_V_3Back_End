@@ -12,6 +12,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<ChallengeRole> ChallengeRoles { get; set; } = null!;
         public virtual DbSet<Circle> Circles { get; set; } = null!;
         public virtual DbSet<CircleReport> CircleReports { get; set; } = null!;
+        public virtual DbSet<CircleTime> CircleTimes { get; set; } = null!;
+        public virtual DbSet<Day> Days { get; set; } = null!;
         public virtual DbSet<Family> Families { get; set; } = null!;
         public virtual DbSet<Governorate> Governorates { get; set; } = null!;
         public virtual DbSet<ManagerCircle> ManagerCircles { get; set; } = null!;
@@ -32,7 +34,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<TeacherReportRecord> TeacherReportRecords { get; set; } = null!;
         public virtual DbSet<TeacherSallary> TeacherSallaries { get; set; } = null!;
         public virtual DbSet<TeacherSchedule> TeacherSchedules { get; set; } = null!;
-        public virtual DbSet<Time> Times { get; set; } = null!;
         public virtual DbSet<User> Users { get; set; } = null!;
         public virtual DbSet<UserType> UserTypes { get; set; } = null!;
 
@@ -103,8 +104,6 @@ namespace Orbits.GeneralProject.Core.Entities
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
-                entity.Property(e => e.StartTime).HasColumnType("time");
-
                 entity.HasOne(d => d.Teacher)
                     .WithMany(p => p.Circles)
                     .HasForeignKey(d => d.TeacherId)
@@ -127,6 +126,34 @@ namespace Orbits.GeneralProject.Core.Entities
                     .WithMany(p => p.CircleReportTeachers)
                     .HasForeignKey(d => d.TeacherId)
                     .HasConstraintName("FK_CircleReports_Teacher");
+            });
+
+            modelBuilder.Entity<CircleTime>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.ToTable("CircleTime");
+
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+
+                entity.HasOne(d => d.Circle)
+                    .WithMany()
+                    .HasForeignKey(d => d.CircleId)
+                    .HasConstraintName("FK_CircleTime_Circle");
+
+                entity.HasOne(d => d.Day)
+                    .WithMany()
+                    .HasForeignKey(d => d.DayId)
+                    .HasConstraintName("FK_CircleTime_Time");
+            });
+
+            modelBuilder.Entity<Day>(entity =>
+            {
+                entity.ToTable("Day");
+
+                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
             });
 
             modelBuilder.Entity<Family>(entity =>
@@ -471,15 +498,6 @@ namespace Orbits.GeneralProject.Core.Entities
                     .WithMany(p => p.TeacherScheduleTeachers)
                     .HasForeignKey(d => d.TeacherId)
                     .HasConstraintName("FK_TeacherSchedule_Teacher");
-            });
-
-            modelBuilder.Entity<Time>(entity =>
-            {
-                entity.ToTable("Time");
-
-                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
-
-                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
             });
 
             modelBuilder.Entity<User>(entity =>

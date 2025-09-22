@@ -21,7 +21,7 @@ namespace Orbits.GeneralProject.DTO.CircleDto
         [JsonPropertyName("dayName")]
         public string? DayName { get; set; }
 
-        [JsonPropertyName("time")]
+        [JsonPropertyName("startTime")]
         public TimeSpan? StartTime { get; set; }
 
         public ICollection<ManagerCirclesDto>? Managers { get; set; }

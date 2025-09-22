@@ -17,7 +17,8 @@ namespace Orbits.GeneralProject.BLL.Mapping
             CreateMap<DTO.UserDto.CreateUserDto, User>();
             CreateMap<UpdateUserDto, User>();
             CreateMap<CreateCircleDto, Circle>()
-                .ForMember(d => d.Time, o => o.MapFrom(s => s.DayId));
+                .ForMember(d => d.Time, o => o.MapFrom(s => s.DayId))
+                .ForMember(d => d.StartTime, o => o.MapFrom(s => s.StartTime));
             CreateMap<UpdateCircleDto, Circle>()
                 .ForMember(d => d.Time, o => o.MapFrom(s => s.DayId));
             CreateMap<ManagerCirclesDto, ManagerCircle>();
