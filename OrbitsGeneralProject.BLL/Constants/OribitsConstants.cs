@@ -132,6 +132,8 @@ namespace Orbits.GeneralProject.BLL.Constants
         public const string NAME_Must_Not_Null = "الإسم لا يمكن اي يكون فارغا";
         public const string Name_Max_Length = "لا يمكن أن يزيد اسم الحلقة عن 250 حرف !";
         public const string ValidName = "لا يجب وضع علامات خاصة في الإسم";
+        public const string DaysRequired = "يجب اختيار الأيام";
+        public const string DaysMustBeMoreThanZero = "يجب اختيار رقم اكبر من صفر في الأيام";
         public const string DayRequired = "اليوم مطلوب";
         public const string StartTimeRequired = "وقت البداية مطلوب";
         public const string StartTimeInvalid = "وقت البداية غير صحيح";

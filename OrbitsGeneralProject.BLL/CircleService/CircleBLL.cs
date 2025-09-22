@@ -31,6 +31,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
         private readonly IRepository<Circle> _circleRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<ManagerCircle> _managerCircleRepository;
+        private readonly IRepository<CircleDay> _circleDayRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
@@ -49,13 +50,14 @@ namespace Orbits.GeneralProject.BLL.CircleService
         };
         public CircleBLL(IMapper mapper, IRepository<Circle> circleRepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<CircleDay> circleDayRepository) : base(mapper)
         {
             _circleRepository = circleRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _managerCircleRepository = managerCircleRepository;
             _userRepository = userRepository;
+            _circleDayRepository = circleDayRepository;
         }
 
 
@@ -103,9 +105,10 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             // Includes
             var includes = new List<Expression<Func<Circle, object>>>
-    {
-        c => c.ManagerCircles
-    };
+            {
+                c => c.ManagerCircles,
+                c => c.CircleDays
+            };
             if (userType != UserTypesEnum.Student)
                 includes.Add(c => c.Users);
 
@@ -183,6 +186,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 .Include(c => c.Teacher)
                 .Include(c => c.ManagerCircles)
                     .ThenInclude(mc => mc.Manager)
+                .Include(c => c.CircleDays)
                 .Where(c => c.IsDeleted != true);
 
             if (explicitManagerId.HasValue)
@@ -240,7 +244,13 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         private UpcomingCircleDto BuildUpcomingCircleDto(Circle circle, DateTime referenceUtc)
         {
-            DateTime? nextOccurrence = CalculateNextOccurrence(referenceUtc, circle.Time, circle.StartTime);
+            var dayIds = circle.CircleDays?
+                .Where(cd => cd.DayId.HasValue)
+                .Select(cd => cd.DayId!.Value)
+                .Distinct()
+                .ToList() ?? new List<int>();
+
+            var (nextDayId, nextOccurrence) = CalculateNextOccurrence(referenceUtc, dayIds, circle.StartTime);
 
             var managers = circle.ManagerCircles?
                 .Where(mc => mc.ManagerId.HasValue && mc.Manager != null)
@@ -257,8 +267,10 @@ namespace Orbits.GeneralProject.BLL.CircleService
             {
                 Id = circle.Id,
                 Name = circle.Name,
-                DayId = circle.Time,
-                DayName = ResolveDayName(circle.Time),
+                NextDayId = nextDayId,
+                NextDayName = ResolveDayName(nextDayId),
+                DayIds = dayIds,
+                DayNames = ResolveDayNames(dayIds),
                 NextOccurrenceDate = nextOccurrence,
                 StartTime = circle.StartTime,
                 TeacherId = circle.TeacherId,
@@ -267,12 +279,33 @@ namespace Orbits.GeneralProject.BLL.CircleService
             };
         }
 
-        private static DateTime? CalculateNextOccurrence(DateTime referenceUtc, int? dayId, TimeSpan? startTime)
+        private static (int? NextDayId, DateTime? NextOccurrence) CalculateNextOccurrence(DateTime referenceUtc, IEnumerable<int> dayIds, TimeSpan? startTime)
         {
-            if (!dayId.HasValue)
-                return null;
+            if (dayIds == null)
+                return (null, null);
 
-            if (!DayOfWeekLookup.TryGetValue(dayId.Value, out var targetDay))
+            DateTime? bestDate = null;
+            int? bestDayId = null;
+
+            foreach (var dayId in dayIds)
+            {
+                var candidate = CalculateNextOccurrenceForDay(referenceUtc, dayId, startTime);
+                if (!candidate.HasValue)
+                    continue;
+
+                if (!bestDate.HasValue || candidate.Value < bestDate.Value)
+                {
+                    bestDate = candidate.Value;
+                    bestDayId = dayId;
+                }
+            }
+
+            return (bestDayId, bestDate);
+        }
+
+        private static DateTime? CalculateNextOccurrenceForDay(DateTime referenceUtc, int dayId, TimeSpan? startTime)
+        {
+            if (!DayOfWeekLookup.TryGetValue(dayId, out var targetDay))
                 return null;
 
             int currentDay = (int)referenceUtc.DayOfWeek;
@@ -305,6 +338,18 @@ namespace Orbits.GeneralProject.BLL.CircleService
             return ((DaysEnum)dayId.Value).ToString();
         }
 
+        private static ICollection<string> ResolveDayNames(IEnumerable<int> dayIds)
+        {
+            if (dayIds == null)
+                return new List<string>();
+
+            return dayIds
+                .Where(dayId => Enum.IsDefined(typeof(DaysEnum), dayId))
+                .Select(dayId => ((DaysEnum)dayId).ToString())
+                .Distinct()
+                .ToList();
+        }
+
         private static void NormalizeSequentialOccurrences(IList<UpcomingCircleDto> circles)
         {
             if (circles == null || circles.Count == 0)
@@ -320,11 +365,11 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             foreach (var circle in ordered)
             {
-                if (!circle.DayId.HasValue)
+                if (!circle.NextDayId.HasValue)
                     continue;
 
                 string nameKey = circle.Name?.Trim().ToLowerInvariant() ?? string.Empty;
-                int dayKey = circle.DayId.Value;
+                int dayKey = circle.NextDayId.Value;
                 int teacherKey = circle.TeacherId ?? 0;
                 long? timeKey = circle.StartTime?.Ticks;
                 var key = (NameKey: nameKey, DayKey: dayKey, TeacherKey: teacherKey, TimeKey: timeKey);
@@ -373,11 +418,31 @@ namespace Orbits.GeneralProject.BLL.CircleService
             {
                 model.Managers.Add(userId);
             }
-        
+
+            if (model.DayIds != null && model.DayIds.Count > 0)
+            {
+                var circleDays = model.DayIds
+                    .Where(dayId => Enum.IsDefined(typeof(DaysEnum), dayId))
+                    .Distinct()
+                    .Select(dayId => new CircleDay
+                    {
+                        CircleId = created.Id,
+                        DayId = dayId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userId
+                    })
+                    .ToList();
+
+                if (circleDays.Count > 0)
+                {
+                    _circleDayRepository.Add(circleDays);
+                }
+            }
+
             // 5) Add managers (now that we have circle Id)
             if (model.Managers != null && model.Managers.Count > 0)
             {
-               
+
 
                 // Or create directly:
                 created.ManagerCircles = model.Managers
@@ -434,10 +499,49 @@ namespace Orbits.GeneralProject.BLL.CircleService
             if (entity == null) return output.AppendError(MessageCodes.NotFound);
             var User = await _userRepository.GetByIdAsync(userId);
 
+            if (dto.DayIds != null)
+            {
+                var incomingDayIds = dto.DayIds
+                    .Where(dayId => Enum.IsDefined(typeof(DaysEnum), dayId))
+                    .Distinct()
+                    .ToList();
+
+                var existingCircleDays = entity.CircleDays?.ToList() ?? new List<CircleDay>();
+
+                var toRemove = existingCircleDays
+                    .Where(cd => !cd.DayId.HasValue || !incomingDayIds.Contains(cd.DayId.Value))
+                    .ToList();
+
+                if (toRemove.Count > 0)
+                {
+                    _circleDayRepository.DeleteRange(toRemove);
+                }
+
+                var existingDayIds = new HashSet<int>(existingCircleDays
+                    .Where(cd => cd.DayId.HasValue)
+                    .Select(cd => cd.DayId!.Value));
+
+                var toAdd = incomingDayIds
+                    .Where(dayId => !existingDayIds.Contains(dayId))
+                    .Select(dayId => new CircleDay
+                    {
+                        CircleId = dto.Id,
+                        DayId = dayId,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userId
+                    })
+                    .ToList();
+
+                if (toAdd.Count > 0)
+                {
+                    _circleDayRepository.Add(toAdd);
+                }
+            }
+
             // Update managers (replace all with incoming if provided)
             if (dto.Managers != null && dto.Managers.Count > 0)
             {
-                
+
 
                 // Clean & distinct (ignore zeros if they sometimes sneak in)
                 var targetIds = dto.Managers.Where(id => id > 0).Distinct().ToList();

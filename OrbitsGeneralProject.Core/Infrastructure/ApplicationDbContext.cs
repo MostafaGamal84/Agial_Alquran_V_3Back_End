@@ -147,6 +147,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
           
             modelBuilder.Entity<RefreshToken>().Ignore(f => f.IsDeleted);
             modelBuilder.Entity<ManagerCircle>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<CircleDay>().Ignore(f => f.IsDeleted);
             modelBuilder.Entity<Nationality>().Ignore(f => f.IsDeleted);
             modelBuilder.Entity<Governorate>().Ignore(f => f.IsDeleted);
             modelBuilder.Entity<StudentSubscribe>().Ignore(f => f.IsDeleted);
