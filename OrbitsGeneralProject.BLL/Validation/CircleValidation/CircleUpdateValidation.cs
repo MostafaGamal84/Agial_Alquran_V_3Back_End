@@ -5,6 +5,7 @@ using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.DTO.CircleDto;
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Orbits.GeneralProject.BLL.Validation.CircleValidation;
@@ -18,9 +19,12 @@ public class CircleUpdateValidation : AbstractValidator<UpdateCircleDto>
         RuleFor(l => l.Name).Matches(new Regex(@"^(?!.*\d_)(?!.*_\d)[a-zA-Z0-9ء-ي ]+$"))
 .WithMessage(CircleValidationResponseConstants.ValidName);
 
-        RuleFor(l => l.DayId)
-            .NotNull().WithMessage(CircleValidationResponseConstants.DayRequired)
-            .Must(day => day.HasValue && Enum.IsDefined(typeof(DaysEnum), day.Value))
+        RuleFor(l => l.DayIds)
+            .Cascade(CascadeMode.Stop)
+            .NotNull().WithMessage(CircleValidationResponseConstants.DaysRequired)
+            .Must(days => days != null && days.Count > 0)
+            .WithMessage(CircleValidationResponseConstants.DaysMustBeMoreThanZero)
+            .Must(days => days != null && days.All(day => Enum.IsDefined(typeof(DaysEnum), day)))
             .WithMessage(CircleValidationResponseConstants.DayRequired);
 
         RuleFor(l => l.StartTime)
