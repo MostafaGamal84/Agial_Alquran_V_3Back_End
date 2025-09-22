@@ -217,9 +217,19 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             DateTime referenceUtc = DateTime.UtcNow;
 
-            var results = circles
+            var projected = circles
                 .Select(circle => BuildUpcomingCircleDto(circle, referenceUtc))
                 .Where(dto => dto.NextOccurrenceDate.HasValue)
+                .ToList();
+
+            if (projected.Count == 0)
+            {
+                return output.CreateResponse(new List<UpcomingCircleDto>());
+            }
+
+            NormalizeSequentialOccurrences(projected);
+
+            var results = projected
                 .OrderBy(dto => dto.NextOccurrenceDate)
                 .ThenBy(dto => dto.Id)
                 .Take(effectiveTake)
@@ -284,6 +294,40 @@ namespace Orbits.GeneralProject.BLL.CircleService
             return ((DaysEnum)dayId.Value).ToString();
         }
 
+        private static void NormalizeSequentialOccurrences(IList<UpcomingCircleDto> circles)
+        {
+            if (circles == null || circles.Count == 0)
+                return;
+
+            var ordered = circles
+                .Where(c => c.NextOccurrenceDate.HasValue)
+                .OrderBy(c => c.NextOccurrenceDate)
+                .ThenBy(c => c.Id)
+                .ToList();
+
+            var occurrenceTracker = new Dictionary<(string NameKey, int DayKey, int TeacherKey), int>();
+
+            foreach (var circle in ordered)
+            {
+                if (!circle.DayId.HasValue)
+                    continue;
+
+                string nameKey = circle.Name?.Trim().ToLowerInvariant() ?? string.Empty;
+                int dayKey = circle.DayId.Value;
+                int teacherKey = circle.TeacherId ?? 0;
+                var key = (NameKey: nameKey, DayKey: dayKey, TeacherKey: teacherKey);
+
+                if (occurrenceTracker.TryGetValue(key, out var seenCount))
+                {
+                    circle.NextOccurrenceDate = circle.NextOccurrenceDate!.Value.AddDays(7 * seenCount);
+                    occurrenceTracker[key] = seenCount + 1;
+                }
+                else
+                {
+                    occurrenceTracker[key] = 1;
+                }
+            }
+        }
 
 
         public async Task<IResponse<bool>> AddAsync(CreateCircleDto model, int userId)
@@ -491,9 +535,5 @@ namespace Orbits.GeneralProject.BLL.CircleService
             return ManagerCirclelist;
         }
     }
-
-
-
-
 
     }
