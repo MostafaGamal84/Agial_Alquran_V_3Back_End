@@ -330,7 +330,6 @@ namespace Orbits.GeneralProject.BLL.CircleService
         }
 
 
-
         public async Task<IResponse<bool>> AddAsync(CreateCircleDto model, int userId)
         {
             var output = new Response<bool>();
@@ -536,9 +535,5 @@ namespace Orbits.GeneralProject.BLL.CircleService
             return ManagerCirclelist;
         }
     }
-
-
-
-
 
     }
