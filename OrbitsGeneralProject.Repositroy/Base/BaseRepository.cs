@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 using System;
 using System.Collections;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using Orbits.GeneralProject.Core.Entities;
