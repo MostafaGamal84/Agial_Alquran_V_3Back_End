@@ -17,6 +17,8 @@ namespace Orbits.GeneralProject.BLL.CircleService
     {
         public IResponse<PagedResultDto<CircleDto>> GetPagedList(FilteredResultRequestDto pagedDto, int? managerId, int? teacherId, int userId);
 
+        Task<IResponse<IEnumerable<UpcomingCircleDto>>> GetUpcomingAsync(int userId, int? managerId = null, int? teacherId = null, int take = 4);
+
         Task<IResponse<bool>> AddAsync(CreateCircleDto model, int userId);
 
         Task<IResponse<bool>> Update(UpdateCircleDto dto, int userId);
