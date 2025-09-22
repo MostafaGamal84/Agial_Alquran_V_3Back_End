@@ -2,7 +2,6 @@
 
 using FluentValidation;
 using Orbits.GeneralProject.BLL.Constants;
-using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.DTO.CircleDto;
 using System;
 using System.Linq;
@@ -24,7 +23,7 @@ public class CircleUpdateValidation : AbstractValidator<UpdateCircleDto>
             .NotNull().WithMessage(CircleValidationResponseConstants.DaysRequired)
             .Must(days => days != null && days.Count > 0)
             .WithMessage(CircleValidationResponseConstants.DaysMustBeMoreThanZero)
-            .Must(days => days != null && days.All(day => Enum.IsDefined(typeof(DaysEnum), day)))
+            .Must(days => days != null && days.All(day => day > 0))
             .WithMessage(CircleValidationResponseConstants.DayRequired);
 
         RuleFor(l => l.StartTime)
