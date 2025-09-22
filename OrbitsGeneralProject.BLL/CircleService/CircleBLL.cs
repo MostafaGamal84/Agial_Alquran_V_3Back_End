@@ -240,7 +240,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         private UpcomingCircleDto BuildUpcomingCircleDto(Circle circle, DateTime referenceUtc)
         {
-            DateTime? nextOccurrence = CalculateNextOccurrence(referenceUtc, circle.Time);
+            DateTime? nextOccurrence = CalculateNextOccurrence(referenceUtc, circle.Time, circle.StartTime);
 
             var managers = circle.ManagerCircles?
                 .Where(mc => mc.ManagerId.HasValue && mc.Manager != null)
@@ -260,13 +260,14 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 DayId = circle.Time,
                 DayName = ResolveDayName(circle.Time),
                 NextOccurrenceDate = nextOccurrence,
+                StartTime = circle.StartTime,
                 TeacherId = circle.TeacherId,
                 TeacherName = circle.Teacher?.FullName,
                 Managers = managers
             };
         }
 
-        private static DateTime? CalculateNextOccurrence(DateTime referenceUtc, int? dayId)
+        private static DateTime? CalculateNextOccurrence(DateTime referenceUtc, int? dayId, TimeSpan? startTime)
         {
             if (!dayId.HasValue)
                 return null;
@@ -279,6 +280,16 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             int daysToAdd = (targetDayValue - currentDay + 7) % 7;
             DateTime nextDate = referenceUtc.Date.AddDays(daysToAdd);
+
+            if (startTime.HasValue)
+            {
+                nextDate = nextDate.Add(startTime.Value);
+
+                if (nextDate <= referenceUtc)
+                {
+                    nextDate = nextDate.AddDays(7);
+                }
+            }
 
             return nextDate;
         }
@@ -305,7 +316,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 .ThenBy(c => c.Id)
                 .ToList();
 
-            var occurrenceTracker = new Dictionary<(string NameKey, int DayKey, int TeacherKey), int>();
+            var occurrenceTracker = new Dictionary<(string NameKey, int DayKey, int TeacherKey, long? TimeKey), int>();
 
             foreach (var circle in ordered)
             {
@@ -315,7 +326,8 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 string nameKey = circle.Name?.Trim().ToLowerInvariant() ?? string.Empty;
                 int dayKey = circle.DayId.Value;
                 int teacherKey = circle.TeacherId ?? 0;
-                var key = (NameKey: nameKey, DayKey: dayKey, TeacherKey: teacherKey);
+                long? timeKey = circle.StartTime?.Ticks;
+                var key = (NameKey: nameKey, DayKey: dayKey, TeacherKey: teacherKey, TimeKey: timeKey);
 
                 if (occurrenceTracker.TryGetValue(key, out var seenCount))
                 {

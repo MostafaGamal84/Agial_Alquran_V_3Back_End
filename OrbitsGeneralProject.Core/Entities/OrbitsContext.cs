@@ -103,6 +103,8 @@ namespace Orbits.GeneralProject.Core.Entities
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
+                entity.Property(e => e.StartTime).HasColumnType("time");
+
                 entity.HasOne(d => d.Teacher)
                     .WithMany(p => p.Circles)
                     .HasForeignKey(d => d.TeacherId)
