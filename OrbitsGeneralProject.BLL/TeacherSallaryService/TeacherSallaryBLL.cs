@@ -223,7 +223,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
         public async Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null)
         {
-            var response = new Response<IEnumerable<TeacherMonthlySummaryDto>>();
+            var response = new Response<TeacherMonthlySummaryDto>();
 
             try
             {
@@ -233,7 +233,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 if (!month.HasValue)
 
                 {
-                    return response.CreateResponse(Array.Empty<TeacherMonthlySummaryDto>());
+                    return response.CreateResponse(MessageCodes.Failed);
                 }
 
                 if (teacherId.HasValue)

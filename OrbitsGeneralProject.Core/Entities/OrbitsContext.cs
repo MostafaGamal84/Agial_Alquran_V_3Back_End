@@ -415,6 +415,8 @@ namespace Orbits.GeneralProject.Core.Entities
 
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
+                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
                 entity.HasOne(d => d.CircleReport)
                     .WithMany(p => p.TeacherReportRecords)
                     .HasForeignKey(d => d.CircleReportId)
@@ -431,6 +433,8 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.ToTable("TeacherSallary");
 
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.IsDeleted).HasDefaultValueSql("((0))");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 

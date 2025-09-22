@@ -16,6 +16,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public bool? IsPayed { get; set; }
         public DateTime? PayedAt { get; set; }
         public string? ReceiptPath { get; set; }
+        public bool? IsDeleted { get; set; }
 
         public virtual User? Teacher { get; set; }
     }

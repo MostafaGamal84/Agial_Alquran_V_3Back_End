@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Orbits.GeneralProject.BLL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2fe1f92dba0b6ea5364fd539b5f0d40b188da3e2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5d7530d16006e54e2bfed5854fb6effff169df71")]
 [assembly: System.Reflection.AssemblyProductAttribute("Orbits.GeneralProject.BLL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Orbits.GeneralProject.BLL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

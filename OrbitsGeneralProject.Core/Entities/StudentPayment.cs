@@ -14,7 +14,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
         public int? ModefiedBy { get; set; }
-        public DateTime?ModefiedAt { get; set; }
+        public DateTime? ModefiedAt { get; set; }
         public int? StudentId { get; set; }
         public int? StudentSubscribeId { get; set; }
         public int? Amount { get; set; }

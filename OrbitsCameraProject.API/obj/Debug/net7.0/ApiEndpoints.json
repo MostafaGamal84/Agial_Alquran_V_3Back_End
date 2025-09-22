@@ -185,7 +185,7 @@
     ],
     "ReturnTypes": [
       {
-        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherMonthlySummaryDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Collections.Generic.IEnumerable\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherMonthlySummaryDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "MediaTypes": [
           "text/plain",
           "application/json",
@@ -1598,7 +1598,7 @@
     ],
     "ReturnTypes": [
       {
-        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherMonthlySummaryDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "Type": "Orbits.GeneralProject.BLL.BaseReponse.IResponse\u00601[[System.Collections.Generic.IEnumerable\u00601[[Orbits.GeneralProject.DTO.TeacherSallaryDtos.TeacherMonthlySummaryDto, Orbits.GeneralProject.DTO, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=7.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "MediaTypes": [
           "text/plain",
           "application/json",
