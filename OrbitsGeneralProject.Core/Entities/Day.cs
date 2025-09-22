@@ -7,7 +7,7 @@ namespace Orbits.GeneralProject.Core.Entities
     {
         public Day()
         {
-            StudentTimes = new HashSet<StudentTime>();
+            CircleDays = new HashSet<CircleDay>();
         }
 
         public int Id { get; set; }
@@ -18,6 +18,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public string? NameOfDay { get; set; }
         public bool? IsDeleted { get; set; }
 
-        public virtual ICollection<StudentTime> StudentTimes { get; set; }
+        public virtual ICollection<CircleDay> CircleDays { get; set; }
     }
 }

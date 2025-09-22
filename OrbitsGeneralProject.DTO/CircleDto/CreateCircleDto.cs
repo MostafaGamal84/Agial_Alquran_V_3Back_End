@@ -12,7 +12,6 @@ namespace Orbits.GeneralProject.DTO.CircleDto
 
         public int? TeacherId { get; set; }
 
-        [JsonPropertyName("day")]
         public List<int>? DayIds { get; set; } = new List<int>();
 
         public TimeSpan? StartTime { get; set; }

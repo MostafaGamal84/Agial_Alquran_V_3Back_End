@@ -7,10 +7,10 @@ namespace Orbits.GeneralProject.Core.Entities
     {
         public Circle()
         {
+            CircleDays = new HashSet<CircleDay>();
             CircleReports = new HashSet<CircleReport>();
             ManagerCircles = new HashSet<ManagerCircle>();
             Users = new HashSet<User>();
-            CircleDays = new HashSet<CircleDay>();
         }
 
         public int Id { get; set; }
@@ -21,12 +21,11 @@ namespace Orbits.GeneralProject.Core.Entities
         public string? Name { get; set; }
         public bool? IsDeleted { get; set; }
         public int? TeacherId { get; set; }
-        public TimeSpan? StartTime { get; set; }
 
         public virtual User? Teacher { get; set; }
+        public virtual ICollection<CircleDay> CircleDays { get; set; }
         public virtual ICollection<CircleReport> CircleReports { get; set; }
         public virtual ICollection<ManagerCircle> ManagerCircles { get; set; }
         public virtual ICollection<User> Users { get; set; }
-        public virtual ICollection<CircleDay> CircleDays { get; set; }
     }
 }
