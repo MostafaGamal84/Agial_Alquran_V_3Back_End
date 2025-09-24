@@ -16,19 +16,21 @@ public class CircleValidation : AbstractValidator<CreateCircleDto>
         RuleFor(l => l.Name).Matches(new Regex(@"^(?!.*\d_)(?!.*_\d)[a-zA-Z0-9ء-ي ]+$"))
     .WithMessage(CircleValidationResponseConstants.ValidName);
 
-        RuleFor(l => l.DayIds)
+        RuleFor(l => l.Days)
             .Cascade(CascadeMode.Stop)
             .NotNull().WithMessage(CircleValidationResponseConstants.DaysRequired)
             .Must(days => days != null && days.Count > 0)
             .WithMessage(CircleValidationResponseConstants.DaysMustBeMoreThanZero)
-            .Must(days => days != null && days.All(day => day > 0))
-            .WithMessage(CircleValidationResponseConstants.DayRequired);
-
-        RuleFor(l => l.StartTime)
-            .NotNull().WithMessage(CircleValidationResponseConstants.StartTimeRequired)
-            .Must(time => !time.HasValue || (time.Value >= TimeSpan.Zero && time.Value < TimeSpan.FromDays(1)))
+            .Must(days => days != null && days.All(day => day.DayId > 0))
+            .WithMessage(CircleValidationResponseConstants.DayRequired)
+            .Must(days => days != null && days.All(day => day.Time.HasValue))
+            .WithMessage(CircleValidationResponseConstants.StartTimeRequired)
+            .Must(days => days != null && days.All(day => IsValidTime(day.Time)))
             .WithMessage(CircleValidationResponseConstants.StartTimeInvalid);
 
     }
+
+    private static bool IsValidTime(TimeSpan? time)
+        => time.HasValue && time.Value >= TimeSpan.Zero && time.Value < TimeSpan.FromDays(1);
 
 }

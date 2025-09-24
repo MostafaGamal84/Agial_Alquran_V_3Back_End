@@ -22,5 +22,8 @@ namespace Orbits.GeneralProject.DTO.CircleDto
         public int? TeacherId { get; set; }
         public string? TeacherName { get; set; }
         public ICollection<ManagerCirclesDto>? Managers { get; set; }
+
+        [JsonPropertyName("days")]
+        public ICollection<CircleDayDto>? Days { get; set; }
     }
 }

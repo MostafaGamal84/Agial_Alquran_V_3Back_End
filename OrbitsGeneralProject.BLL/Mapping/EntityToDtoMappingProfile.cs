@@ -26,23 +26,16 @@ namespace Orbits.GeneralProject.BLL.Mapping
             CreateMap<Circle, CircleDto>()
                 .ForMember(d => d.Managers, o => o.MapFrom(s => s.ManagerCircles))
                 .ForMember(d => d.Students, o => o.MapFrom(s => s.Users.Where(X => X.UserTypeId == (int)UserTypesEnum.Student)))
-                .ForMember(d => d.DayIds, o => o.MapFrom(s =>
-                    s.CircleDays != null
-                        ? s.CircleDays
-                            .Where(cd => cd.DayId.HasValue)
-                            .Select(cd => cd.DayId!.Value)
-                            .Distinct()
-                            .ToList()
-                        : new List<int>()))
-                .ForMember(d => d.DayNames, o => o.MapFrom(s =>
-                    s.CircleDays != null
-                        ? s.CircleDays
-                            .Where(cd => cd.DayId.HasValue && Enum.IsDefined(typeof(DaysEnum), cd.DayId!.Value))
-                            .Select(cd => ((DaysEnum)cd.DayId!.Value).ToString())
-                            .Distinct()
-                            .ToList()
-                        : new List<string>()))
-                .ForMember(d => d.StartTime, o => o.MapFrom(s => s.StartTime));
+                .ForMember(d => d.Days, o => o.MapFrom(s => s.CircleDays));
+            CreateMap<CircleDay, CircleDayDto>()
+                .ForMember(d => d.DayId, o => o.MapFrom(s => s.DayId.HasValue ? s.DayId.Value : 0))
+                .ForMember(d => d.Time, o => o.MapFrom(s => s.Time))
+                .ForMember(d => d.DayName, o => o.MapFrom(s =>
+                    s.Day != null
+                        ? s.Day.NameOfDay
+                        : (s.DayId.HasValue && Enum.IsDefined(typeof(DaysEnum), s.DayId.Value)
+                            ? ((DaysEnum)s.DayId.Value).ToString()
+                            : null)));
             CreateMap<User, UserReturnDto>();
             CreateMap<User, ManagerDto>();
             CreateMap<User, UserLockUpDto>()
