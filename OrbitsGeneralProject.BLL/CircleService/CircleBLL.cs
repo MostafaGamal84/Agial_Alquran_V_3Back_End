@@ -234,7 +234,18 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             var circleTimesLookup = await LoadCircleTimesLookupAsync(circleIds);
 
-            var dayLookup = await BuildDayNameLookupAsync(CollectScheduleDayIds(circles, circleTimesLookup));
+            var dayIds = circles
+                .SelectMany(c => c.CircleDays ?? Enumerable.Empty<CircleDay>())
+                .Where(cd => cd != null && cd.DayId.HasValue && cd.DayId.Value > 0 && cd.IsDeleted != true)
+                .Select(cd => cd.DayId!.Value)
+                .Concat(circleTimesLookup.Values
+                    .SelectMany(schedules => schedules ?? Array.Empty<CircleDayDto>())
+                    .Where(schedule => schedule != null && schedule.DayId > 0)
+                    .Select(schedule => schedule.DayId))
+                .Distinct()
+                .ToList();
+
+            var dayLookup = await BuildDayNameLookupAsync(dayIds);
 
             var projected = circles
                 .Select(circle => BuildUpcomingCircleDto(
@@ -411,49 +422,6 @@ namespace Orbits.GeneralProject.BLL.CircleService
                     day.DayName = name;
                 }
             }
-        }
-
-        private IReadOnlyCollection<int> CollectScheduleDayIds(
-            IEnumerable<Circle>? circles,
-            IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>> circleTimesLookup)
-        {
-            var dayIds = new HashSet<int>();
-
-            if (circles != null)
-            {
-                foreach (var circle in circles)
-                {
-                    if (circle?.CircleDays == null)
-                        continue;
-
-                    foreach (var day in circle.CircleDays)
-                    {
-                        if (day?.DayId.HasValue == true && day.DayId.Value > 0 && day.IsDeleted != true)
-                        {
-                            dayIds.Add(day.DayId.Value);
-                        }
-                    }
-                }
-            }
-
-            if (circleTimesLookup != null)
-            {
-                foreach (var schedules in circleTimesLookup.Values)
-                {
-                    if (schedules == null)
-                        continue;
-
-                    foreach (var schedule in schedules)
-                    {
-                        if (schedule?.DayId > 0)
-                        {
-                            dayIds.Add(schedule.DayId);
-                        }
-                    }
-                }
-            }
-
-            return dayIds;
         }
 
         private async Task<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>> LoadCircleTimesLookupAsync(IReadOnlyCollection<int> circleIds)
