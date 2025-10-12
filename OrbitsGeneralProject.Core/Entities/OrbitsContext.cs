@@ -12,6 +12,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<ChallengeRole> ChallengeRoles { get; set; } = null!;
         public virtual DbSet<Circle> Circles { get; set; } = null!;
         public virtual DbSet<CircleDay> CircleDays { get; set; } = null!;
+        public virtual DbSet<CircleTime> CircleTimes { get; set; } = null!;
         public virtual DbSet<CircleReport> CircleReports { get; set; } = null!;
         public virtual DbSet<Day> Days { get; set; } = null!;
         public virtual DbSet<Family> Families { get; set; } = null!;
@@ -116,6 +117,21 @@ namespace Orbits.GeneralProject.Core.Entities
                     .WithMany(p => p.CircleDays)
                     .HasForeignKey(d => d.CircleId)
                     .HasConstraintName("FK_CircleDay_Circle");
+            });
+
+            modelBuilder.Entity<CircleTime>(entity =>
+            {
+                entity.ToTable("CircleTime");
+
+                entity.HasOne(d => d.Circle)
+                    .WithMany(p => p.CircleTimes)
+                    .HasForeignKey(d => d.CircleId)
+                    .HasConstraintName("FK_CircleTime_Circle");
+
+                entity.HasOne(d => d.Day)
+                    .WithMany(p => p.CircleTimes)
+                    .HasForeignKey(d => d.DayId)
+                    .HasConstraintName("FK_CircleTime_Day");
             });
 
             modelBuilder.Entity<CircleReport>(entity =>
