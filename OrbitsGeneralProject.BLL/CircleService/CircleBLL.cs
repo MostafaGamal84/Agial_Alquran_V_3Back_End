@@ -507,7 +507,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                         {
                             DayId = cd.DayId!.Value,
                             Time = cd.Time,
-                            DayName = cd.Day?.NameOfDay
+                            DayName = Enum.GetName(typeof(DaysEnum), cd.DayId!.Value)
                         }));
             }
 
