@@ -5,11 +5,6 @@ namespace Orbits.GeneralProject.Core.Entities
 {
     public partial class Day:EntityBase
     {
-        public Day()
-        {
-            CircleDays = new HashSet<CircleDay>();
-        }
-
         public int Id { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
@@ -17,7 +12,5 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ModefiedAt { get; set; }
         public string? NameOfDay { get; set; }
         public bool? IsDeleted { get; set; }
-
-        public virtual ICollection<CircleDay> CircleDays { get; set; }
     }
 }

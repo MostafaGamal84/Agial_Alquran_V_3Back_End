@@ -1,6 +1,0 @@
-D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.BLL\obj\Debug\net8.0\Orbits.GeneralProject.BLL.csproj.AssemblyReference.cache
-D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.BLL\obj\Debug\net8.0\Orbits.GeneralProject.BLL.GeneratedMSBuildEditorConfig.editorconfig
-D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.BLL\obj\Debug\net8.0\Orbits.GeneralProject.BLL.AssemblyInfoInputs.cache
-D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.BLL\obj\Debug\net8.0\Orbits.GeneralProject.BLL.AssemblyInfo.cs
-D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.BLL\obj\Debug\net8.0\Orbits.GeneralProject.BLL.csproj.CoreCompileInputs.cache
-D:\Private\Ajyal_Alquran_V_3\OrbitsGeneralProject.BLL\obj\Debug\net8.0\Orbits.GeneralProject.BLL.sourcelink.json

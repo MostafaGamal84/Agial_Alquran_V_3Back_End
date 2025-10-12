@@ -116,11 +116,6 @@ namespace Orbits.GeneralProject.Core.Entities
                     .WithMany(p => p.CircleDays)
                     .HasForeignKey(d => d.CircleId)
                     .HasConstraintName("FK_CircleDay_Circle");
-
-                entity.HasOne(d => d.Day)
-                    .WithMany(p => p.CircleDays)
-                    .HasForeignKey(d => d.DayId)
-                    .HasConstraintName("FK_CircleDay_Day");
             });
 
             modelBuilder.Entity<CircleReport>(entity =>

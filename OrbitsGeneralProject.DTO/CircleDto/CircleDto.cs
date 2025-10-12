@@ -13,14 +13,6 @@ namespace Orbits.GeneralProject.DTO.CircleDto
         public int? TeacherId { get; set; }
         public UserLockUpDto? Teacher { get; set; }
 
-        [JsonPropertyName("day")]
-        public ICollection<int>? DayIds { get; set; }
-
-        [JsonPropertyName("dayName")]
-        public ICollection<string>? DayNames { get; set; }
-
-        [JsonPropertyName("startTime")]
-        public TimeSpan? StartTime { get; set; }
 
         [JsonPropertyName("days")]
         public ICollection<CircleDayDto>? Days { get; set; }

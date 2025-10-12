@@ -256,7 +256,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 {
                     DayId = cd.DayId!.Value,
                     Time = cd.Time,
-                    DayName = cd.Day?.NameOfDay
+                    DayName = ((DaysEnum)cd.DayId.Value).ToString()
                 })
                 .ToList() ?? new List<CircleDayDto>();
 
@@ -464,14 +464,9 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 .Select(x => x.DayId)
                 .ToList();
 
-            var validIds = await _dayRepository
-                .Where(d => ids.Contains(d.Id) && d.IsDeleted != true)
-                .Select(d => d.Id)
-                .ToListAsync();
+        
 
-            return sanitized
-                .Where(d => validIds.Contains(d.DayId))
-                .ToList();
+            return sanitized.ToList();
         }
 
         private static List<CircleDay> BuildCircleDayLinks(int circleId, IEnumerable<CircleDayRequestDto> days, int userId, DateTime? createdAt = null)
@@ -483,9 +478,8 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 {
                     CircleId = circleId,
                     DayId = day.DayId,
-                    Time = day.Time,
-                    CreatedAt = timestamp,
-                    CreatedBy = userId
+                    Time = day.Time
+                  
                 })
                 .ToList();
         }
@@ -519,8 +513,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 if (circleDay.DayId.HasValue && incomingLookup.TryGetValue(circleDay.DayId.Value, out var incoming))
                 {
                     circleDay.Time = incoming.Time;
-                    circleDay.ModefiedAt = DateTime.UtcNow;
-                    circleDay.ModefiedBy = userId;
+                  
                 }
             }
 
@@ -578,23 +571,8 @@ namespace Orbits.GeneralProject.BLL.CircleService
                     continue;
 
                 PopulateCircleDayNames(circle.Days, dayLookup);
-
-                circle.DayIds = circle.Days
-                    .Select(d => d.DayId)
-                    .Distinct()
-                    .ToList();
-
-                circle.DayNames = circle.Days
-                    .Select(d => ResolveDayName(d.DayId, dayLookup))
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .ToList();
-
-                circle.StartTime = circle.Days
-                    .Where(d => d.Time.HasValue)
-                    .OrderBy(d => d.Time)
-                    .Select(d => d.Time)
-                    .FirstOrDefault();
             }
+     
         }
 
         private static void NormalizeSequentialOccurrences(IList<UpcomingCircleDto> circles)
@@ -671,9 +649,9 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             // 4a) Save circle to get the generated Id
             var created = await _circleRepository.AddAsync(entity);
-            var User = await _userRepository.GetByIdAsync(userId);
+            var currentUser = await _userRepository.GetByIdAsync(userId);
             await _unitOfWork.CommitAsync(); // after this, created.Id is available
-            if (User.UserTypeId == (int)UserTypesEnum.Manager)
+            if (currentUser.UserTypeId == (int)UserTypesEnum.Manager)
             {
                 model.Managers ??= new List<int>();
                 if (!model.Managers.Contains(userId))

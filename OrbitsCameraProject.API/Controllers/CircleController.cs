@@ -32,7 +32,7 @@ namespace OrbitsProject.API.Controllers
 
         [HttpPost("Create"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Create(CreateCircleDto model)
-           => Ok(await _circleBLL.AddAsync(model, 1200));
+           => Ok(await _circleBLL.AddAsync(model, UserId));
 
         [HttpPost("Update"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Update(UpdateCircleDto model)

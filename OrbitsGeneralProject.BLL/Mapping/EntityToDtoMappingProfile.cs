@@ -30,10 +30,7 @@ namespace Orbits.GeneralProject.BLL.Mapping
             CreateMap<CircleDay, CircleDayDto>()
                 .ForMember(d => d.DayId, o => o.MapFrom(s => s.DayId.HasValue ? s.DayId.Value : 0))
                 .ForMember(d => d.Time, o => o.MapFrom(s => s.Time))
-                .ForMember(d => d.DayName, o => o.MapFrom(s =>
-                    s.Day != null
-                        ? s.Day.NameOfDay
-                        : (s.DayId.HasValue && Enum.IsDefined(typeof(DaysEnum), s.DayId.Value)
+                .ForMember(d => d.DayName, o => o.MapFrom(s => (s.DayId.HasValue && Enum.IsDefined(typeof(DaysEnum), s.DayId.Value)
                             ? ((DaysEnum)s.DayId.Value).ToString()
                             : null)));
             CreateMap<User, UserReturnDto>();
