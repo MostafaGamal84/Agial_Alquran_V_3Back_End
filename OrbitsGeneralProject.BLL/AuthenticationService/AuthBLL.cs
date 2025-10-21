@@ -10,10 +10,12 @@ using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.Helpers.MailHelper;
 using Orbits.GeneralProject.BLL.Helpers.SMSHelper;
 using Orbits.GeneralProject.BLL.Validation.LoginValidation;
+using Orbits.GeneralProject.BLL.Validation.UserValidation;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.HelperDtos.MailDtos;
 using Orbits.GeneralProject.DTO.LoginDtos;
+using Orbits.GeneralProject.DTO.UserDtos;
 using Orbits.GeneralProject.DTO.Setting.Authentication;
 using Orbits.GeneralProject.DTO.Setting.EmailBodyTemplateSetting;
 using Orbits.GeneralProject.DTO.Setting.FilesPath;
@@ -346,66 +348,102 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
         //        return output.AppendError(MessageCodes.Exception, ex.Message);
         //    }
         //}
-        //public async Task<IResponse<string>> ForgetPassword(ForgetPasswordDto dto)
-        //{
-        //    var output = new Response<string>();
-        //    try
-        //    {
-        //        ForgetPasswordValidation validation = new ForgetPasswordValidation();
-        //        ValidationResult validationResult = validation.Validate(dto);
-        //        if (!validationResult.IsValid)
-        //        {
-        //            return output.AppendErrors(validationResult.Errors);
-        //        }
-        //        var user = await _userRepository.GetAsync(x => x.Email == dto.Email);
-        //        if (user != null)
-        //        {
-        //            var fullPath = Path.Combine(_hostEnvironment.ContentRootPath,
-        //                _emailBodyTemplateSetting.EmailBodyPath,
-        //                _emailBodyTemplateSetting.resetPassword);
-        //            var body = System.IO.File.ReadAllText(fullPath);
-        //            var encryptEmail = EncryptTools.EncryptString(user.Email, _toolsSetting.EncryptKey);
-        //            var result = await _mailService.SendEmail(new DTO.HelperDtos.MailDtos.EmailMessage
-        //            {
-        //                Subject = "نسيت كلمة المرور",
-        //                Body = body
-        //                        .Replace("{%UserName%}", user.Username)
-        //                        .Replace("%Link%", this.GenerateLink(_frontSetting.FrontLinkURL, _frontSetting.ResetPassword) + encryptEmail),
-        //                To = user.Email
-        //            });
-        //        }
-        //        return output.CreateResponse(LoginValidationReponseConstants.ChangePasswordCodeSent);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return output.AppendError(MessageCodes.Exception, ex.Message);
-        //    }
-        //}
-        //public async Task<IResponse<string>> ResetPassword(ChangePasswordDto dto)
-        //{
-        //    var output = new Response<string>();
-        //    try
-        //    {
-        //        ChangePasswordValidation validation = new ChangePasswordValidation();
-        //        ValidationResult validationResult = validation.Validate(dto);
-        //        if (!validationResult.IsValid)
-        //        {
-        //            return output.AppendErrors(validationResult.Errors);
-        //        }
-        //        dto.Email = EncryptTools.DecryptString(dto.Email, _toolsSetting.EncryptKey);
-        //        var user = await _userRepository.GetAsync(x => x.Email == dto.Email);
-        //        if (user != null)
-        //        {
-        //            user.Password = this.GenerateHashPassword(user, dto.NewPassword);
-        //            await _unitOfWork.CommitAsync();
-        //        }
-        //        return output.CreateResponse(LoginValidationReponseConstants.ChangePasswordCodeSent);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return output.AppendError(MessageCodes.Exception, ex.Message);
-        //    }
-        //}
+        public async Task<IResponse<string>> ForgetPassword(ForgetPasswordDto dto)
+        {
+            var output = new Response<string>();
+            try
+            {
+                ForgetPasswordValidation validation = new ForgetPasswordValidation();
+                ValidationResult validationResult = validation.Validate(dto);
+                if (!validationResult.IsValid)
+                {
+                    return output.AppendErrors(validationResult.Errors);
+                }
+
+                User user = await _userRepository.GetAsync(x => x.Email.Trim().ToLower() == dto.Email.Trim().ToLower());
+                if (user == null)
+                {
+                    return output.CreateResponse(MessageCodes.NotFound);
+                }
+
+                string code = new Random().Next(1000, 9999).ToString();
+                user.Code = code.Trim();
+                user.CodeExpirationTime = DateTime.Now;
+
+                if (_amanaSetting.CanSendToFront)
+                {
+                    string body = GetOTPBodyFromHTMLFile(user.FullName ?? user.Email ?? string.Empty, code);
+                    var message = await _mailService.SendEmail(new EmailMessage
+                    {
+                        Subject = "OTP",
+                        Body = body,
+                        To = user.Email
+                    });
+
+                    if (message != null && !message.IsSuccess)
+                    {
+                        return output.CreateResponse(MessageCodes.CouldnotSendEmail);
+                    }
+                }
+
+                _userRepository.Update(user);
+                await _unitOfWork.CommitAsync();
+
+                string responseMessage = _amanaSetting.CanSendToFront
+                    ? LoginValidationReponseConstants.ChangePasswordCodeSent
+                    : code;
+
+                return output.CreateResponse(responseMessage);
+            }
+            catch (Exception ex)
+            {
+                return output.AppendError(MessageCodes.Exception, ex.Message);
+            }
+        }
+
+        public async Task<IResponse<string>> ResetPassword(ResetPasswordDto dto)
+        {
+            var output = new Response<string>();
+            try
+            {
+                ResetPasswordValidation validation = new ResetPasswordValidation();
+                ValidationResult validationResult = validation.Validate(dto);
+                if (!validationResult.IsValid)
+                {
+                    return output.AppendErrors(validationResult.Errors);
+                }
+
+                User user = await _userRepository.GetAsync(x => x.Email.Trim().ToLower() == dto.Email.Trim().ToLower());
+                if (user == null)
+                {
+                    return output.CreateResponse(MessageCodes.NotFound);
+                }
+
+                if (string.IsNullOrWhiteSpace(user.Code) || !string.Equals(user.Code.Trim(), dto.Code.Trim(), StringComparison.Ordinal))
+                {
+                    return output.CreateResponse(MessageCodes.InvalidCode);
+                }
+
+                if (!user.CodeExpirationTime.HasValue || user.CodeExpirationTime.Value.AddMinutes(5) < DateTime.Now)
+                {
+                    return output.CreateResponse(MessageCodes.CodeNotValidAnyMore);
+                }
+
+                PasswordHasher<User> passwordHasher = new PasswordHasher<User>();
+                user.PasswordHash = passwordHasher.HashPassword(user, dto.NewPassword);
+                user.Code = null;
+                user.CodeExpirationTime = null;
+
+                _userRepository.Update(user);
+                await _unitOfWork.CommitAsync();
+
+                return output.CreateResponse(LoginValidationReponseConstants.ChangePasswordCodeSent);
+            }
+            catch (Exception ex)
+            {
+                return output.AppendError(MessageCodes.Exception, ex.Message);
+            }
+        }
         //private string GenerateHashPassword(User user, string newPassword)
         //{
         //    PasswordHasher<User> passwordHasher = new PasswordHasher<User>();

@@ -21,8 +21,8 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
         //Task<IResponse<bool>> ActiveUser(ActivateUserDto dto);
         //string ReadEmailBodyFromHTMLFile(string path, string fileName, string email, string userName);
         //string GetOTPBodyFromHTMLFile(string userName, string code);
-        //Task<IResponse<string>> ForgetPassword(ForgetPasswordDto dto);
-        //Task<IResponse<string>> ResetPassword(ChangePasswordDto dto);
+        Task<IResponse<string>> ForgetPassword(ForgetPasswordDto dto);
+        Task<IResponse<string>> ResetPassword(ResetPasswordDto dto);
         //Task<IResponse<string>> ChangePassword(ChangePasswordDto dto, int userId);
         //Task<IResponse<LoginResultDto>> RefreshToken(RequestForRefreshTokenDto model);
     }
