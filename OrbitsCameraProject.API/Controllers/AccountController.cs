@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Orbits.GeneralProject.BLL.AuthenticationService;
 using Orbits.GeneralProject.BLL.BaseReponse;
-using Orbits.GeneralProject.BLL.UserService;
 using Orbits.GeneralProject.DTO.LoginDtos;
+using Orbits.GeneralProject.DTO.UserDtos;
 
 namespace OrbitsProject.API.Controllers
 {
@@ -25,6 +25,14 @@ namespace OrbitsProject.API.Controllers
         [HttpPost("VerifyCode"), ProducesResponseType(typeof(IResponse<LoginResultDto>), 200)]
         public async Task<IActionResult> VerifyCode(VerifyLoginCodeDto model)
             => Ok(await _authBLL.VerifyCode(model));
+
+        [HttpPost("ForgetPassword"), ProducesResponseType(typeof(IResponse<string>), 200)]
+        public async Task<IActionResult> ForgetPassword(ForgetPasswordDto model)
+            => Ok(await _authBLL.ForgetPassword(model));
+
+        [HttpPost("ResetPassword"), ProducesResponseType(typeof(IResponse<string>), 200)]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
+            => Ok(await _authBLL.ResetPassword(model));
 
     }
 }
