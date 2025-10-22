@@ -55,6 +55,7 @@ namespace Orbits.GeneralProject.BLL.Constants
         public const string CodeNullOrEmpty = "الكود لا يجب ان يكون فارغ";
         public const string CodeLength = "الكود مكون من 4 أرقام";
         public const string ChangePasswordCodeSent = "تم ارسال الكود الى بريدك، الرجاء التحقق من رسائل البريد";
+        public const string ChangePasswordSuccess = "تم تغيير كلمة السر بنجاح";
     }
     #endregion
     #region UserValidationReponseConstants
