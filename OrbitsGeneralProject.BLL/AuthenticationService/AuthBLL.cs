@@ -437,7 +437,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
                 _userRepository.Update(user);
                 await _unitOfWork.CommitAsync();
 
-                return output.CreateResponse(LoginValidationReponseConstants.ChangePasswordCodeSent);
+                return output.CreateResponse(LoginValidationReponseConstants.ChangePasswordSuccess);
             }
             catch (Exception ex)
             {
