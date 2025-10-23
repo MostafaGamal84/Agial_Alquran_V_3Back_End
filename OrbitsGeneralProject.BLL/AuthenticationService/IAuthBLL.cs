@@ -23,7 +23,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
         //string GetOTPBodyFromHTMLFile(string userName, string code);
         Task<IResponse<string>> ForgetPassword(ForgetPasswordDto dto);
         Task<IResponse<string>> ResetPassword(ResetPasswordDto dto);
-        //Task<IResponse<string>> ChangePassword(ChangePasswordDto dto, int userId);
+        Task<IResponse<string>> ChangePassword(ChangePasswordDto dto, int userId);
         //Task<IResponse<LoginResultDto>> RefreshToken(RequestForRefreshTokenDto model);
     }
 }

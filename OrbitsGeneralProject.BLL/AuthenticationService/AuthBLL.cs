@@ -324,30 +324,55 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
         //        return output.CreateResponse(MessageCodes.Exception, ex.Message);
         //    }
         //}
-        //public async Task<IResponse<string>> ChangePassword(ChangePasswordDto dto, int userId)
-        //{
-        //    var output = new Response<string>();
-        //    try
-        //    {
-        //        ChangePasswordValidation validation = new ChangePasswordValidation();
-        //        ValidationResult validationResult = validation.Validate(dto);
-        //        if (!validationResult.IsValid)
-        //        {
-        //            return output.AppendErrors(validationResult.Errors);
-        //        }
-        //        var user = await _userRepository.GetByIdAsync(userId);
-        //        if (user != null)
-        //        {
-        //            user.Password = this.GenerateHashPassword(user, dto.NewPassword);
-        //            await _unitOfWork.CommitAsync();
-        //        }
-        //        return output.CreateResponse(LoginValidationReponseConstants.ChangePasswordCodeSent);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return output.AppendError(MessageCodes.Exception, ex.Message);
-        //    }
-        //}
+        public async Task<IResponse<string>> ChangePassword(ChangePasswordDto dto, int userId)
+        {
+            var output = new Response<string>();
+            try
+            {
+                ChangePasswordValidation validation = new ChangePasswordValidation();
+                ValidationResult validationResult = validation.Validate(dto);
+                if (!validationResult.IsValid)
+                {
+                    return output.AppendErrors(validationResult.Errors);
+                }
+
+                User user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return output.CreateResponse(MessageCodes.NotFound);
+                }
+
+                if (user.Inactive || user.IsDeleted)
+                {
+                    return output.CreateResponse(MessageCodes.NotActive);
+                }
+
+                if (string.IsNullOrWhiteSpace(user.PasswordHash))
+                {
+                    return output.CreateResponse(MessageCodes.PasswordIsNullInThisUser);
+                }
+
+                PasswordHasher<User> passwordHasher = new PasswordHasher<User>();
+                PasswordVerificationResult verificationResult = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.CurrentPassword);
+                if (verificationResult == PasswordVerificationResult.Failed)
+                {
+                    return output.CreateResponse(MessageCodes.InvalidCurrentPassword);
+                }
+
+                user.PasswordHash = passwordHasher.HashPassword(user, dto.NewPassword);
+                user.ModefiedAt = DateTime.Now;
+                user.ModefiedBy = userId;
+
+                _userRepository.Update(user);
+                await _unitOfWork.CommitAsync();
+
+                return output.CreateResponse(LoginValidationReponseConstants.ChangePasswordSuccess);
+            }
+            catch (Exception ex)
+            {
+                return output.AppendError(MessageCodes.Exception, ex.Message);
+            }
+        }
         public async Task<IResponse<string>> ForgetPassword(ForgetPasswordDto dto)
         {
             var output = new Response<string>();
