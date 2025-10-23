@@ -27,9 +27,13 @@ namespace OrbitsProject.API.Controllers
         [HttpPost("Update"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Update(UpdateUserDto model) => Ok(await _userBLL.Update(model, UserId));
 
-        [HttpGet("GetProfile"), ProducesResponseType(typeof(IResponse<ProfileDto>), 200)]
+        [HttpGet("GetProfile"), HttpGet("Profile"), ProducesResponseType(typeof(IResponse<ProfileDto>), 200)]
         public async Task<IActionResult> GetProfile()
             => Ok(await _userBLL.GetProfile(UserId));
+
+        [HttpPut("Profile"), ProducesResponseType(typeof(IResponse<bool>), 200)]
+        public async Task<IActionResult> UpdateProfile(UpdateProfileDto model)
+            => Ok(await _userBLL.UpdateProfile(model, UserId));
 
         [HttpGet("DisableUser"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> DisableUser(int id, bool statue) => Ok(await _userBLL.DisableUser(id, statue));
