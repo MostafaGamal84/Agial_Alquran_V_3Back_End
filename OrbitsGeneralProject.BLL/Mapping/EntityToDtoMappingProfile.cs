@@ -11,6 +11,7 @@ using Orbits.GeneralProject.DTO.StudentSubscribDtos;
 using Orbits.GeneralProject.DTO.StudentSubscribDtos.StudentPaymentDtos;
 using Orbits.GeneralProject.DTO.SubscribeDtos;
 using Orbits.GeneralProject.DTO.UserDto;
+using Orbits.GeneralProject.DTO.UserDtos;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +36,7 @@ namespace Orbits.GeneralProject.BLL.Mapping
                             : null)));
             CreateMap<User, UserReturnDto>();
             CreateMap<User, ManagerDto>();
+            CreateMap<User, ProfileDto>();
             CreateMap<User, UserLockUpDto>()
                 .ForMember(x => x.Nationality, xx => xx.MapFrom(c => c.Nationality.Name))
                 .ForMember(x => x.Governorate, xx => xx.MapFrom(c => c.Governorate.Name))

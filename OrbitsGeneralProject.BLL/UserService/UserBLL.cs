@@ -2,14 +2,12 @@ using AutoMapper;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Hosting;
-using OfficeOpenXml.FormulaParsing.Excel.Functions.Text;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.Validation.UserValidation;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.Core.Infrastructure;
-using Orbits.GeneralProject.DTO.LockUpDtos;
 using Orbits.GeneralProject.DTO.UserDto;
 using Orbits.GeneralProject.DTO.UserDtos;
 using Orbits.GeneralProject.Repositroy.Base;
@@ -281,18 +279,95 @@ namespace Orbits.GeneralProject.BLL.UserService
         }
 
 
-        public async Task<IResponse<UserLockUpDto>> GetProfile(int userId)
+        public async Task<IResponse<ProfileDto>> GetProfile(int userId)
         {
-            Response<UserLockUpDto> output = new Response<UserLockUpDto>();
+            var output = new Response<ProfileDto>();
 
-            User user = await _userRepository.GetByIdAsync(userId);
-            if (user != null)
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null || user.IsDeleted)
+                return output.CreateResponse(MessageCodes.NotFound);
+
+            var mappedResult = _mapper.Map<ProfileDto>(user);
+
+            return output.CreateResponse(mappedResult);
+        }
+
+        public async Task<IResponse<bool>> UpdateProfile(UpdateProfileDto updateProfileDto, int userId)
+        {
+            var output = new Response<bool>();
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null || user.IsDeleted)
+                return output.CreateResponse(MessageCodes.NotFound);
+
+            if (updateProfileDto.Email != null)
             {
-                UserLockUpDto mappdedResult = _mapper.Map<UserLockUpDto>(user);
-                
-                return output.CreateResponse(mappdedResult);
+                var normalizedEmail = updateProfileDto.Email.Trim();
+                if (!string.IsNullOrWhiteSpace(normalizedEmail) &&
+                    !string.Equals(user.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    var normalizedEmailLower = normalizedEmail.ToLowerInvariant();
+                    var emailExists = await _userRepository.AnyAsync(x =>
+                        x.Id != userId && x.Email != null &&
+                        x.Email.ToLower() == normalizedEmailLower);
+
+                    if (emailExists)
+                        return output.CreateResponse(MessageCodes.EmailAlreadyExists);
+
+                    user.Email = normalizedEmail;
+                }
+                else if (string.IsNullOrWhiteSpace(normalizedEmail))
+                {
+                    user.Email = null;
+                }
             }
-            return output.CreateResponse(MessageCodes.NotFound);
+
+            if (updateProfileDto.Mobile != null)
+            {
+                var normalizedMobile = updateProfileDto.Mobile.Trim();
+                if (!string.IsNullOrWhiteSpace(normalizedMobile) &&
+                    !string.Equals(user.Mobile, normalizedMobile, StringComparison.Ordinal))
+                {
+                    var phoneExists = await _userRepository.AnyAsync(x =>
+                        x.Id != userId && x.Mobile == normalizedMobile);
+
+                    if (phoneExists)
+                        return output.CreateResponse(MessageCodes.PhoneNumberAlreadyExisted);
+
+                    user.Mobile = normalizedMobile;
+                }
+                else if (string.IsNullOrWhiteSpace(normalizedMobile))
+                {
+                    user.Mobile = null;
+                }
+            }
+
+            if (updateProfileDto.FullName != null)
+                user.FullName = string.IsNullOrWhiteSpace(updateProfileDto.FullName)
+                    ? null
+                    : updateProfileDto.FullName.Trim();
+
+            if (updateProfileDto.SecondMobile != null)
+                user.SecondMobile = string.IsNullOrWhiteSpace(updateProfileDto.SecondMobile)
+                    ? null
+                    : updateProfileDto.SecondMobile.Trim();
+
+            if (updateProfileDto.NationalityId.HasValue)
+                user.NationalityId = updateProfileDto.NationalityId;
+
+            if (updateProfileDto.GovernorateId.HasValue)
+                user.GovernorateId = updateProfileDto.GovernorateId;
+
+            if (updateProfileDto.BranchId.HasValue)
+                user.BranchId = updateProfileDto.BranchId;
+
+            user.ModefiedAt = DateTime.Now;
+            user.ModefiedBy = userId;
+
+            _userRepository.Update(user);
+            await _unitOfWork.CommitAsync();
+
+            return output.CreateResponse(true);
         }
 
 
