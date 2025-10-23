@@ -34,5 +34,9 @@ namespace OrbitsProject.API.Controllers
         public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
             => Ok(await _authBLL.ResetPassword(model));
 
+        [HttpPost("ChangePassword"), ProducesResponseType(typeof(IResponse<string>), 200)]
+        public async Task<IActionResult> ChangePassword(ChangePasswordDto model)
+            => Ok(await _authBLL.ChangePassword(model, UserId));
+
     }
 }

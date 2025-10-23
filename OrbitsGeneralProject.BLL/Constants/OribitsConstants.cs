@@ -52,6 +52,7 @@ namespace Orbits.GeneralProject.BLL.Constants
         public const string EmailNotNullOrEmpty = "البريد الإلكتروني مطلوب";
         public const string PasswordNotNullOrEmpty = "الرقم السري مطلوب";
         public const string PasswordMustBeComplex = "يجب ألا تقل كلمة المرور عن 8 أحرف، وتحتوي على الأقل على حرف كبير (A-Z)، وحرف صغير (a-z)، ورقم (0-9)، وحرف خاص مثل (@, #, $, %).";
+        public const string ConfirmPasswordMustMatch = "كلمة المرور وتأكيدها غير متطابقين.";
         public const string CodeNullOrEmpty = "الكود لا يجب ان يكون فارغ";
         public const string CodeLength = "الكود مكون من 4 أرقام";
         public const string ChangePasswordCodeSent = "تم ارسال الكود الى بريدك، الرجاء التحقق من رسائل البريد";
@@ -497,6 +498,8 @@ namespace Orbits.GeneralProject.BLL.Constants
         StudentSubscribeNotFound = 7067,
         [Description("لا يوجد دقائق كافية لهذا الطالب")]
         StudentMinutesNotFound = 7068,
+        [Description("كلمة المرور الحالية غير صحيحة")]
+        InvalidCurrentPassword = 7069,
     }
 
     #endregion BLL Responses MessageCodes
