@@ -232,11 +232,15 @@ namespace Orbits.GeneralProject.BLL.UserService
                     t.ModefiedBy = userid;
                     _userRepository.Update(t);
                 }
-                var updatedCircle = _circleRepository.GetById(existedUser.CircleId.Value);
-                updatedCircle.TeacherId = existedUser.Id;
-                updatedCircle.ModefiedAt = DateTime.Now;
-                updatedCircle.ModefiedBy = userid;
-                _circleRepository.Update(updatedCircle);
+                if (updateUserDto.CircleId != null )
+                {
+                    var updatedCircle = _circleRepository.GetById(existedUser.CircleId.Value);
+                    updatedCircle.TeacherId = existedUser.Id;
+                    updatedCircle.ModefiedAt = DateTime.Now;
+                    updatedCircle.ModefiedBy = userid;
+                    _circleRepository.Update(updatedCircle);
+                }
+             
 
             }
 
