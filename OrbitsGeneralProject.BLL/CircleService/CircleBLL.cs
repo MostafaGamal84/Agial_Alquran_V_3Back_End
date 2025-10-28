@@ -260,12 +260,12 @@ namespace Orbits.GeneralProject.BLL.CircleService
             if (explicitManagerId.HasValue)
             {
                 query = query.Where(c => c.ManagerCircles.Any(mc =>
-                    mc.ManagerId == explicitManagerId.Value && mc.IsDeleted != true));
+                    mc.ManagerId == explicitManagerId.Value));
             }
             else if (userType == UserTypesEnum.Manager)
             {
                 query = query.Where(c => c.ManagerCircles.Any(mc =>
-                    mc.ManagerId == userId && mc.IsDeleted != true));
+                    mc.ManagerId == userId));
             }
 
             if (explicitTeacherId.HasValue)
@@ -306,7 +306,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             var (nextDayId, nextOccurrence) = CalculateNextOccurrence(referenceUtc, scheduleList);
 
             var managers = circle.ManagerCircles?
-                .Where(mc => mc.ManagerId.HasValue && mc.Manager != null && mc.IsDeleted != true && mc.Manager.IsDeleted != true)
+                .Where(mc => mc.ManagerId.HasValue && mc.Manager != null && mc.Manager.IsDeleted != true)
                 .Select(mc => new ManagerCirclesDto
                 {
                     ManagerId = mc.ManagerId,
