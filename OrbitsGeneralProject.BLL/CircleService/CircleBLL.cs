@@ -32,7 +32,6 @@ namespace Orbits.GeneralProject.BLL.CircleService
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<ManagerCircle> _managerCircleRepository;
         private readonly IRepository<CircleDay> _circleDayRepository;
-        private readonly IRepository<CircleTime> _circleTimeRepository;
         private readonly IRepository<Day> _dayRepository;
 
         private readonly IUnitOfWork _unitOfWork;
@@ -52,7 +51,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
         };
         public CircleBLL(IMapper mapper, IRepository<Circle> circleRepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<CircleDay> circleDayRepository, IRepository<Day> dayRepository, IRepository<CircleTime> circleTimeRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<CircleDay> circleDayRepository, IRepository<Day> dayRepository) : base(mapper)
         {
             _circleRepository = circleRepository;
             _unitOfWork = unitOfWork;
@@ -61,7 +60,6 @@ namespace Orbits.GeneralProject.BLL.CircleService
             _userRepository = userRepository;
             _circleDayRepository = circleDayRepository;
             _dayRepository = dayRepository;
-            _circleTimeRepository = circleTimeRepository;
         }
 
 
@@ -195,30 +193,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 .Include(c => c.CircleDays)
                 .Where(c => c.IsDeleted != true);
 
-            if (explicitManagerId.HasValue)
-            {
-                query = query.Where(c => c.ManagerCircles.Any(mc =>
-                    mc.ManagerId == explicitManagerId.Value && mc.IsDeleted != true));
-            }
-            else if (userType == UserTypesEnum.Manager)
-            {
-                query = query.Where(c => c.ManagerCircles.Any(mc =>
-                    mc.ManagerId == userId && mc.IsDeleted != true));
-            }
-
-            if (explicitTeacherId.HasValue)
-            {
-                query = query.Where(c => c.TeacherId == explicitTeacherId.Value);
-            }
-            else if (userType == UserTypesEnum.Teacher)
-            {
-                query = query.Where(c => c.TeacherId == userId);
-            }
-
-            if (userType == UserTypesEnum.Student)
-            {
-                query = query.Where(c => c.Users.Any(u => u.Id == userId && u.IsDeleted != true));
-            }
+            query = ApplyUpcomingCircleFilters(query, userType, userId, explicitManagerId, explicitTeacherId);
 
             var circles = await query.ToListAsync();
 
@@ -229,32 +204,28 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             DateTime referenceUtc = DateTime.UtcNow;
 
-            var circleIds = circles
-                .Select(c => c.Id)
-                .Distinct()
-                .ToList();
+            var schedulesLookup = await BuildCircleSchedulesAsync(circles);
 
-            var circleTimesLookup = await LoadCircleTimesLookupAsync(circleIds);
-
-            var dayIds = circles
-                .SelectMany(c => c.CircleDays ?? Enumerable.Empty<CircleDay>())
-                .Where(cd => cd != null && cd.DayId.HasValue && cd.DayId.Value > 0 && cd.IsDeleted != true)
-                .Select(cd => cd.DayId!.Value)
-                .Concat(circleTimesLookup.Values
-                    .SelectMany(schedules => schedules ?? Array.Empty<CircleDayDto>())
-                    .Where(schedule => schedule != null && schedule.DayId > 0)
-                    .Select(schedule => schedule.DayId))
+            var dayIds = schedulesLookup
+                .Values
+                .SelectMany(schedule => schedule ?? Array.Empty<CircleDayDto>())
+                .Where(schedule => schedule != null && schedule.DayId > 0)
+                .Select(schedule => schedule.DayId)
                 .Distinct()
                 .ToList();
 
             var dayLookup = await BuildDayNameLookupAsync(dayIds);
 
             var projected = circles
-                .Select(circle => BuildUpcomingCircleDto(
-                    circle,
-                    GatherCircleSchedules(circle, circleTimesLookup),
-                    referenceUtc,
-                    dayLookup))
+                .Select(circle =>
+                {
+                    schedulesLookup.TryGetValue(circle.Id, out var schedules);
+                    return BuildUpcomingCircleDto(
+                        circle,
+                        schedules ?? Array.Empty<CircleDayDto>(),
+                        referenceUtc,
+                        dayLookup);
+                })
                 .Where(dto => dto.NextOccurrenceDate.HasValue)
                 .ToList();
 
@@ -272,6 +243,44 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 .ToList();
 
             return output.CreateResponse(results);
+        }
+
+        private static IQueryable<Circle> ApplyUpcomingCircleFilters(
+            IQueryable<Circle> query,
+            UserTypesEnum userType,
+            int userId,
+            int? explicitManagerId,
+            int? explicitTeacherId)
+        {
+            if (query == null)
+                return query;
+
+            if (explicitManagerId.HasValue)
+            {
+                query = query.Where(c => c.ManagerCircles.Any(mc =>
+                    mc.ManagerId == explicitManagerId.Value));
+            }
+            else if (userType == UserTypesEnum.Manager)
+            {
+                query = query.Where(c => c.ManagerCircles.Any(mc =>
+                    mc.ManagerId == userId));
+            }
+
+            if (explicitTeacherId.HasValue)
+            {
+                query = query.Where(c => c.TeacherId == explicitTeacherId.Value);
+            }
+            else if (userType == UserTypesEnum.Teacher)
+            {
+                query = query.Where(c => c.TeacherId == userId);
+            }
+
+            if (userType == UserTypesEnum.Student)
+            {
+                query = query.Where(c => c.Users.Any(u => u.Id == userId && u.IsDeleted != true));
+            }
+
+            return query;
         }
 
         private UpcomingCircleDto BuildUpcomingCircleDto(
@@ -295,7 +304,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             var (nextDayId, nextOccurrence) = CalculateNextOccurrence(referenceUtc, scheduleList);
 
             var managers = circle.ManagerCircles?
-                .Where(mc => mc.ManagerId.HasValue && mc.Manager != null && mc.IsDeleted != true && mc.Manager.IsDeleted != true)
+                .Where(mc => mc.ManagerId.HasValue && mc.Manager != null && mc.Manager.IsDeleted != true)
                 .Select(mc => new ManagerCirclesDto
                 {
                     ManagerId = mc.ManagerId,
@@ -426,75 +435,60 @@ namespace Orbits.GeneralProject.BLL.CircleService
             }
         }
 
-        private async Task<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>> LoadCircleTimesLookupAsync(IReadOnlyCollection<int> circleIds)
+        private Task<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>> BuildCircleSchedulesAsync(IEnumerable<Circle> circles)
         {
-            if (circleIds == null || circleIds.Count == 0)
+            var result = new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
+
+            if (circles == null)
             {
-                return new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
+                return Task.FromResult<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>>(result);
             }
 
-            var records = await _circleTimeRepository
-                .Where(ct => ct.CircleId.HasValue && circleIds.Contains(ct.CircleId.Value) && ct.IsDeleted != true)
-                .Select(ct => new { ct.CircleId, ct.DayId, ct.Time })
-                .ToListAsync();
-
-            if (records == null || records.Count == 0)
-            {
-                return new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
-            }
-
-            return records
-                .Where(r => r.CircleId.HasValue && r.DayId.HasValue && r.DayId.Value > 0)
-                .GroupBy(r => r.CircleId!.Value)
-                .ToDictionary(
-                    g => g.Key,
-                    g => (IReadOnlyCollection<CircleDayDto>)g
-                        .Select(r => new CircleDayDto
-                        {
-                            DayId = r.DayId!.Value,
-                            Time = r.Time
-                        })
-                        .ToList());
-        }
-
-        private IReadOnlyCollection<CircleDayDto> GatherCircleSchedules(
-            Circle circle,
-            IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>> circleTimesLookup)
-        {
-            var schedules = new List<CircleDayDto>();
-
-            if (circleTimesLookup != null && circleTimesLookup.TryGetValue(circle.Id, out var timeSchedules) && timeSchedules != null)
-            {
-                schedules.AddRange(timeSchedules.Where(s => s != null));
-            }
-
-            if (circle.CircleDays != null)
-            {
-                schedules.AddRange(
-                    circle.CircleDays
-                        .Where(cd => cd != null && cd.DayId.HasValue && cd.DayId.Value > 0 && cd.IsDeleted != true)
-                        .Select(cd => new CircleDayDto
-                        {
-                            DayId = cd.DayId!.Value,
-                            Time = cd.Time,
-                            DayName = Enum.GetName(typeof(DaysEnum), cd.DayId!.Value)
-                        }));
-            }
-
-            return schedules
-                .Where(s => s.DayId > 0)
-                .GroupBy(s => new { s.DayId, TimeTicks = s.Time?.Ticks ?? -1L })
-                .Select(group =>
-                {
-                    var first = group.First();
-                    return new CircleDayDto
-                    {
-                        DayId = first.DayId,
-                        Time = first.Time,
-                        DayName = first.DayName
-                    };
-                })
+            var circleList = circles
+                .Where(c => c != null)
                 .ToList();
+
+            if (circleList.Count == 0)
+            {
+                return Task.FromResult<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>>(result);
+            }
+
+            foreach (var circle in circleList)
+            {
+                var schedules = new List<CircleDayDto>();
+
+                if (circle.CircleDays != null)
+                {
+                    schedules.AddRange(
+                        circle.CircleDays
+                            .Where(cd => cd != null && cd.DayId.HasValue && cd.DayId.Value > 0 && cd.IsDeleted != true)
+                            .Select(cd => new CircleDayDto
+                            {
+                                DayId = cd.DayId!.Value,
+                                Time = cd.Time,
+                                DayName = Enum.GetName(typeof(DaysEnum), cd.DayId!.Value)
+                            }));
+                }
+
+                var normalized = schedules
+                    .Where(s => s.DayId > 0)
+                    .GroupBy(s => new { s.DayId, TimeTicks = s.Time?.Ticks ?? -1L })
+                    .Select(group =>
+                    {
+                        var first = group.First();
+                        return new CircleDayDto
+                        {
+                            DayId = first.DayId,
+                            Time = first.Time,
+                            DayName = first.DayName
+                        };
+                    })
+                    .ToList();
+
+                result[circle.Id] = normalized;
+            }
+
+            return Task.FromResult<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>>(result);
         }
 
         private async Task<IReadOnlyDictionary<int, string?>> BuildDayNameLookupAsync(IEnumerable<int> dayIds)
