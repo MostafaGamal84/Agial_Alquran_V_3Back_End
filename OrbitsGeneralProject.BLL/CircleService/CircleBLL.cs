@@ -32,7 +32,6 @@ namespace Orbits.GeneralProject.BLL.CircleService
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<ManagerCircle> _managerCircleRepository;
         private readonly IRepository<CircleDay> _circleDayRepository;
-        private readonly IRepository<CircleTime> _circleTimeRepository;
         private readonly IRepository<Day> _dayRepository;
 
         private readonly IUnitOfWork _unitOfWork;
@@ -52,7 +51,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
         };
         public CircleBLL(IMapper mapper, IRepository<Circle> circleRepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<CircleDay> circleDayRepository, IRepository<Day> dayRepository, IRepository<CircleTime> circleTimeRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<CircleDay> circleDayRepository, IRepository<Day> dayRepository) : base(mapper)
         {
             _circleRepository = circleRepository;
             _unitOfWork = unitOfWork;
@@ -61,7 +60,6 @@ namespace Orbits.GeneralProject.BLL.CircleService
             _userRepository = userRepository;
             _circleDayRepository = circleDayRepository;
             _dayRepository = dayRepository;
-            _circleTimeRepository = circleTimeRepository;
         }
 
 
@@ -437,11 +435,13 @@ namespace Orbits.GeneralProject.BLL.CircleService
             }
         }
 
-        private async Task<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>> BuildCircleSchedulesAsync(IEnumerable<Circle> circles)
+        private Task<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>> BuildCircleSchedulesAsync(IEnumerable<Circle> circles)
         {
+            var result = new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
+
             if (circles == null)
             {
-                return new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
+                return Task.FromResult<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>>(result);
             }
 
             var circleList = circles
@@ -450,47 +450,12 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             if (circleList.Count == 0)
             {
-                return new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
+                return Task.FromResult<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>>(result);
             }
-
-            var circleIds = circleList
-                .Select(c => c.Id)
-                .Distinct()
-                .ToList();
-
-            if (circleIds.Count == 0)
-            {
-                return new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
-            }
-
-            var timeRecords = await _circleTimeRepository
-                .Where(ct => ct.CircleId.HasValue && circleIds.Contains(ct.CircleId.Value) && ct.IsDeleted != true)
-                .Select(ct => new { ct.CircleId, ct.DayId, ct.Time })
-                .ToListAsync();
-
-            var timeLookup = timeRecords
-                .Where(r => r.CircleId.HasValue && r.DayId.HasValue && r.DayId.Value > 0)
-                .GroupBy(r => r.CircleId!.Value)
-                .ToDictionary(
-                    g => g.Key,
-                    g => (IReadOnlyCollection<CircleDayDto>)g
-                        .Select(r => new CircleDayDto
-                        {
-                            DayId = r.DayId!.Value,
-                            Time = r.Time
-                        })
-                        .ToList());
-
-            var result = new Dictionary<int, IReadOnlyCollection<CircleDayDto>>();
 
             foreach (var circle in circleList)
             {
                 var schedules = new List<CircleDayDto>();
-
-                if (timeLookup.TryGetValue(circle.Id, out var timeSchedules) && timeSchedules != null)
-                {
-                    schedules.AddRange(timeSchedules.Where(s => s != null));
-                }
 
                 if (circle.CircleDays != null)
                 {
@@ -523,7 +488,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 result[circle.Id] = normalized;
             }
 
-            return result;
+            return Task.FromResult<IReadOnlyDictionary<int, IReadOnlyCollection<CircleDayDto>>>(result);
         }
 
         private async Task<IReadOnlyDictionary<int, string?>> BuildDayNameLookupAsync(IEnumerable<int> dayIds)
