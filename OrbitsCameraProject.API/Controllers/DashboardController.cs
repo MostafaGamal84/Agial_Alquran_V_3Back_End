@@ -1,5 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.DashboardService;
+using Orbits.GeneralProject.DTO.Dashboard;
 
 namespace OrbitsProject.API.Controllers
 {
@@ -12,6 +16,14 @@ namespace OrbitsProject.API.Controllers
         public DashboardController(IDashboardBLL dashboardBLL)
         {
             _dashboardBLL = dashboardBLL;
+        }
+
+        [HttpGet("overview")]
+        [Authorize]
+        [ProducesResponseType(typeof(IResponse<RoleDashboardOverviewDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRoleOverview([FromQuery] DashboardRangeInputDto? range = null)
+        {
+            return Ok(await _dashboardBLL.GetRoleOverviewAsync(UserId, range));
         }
 
         [HttpGet("summary")]
