@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
+using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.DTO.Dashboard;
@@ -22,6 +23,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         private readonly IRepository<StudentPayment> _studentPaymentRepository;
         private readonly IRepository<User> _UserRepository;
         private readonly IRepository<CircleReport> _circleReportRepository;
+        private readonly IRepository<Circle> _circleRepository;
         private readonly IRepository<TeacherSallary> _teacherSalaryRepository;
         private readonly IRepository<ManagerSallary> _managerSalaryRepository;
         private readonly IRepository<Subscribe> _subscribeRepository;
@@ -32,6 +34,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             IRepository<StudentPayment> studentPaymentRepository,
             IRepository<User> UserRepository,
             IRepository<CircleReport> circleReportRepository,
+            IRepository<Circle> circleRepository,
             IRepository<TeacherSallary> teacherSalaryRepository,
             IRepository<ManagerSallary> managerSalaryRepository,
             IRepository<Subscribe> subscribeRepository,
@@ -40,6 +43,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             _studentPaymentRepository = studentPaymentRepository;
             _UserRepository = UserRepository;
             _circleReportRepository = circleReportRepository;
+            _circleRepository = circleRepository;
             _teacherSalaryRepository = teacherSalaryRepository;
             _managerSalaryRepository = managerSalaryRepository;
             _subscribeRepository = subscribeRepository;
@@ -189,6 +193,161 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 };
 
                 return output.CreateResponse(summary);
+            }
+            catch (Exception ex)
+            {
+                return output.CreateResponse(ex);
+            }
+        }
+
+        public async Task<IResponse<RoleDashboardOverviewDto>> GetRoleOverviewAsync(int userId, DashboardRangeInputDto? range = null)
+        {
+            Response<RoleDashboardOverviewDto> output = new();
+
+            try
+            {
+                var userInfo = await _UserRepository.GetAll()
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Id, u.UserTypeId, u.BranchId })
+                    .FirstOrDefaultAsync();
+
+                if (userInfo == null || !userInfo.UserTypeId.HasValue)
+                {
+                    return output.AppendError(MessageCodes.NotFound);
+                }
+
+                var userType = (UserTypesEnum)userInfo.UserTypeId.Value;
+
+                if (userType == UserTypesEnum.BranchLeader && !userInfo.BranchId.HasValue)
+                {
+                    return output.AppendError(MessageCodes.BusinessValidationError, "branchId", "Branch manager does not have an assigned branch.");
+                }
+
+                DashboardScope scope = CreateScope(userType, userInfo.BranchId, userInfo.Id);
+                DashboardRange rangeInfo = ResolveRange(range);
+
+                var paymentsBaseQuery = ApplyPaymentScope(_studentPaymentRepository.GetAll().AsNoTracking(), scope);
+                var teacherSalaryBase = ApplyTeacherSalaryScope(_teacherSalaryRepository.GetAll().AsNoTracking(), scope);
+                var managerSalaryBase = ApplyManagerSalaryScope(_managerSalaryRepository.GetAll().AsNoTracking(), scope);
+                var circleReportsBase = ApplyCircleReportScope(_circleReportRepository.GetAll().AsNoTracking(), scope);
+                var circleBase = ApplyCircleScope(_circleRepository.GetAll().AsNoTracking(), scope);
+
+                var branchLeadersQuery = CreateScopedBranchLeadersQuery(scope);
+                var managersQuery = CreateScopedManagersQuery(scope);
+                var teachersQuery = CreateScopedTeachersQuery(scope);
+                var studentsQuery = CreateScopedStudentsQuery(scope);
+
+                DashboardRoleMetricsDto metrics = new();
+                DashboardRoleChartsDto charts = new();
+
+                switch (userType)
+                {
+                    case UserTypesEnum.Admin:
+                        metrics.BranchManagersCount = await branchLeadersQuery.CountAsync();
+                        metrics.SupervisorsCount = await managersQuery.CountAsync();
+                        metrics.TeachersCount = await teachersQuery.CountAsync();
+                        metrics.StudentsCount = await studentsQuery.CountAsync();
+                        break;
+                    case UserTypesEnum.BranchLeader:
+                        metrics.BranchManagersCount = await branchLeadersQuery.CountAsync();
+                        metrics.SupervisorsCount = await managersQuery.CountAsync();
+                        metrics.TeachersCount = await teachersQuery.CountAsync();
+                        metrics.StudentsCount = await studentsQuery.CountAsync();
+                        break;
+                    case UserTypesEnum.Manager:
+                        metrics.SupervisorsCount = await managersQuery.CountAsync();
+                        metrics.TeachersCount = await teachersQuery.CountAsync();
+                        metrics.StudentsCount = await studentsQuery.CountAsync();
+                        break;
+                    case UserTypesEnum.Teacher:
+                        metrics.TeachersCount = await teachersQuery.CountAsync();
+                        metrics.StudentsCount = await studentsQuery.CountAsync();
+                        break;
+                    default:
+                        metrics.TeachersCount = await teachersQuery.CountAsync();
+                        metrics.StudentsCount = await studentsQuery.CountAsync();
+                        break;
+                }
+
+                int circlesTotal = await circleBase.Select(c => c.Id).Distinct().CountAsync();
+                metrics.CirclesCount = circlesTotal;
+
+                int reportsTotal = await circleReportsBase.CountAsync();
+                metrics.ReportsCount = reportsTotal;
+
+                var circleReportsRangeQuery = circleReportsBase
+                    .Where(r => r.CreationTime >= rangeInfo.Start && r.CreationTime < rangeInfo.EndExclusive);
+
+                metrics.CircleReports = await circleReportsRangeQuery.CountAsync();
+
+                int circlesWithReports = await circleReportsRangeQuery
+                    .Where(r => r.CircleId.HasValue)
+                    .Select(r => r.CircleId!.Value)
+                    .Distinct()
+                    .CountAsync();
+
+                int newStudentsCount = await studentsQuery
+                    .Where(u => u.RegisterAt.HasValue &&
+                                u.RegisterAt.Value >= rangeInfo.Start &&
+                                u.RegisterAt.Value < rangeInfo.EndExclusive)
+                    .CountAsync();
+
+                metrics.NewStudents = newStudentsCount;
+
+                var paymentsRangeQuery = paymentsBaseQuery
+                    .Where(p => p.PaymentDate >= rangeInfo.Start && p.PaymentDate < rangeInfo.EndExclusive);
+
+                decimal earningsRaw = await paymentsRangeQuery
+                    .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
+
+                var teacherSalaryRange = teacherSalaryBase
+                    .Where(s => s.Month.HasValue && s.Month.Value >= rangeInfo.Start && s.Month.Value < rangeInfo.EndExclusive);
+
+                double teacherPayoutRangeDouble = await teacherSalaryRange
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+
+                var managerSalaryRange = managerSalaryBase
+                    .Where(s => s.Month.HasValue && s.Month.Value >= rangeInfo.Start && s.Month.Value < rangeInfo.EndExclusive);
+
+                double managerPayoutRangeDouble = await managerSalaryRange
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+
+                decimal teacherPayoutRaw = Convert.ToDecimal(teacherPayoutRangeDouble);
+                decimal managerPayoutRaw = Convert.ToDecimal(managerPayoutRangeDouble);
+                decimal netRaw = earningsRaw - teacherPayoutRaw - managerPayoutRaw;
+
+                metrics.Earnings = Round(earningsRaw);
+                metrics.NetIncome = Round(netRaw);
+
+                charts.MonthlyRevenue = await BuildMonthlyRevenueAsync(
+                    rangeInfo.ReferenceEnd,
+                    paymentsBaseQuery,
+                    teacherSalaryBase,
+                    managerSalaryBase);
+
+                charts.ProjectOverview = new DashboardProjectOverviewDto
+                {
+                    TotalCircles = circlesTotal,
+                    ActiveCircles = circlesWithReports,
+                    Teachers = metrics.TeachersCount ?? 0,
+                    Students = metrics.StudentsCount ?? 0,
+                    Reports = metrics.CircleReports ?? 0
+                };
+
+                charts.Transactions = await LoadRecentTransactionsAsync(paymentsBaseQuery);
+
+                var dto = new RoleDashboardOverviewDto
+                {
+                    Role = MapRoleName(userType),
+                    RangeStart = rangeInfo.Start,
+                    RangeEnd = rangeInfo.EndInclusive,
+                    RangeLabel = range?.Range,
+                    Metrics = metrics,
+                    Charts = charts
+                };
+
+                return output.CreateResponse(dto);
             }
             catch (Exception ex)
             {
@@ -604,6 +763,359 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             {
                 return output.CreateResponse(ex);
             }
+        }
+
+        private async Task<List<DashboardMonthlyRevenuePointDto>> BuildMonthlyRevenueAsync(
+            DateTime referenceEnd,
+            IQueryable<StudentPayment> paymentsBaseQuery,
+            IQueryable<TeacherSallary> teacherSalaryBaseQuery,
+            IQueryable<ManagerSallary> managerSalaryBaseQuery,
+            int months = 6)
+        {
+            months = Math.Max(1, months);
+
+            List<DashboardMonthlyRevenuePointDto> results = new();
+
+            DateTime anchorMonthStart = new DateTime(referenceEnd.Year, referenceEnd.Month, 1);
+
+            for (int index = months - 1; index >= 0; index--)
+            {
+                DateTime monthStart = anchorMonthStart.AddMonths(-index);
+                DateTime monthEndExclusive = monthStart.AddMonths(1);
+
+                decimal earningsRaw = await paymentsBaseQuery
+                    .Where(p => p.PaymentDate >= monthStart && p.PaymentDate < monthEndExclusive)
+                    .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
+
+                double teacherRawDouble = await teacherSalaryBaseQuery
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < monthEndExclusive)
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+
+                double managerRawDouble = await managerSalaryBaseQuery
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < monthEndExclusive)
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+
+                decimal teacherRaw = Convert.ToDecimal(teacherRawDouble);
+                decimal managerRaw = Convert.ToDecimal(managerRawDouble);
+                decimal netRaw = earningsRaw - teacherRaw - managerRaw;
+
+                results.Add(new DashboardMonthlyRevenuePointDto
+                {
+                    Month = monthStart.ToString("MMM yyyy", CultureInfo.InvariantCulture),
+                    Earnings = Round(earningsRaw),
+                    TeacherPayout = Round(teacherRaw),
+                    ManagerPayout = Round(managerRaw),
+                    NetIncome = Round(netRaw)
+                });
+            }
+
+            return results;
+        }
+
+        private async Task<List<DashboardTransactionDto>> LoadRecentTransactionsAsync(IQueryable<StudentPayment> paymentsBaseQuery, int take = 10)
+        {
+            var recentPayments = await paymentsBaseQuery
+                .Where(p => p.PaymentDate.HasValue)
+                .OrderByDescending(p => p.PaymentDate)
+                .Take(take)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Amount,
+                    p.CurrencyId,
+                    p.PaymentDate,
+                    p.PayStatue,
+                    StudentName = p.Student != null ? p.Student.FullName : null,
+                    StudentEmail = p.Student != null ? p.Student.Email : null
+                })
+                .ToListAsync();
+
+            return recentPayments
+                .Select(entry => new DashboardTransactionDto
+                {
+                    Id = entry.Id,
+                    Amount = Round(Convert.ToDecimal(entry.Amount ?? 0)),
+                    Currency = entry.CurrencyId.HasValue && CurrencyLabels.TryGetValue(entry.CurrencyId.Value, out var label)
+                        ? label
+                        : "N/A",
+                    Date = entry.PaymentDate,
+                    Status = entry.PayStatue == true ? "Paid" : "Pending",
+                    Student = !string.IsNullOrWhiteSpace(entry.StudentName)
+                        ? entry.StudentName
+                        : (!string.IsNullOrWhiteSpace(entry.StudentEmail) ? entry.StudentEmail : $"Student #{entry.Id}")
+                })
+                .ToList();
+        }
+
+        private static DashboardScope CreateScope(UserTypesEnum role, int? branchId, int userId)
+        {
+            return role switch
+            {
+                UserTypesEnum.BranchLeader => new DashboardScope { BranchId = branchId },
+                UserTypesEnum.Manager => new DashboardScope { ManagerId = userId },
+                UserTypesEnum.Teacher => new DashboardScope { TeacherId = userId },
+                _ => new DashboardScope()
+            };
+        }
+
+        private static string MapRoleName(UserTypesEnum role)
+        {
+            return role switch
+            {
+                UserTypesEnum.Admin => "Admin",
+                UserTypesEnum.BranchLeader => "BranchManager",
+                UserTypesEnum.Manager => "Supervisor",
+                UserTypesEnum.Teacher => "Teacher",
+                _ => role.ToString()
+            };
+        }
+
+        private static DashboardRange ResolveRange(DashboardRangeInputDto? range)
+        {
+            DateTime referenceEnd = (range?.EndDate?.ToUniversalTime() ?? DateTime.UtcNow);
+            DateTime startCandidate = (range?.StartDate?.ToUniversalTime() ?? referenceEnd.AddDays(-29));
+
+            if (startCandidate > referenceEnd)
+            {
+                (startCandidate, referenceEnd) = (referenceEnd, startCandidate);
+            }
+
+            DateTime rangeStart = startCandidate.Date;
+            DateTime rangeEndExclusive = referenceEnd.Date.AddDays(1);
+
+            return new DashboardRange(rangeStart, rangeEndExclusive, referenceEnd);
+        }
+
+        private IQueryable<User> CreateScopedBranchLeadersQuery(DashboardScope scope)
+        {
+            var query = _UserRepository.GetAll()
+                .AsNoTracking()
+                .Where(u => u.UserTypeId == (int)UserTypesEnum.BranchLeader && !u.IsDeleted && !u.Inactive);
+
+            if (scope.BranchId.HasValue)
+            {
+                query = query.Where(u => u.BranchId == scope.BranchId.Value);
+            }
+
+            return query;
+        }
+
+        private IQueryable<User> CreateScopedManagersQuery(DashboardScope scope)
+        {
+            var query = _UserRepository.GetAll()
+                .AsNoTracking()
+                .Where(u => u.UserTypeId == (int)UserTypesEnum.Manager && !u.IsDeleted && !u.Inactive);
+
+            if (scope.BranchId.HasValue)
+            {
+                query = query.Where(u => u.BranchId == scope.BranchId.Value);
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                query = query.Where(u => u.Id == scope.ManagerId.Value);
+            }
+
+            return query;
+        }
+
+        private IQueryable<User> CreateScopedTeachersQuery(DashboardScope scope)
+        {
+            var query = _UserRepository.GetAll()
+                .AsNoTracking()
+                .Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher && !u.IsDeleted && !u.Inactive);
+
+            if (scope.BranchId.HasValue)
+            {
+                query = query.Where(u => u.BranchId == scope.BranchId.Value);
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                query = query.Where(u => u.ManagerId == scope.ManagerId.Value);
+            }
+
+            if (scope.TeacherId.HasValue)
+            {
+                query = query.Where(u => u.Id == scope.TeacherId.Value);
+            }
+
+            return query;
+        }
+
+        private IQueryable<User> CreateScopedStudentsQuery(DashboardScope scope)
+        {
+            var query = _UserRepository.GetAll()
+                .AsNoTracking()
+                .Where(u => u.UserTypeId == (int)UserTypesEnum.Student && !u.IsDeleted && !u.Inactive);
+
+            if (scope.BranchId.HasValue)
+            {
+                query = query.Where(u => u.BranchId == scope.BranchId.Value);
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                query = query.Where(u => u.ManagerId == scope.ManagerId.Value);
+            }
+
+            if (scope.TeacherId.HasValue)
+            {
+                query = query.Where(u => u.TeacherId == scope.TeacherId.Value);
+            }
+
+            return query;
+        }
+
+        private static IQueryable<StudentPayment> ApplyPaymentScope(IQueryable<StudentPayment> query, DashboardScope scope)
+        {
+            query = query
+                .Where(p => p.Amount.HasValue && p.PaymentDate.HasValue)
+                .Where(p => p.PayStatue == true)
+                .Where(p => !(p.IsCancelled ?? false))
+                .Where(p => p.Student != null && !p.Student.IsDeleted && !p.Student.Inactive);
+
+            if (scope.BranchId.HasValue)
+            {
+                int branchId = scope.BranchId.Value;
+                query = query.Where(p => p.Student!.BranchId == branchId);
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(p => p.Student!.ManagerId == managerId);
+            }
+
+            if (scope.TeacherId.HasValue)
+            {
+                int teacherId = scope.TeacherId.Value;
+                query = query.Where(p => p.Student!.TeacherId == teacherId);
+            }
+
+            return query;
+        }
+
+        private static IQueryable<TeacherSallary> ApplyTeacherSalaryScope(IQueryable<TeacherSallary> query, DashboardScope scope)
+        {
+            query = query.Where(s => s.Sallary.HasValue)
+                         .Where(s => s.IsDeleted == null || !s.IsDeleted.Value);
+
+            if (scope.BranchId.HasValue)
+            {
+                int branchId = scope.BranchId.Value;
+                query = query.Where(s => s.Teacher != null && s.Teacher.BranchId == branchId);
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(s => s.Teacher != null && s.Teacher.ManagerId == managerId);
+            }
+
+            if (scope.TeacherId.HasValue)
+            {
+                int teacherId = scope.TeacherId.Value;
+                query = query.Where(s => s.TeacherId == teacherId);
+            }
+
+            return query;
+        }
+
+        private static IQueryable<ManagerSallary> ApplyManagerSalaryScope(IQueryable<ManagerSallary> query, DashboardScope scope)
+        {
+            query = query.Where(s => s.Sallary.HasValue);
+
+            if (scope.BranchId.HasValue)
+            {
+                int branchId = scope.BranchId.Value;
+                query = query.Where(s => s.Manager != null && s.Manager.BranchId == branchId);
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(s => s.ManagerId == managerId);
+            }
+
+            return query;
+        }
+
+        private static IQueryable<CircleReport> ApplyCircleReportScope(IQueryable<CircleReport> query, DashboardScope scope)
+        {
+            query = query.Where(r => !r.IsDeleted && !r.IsPermanentlyDeleted);
+
+            if (scope.BranchId.HasValue)
+            {
+                int branchId = scope.BranchId.Value;
+                query = query.Where(r =>
+                    (r.Teacher != null && r.Teacher.BranchId == branchId) ||
+                    (r.Student != null && r.Student.BranchId == branchId));
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(r =>
+                    (r.Student != null && r.Student.ManagerId == managerId) ||
+                    (r.Teacher != null && r.Teacher.ManagerId == managerId) ||
+                    (r.Circle != null && r.Circle.ManagerCircles.Any(mc => mc.ManagerId == managerId)));
+            }
+
+            if (scope.TeacherId.HasValue)
+            {
+                int teacherId = scope.TeacherId.Value;
+                query = query.Where(r => r.TeacherId == teacherId);
+            }
+
+            return query;
+        }
+
+        private static IQueryable<Circle> ApplyCircleScope(IQueryable<Circle> query, DashboardScope scope)
+        {
+            query = query.Where(c => c.IsDeleted == null || !c.IsDeleted.Value);
+
+            if (scope.BranchId.HasValue)
+            {
+                int branchId = scope.BranchId.Value;
+                query = query.Where(c => c.Teacher != null && c.Teacher.BranchId == branchId);
+            }
+
+            if (scope.ManagerId.HasValue)
+            {
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(c => c.ManagerCircles.Any(mc => mc.ManagerId == managerId));
+            }
+
+            if (scope.TeacherId.HasValue)
+            {
+                int teacherId = scope.TeacherId.Value;
+                query = query.Where(c => c.TeacherId == teacherId);
+            }
+
+            return query;
+        }
+
+        private sealed class DashboardScope
+        {
+            public int? BranchId { get; init; }
+            public int? ManagerId { get; init; }
+            public int? TeacherId { get; init; }
+        }
+
+        private sealed class DashboardRange
+        {
+            public DashboardRange(DateTime start, DateTime endExclusive, DateTime referenceEnd)
+            {
+                Start = start;
+                EndExclusive = endExclusive;
+                ReferenceEnd = referenceEnd;
+            }
+
+            public DateTime Start { get; }
+            public DateTime EndExclusive { get; }
+            public DateTime ReferenceEnd { get; }
+            public DateTime EndInclusive => EndExclusive.AddTicks(-1);
         }
 
         private static decimal CalculatePercentageChange(decimal current, decimal previous)
