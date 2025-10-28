@@ -39,6 +39,8 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         private const int DefaultUpcomingTake = 4;
 
+        private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+
         private static readonly IReadOnlyDictionary<int, DayOfWeek> DayOfWeekLookup = new Dictionary<int, DayOfWeek>
         {
             { (int)DaysEnum.Saturday, DayOfWeek.Saturday },
@@ -203,6 +205,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             }
 
             DateTime referenceUtc = DateTime.UtcNow;
+            DateTime referenceBusinessTime = ConvertFromUtc(referenceUtc);
 
             var schedulesLookup = await BuildCircleSchedulesAsync(circles);
 
@@ -223,7 +226,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                     return BuildUpcomingCircleDto(
                         circle,
                         schedules ?? Array.Empty<CircleDayDto>(),
-                        referenceUtc,
+                        referenceBusinessTime,
                         dayLookup);
                 })
                 .Where(dto => dto.NextOccurrenceDate.HasValue)
@@ -286,7 +289,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
         private UpcomingCircleDto BuildUpcomingCircleDto(
             Circle circle,
             IEnumerable<CircleDayDto> schedules,
-            DateTime referenceUtc,
+            DateTime referenceTime,
             IReadOnlyDictionary<int, string?> dayNameLookup)
         {
             var scheduleList = schedules?
@@ -301,7 +304,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             PopulateCircleDayNames(scheduleList, dayNameLookup);
 
-            var (nextDayId, nextOccurrence) = CalculateNextOccurrence(referenceUtc, scheduleList);
+            var (nextDayId, nextOccurrence) = CalculateNextOccurrence(referenceTime, scheduleList);
 
             var managers = circle.ManagerCircles?
                 .Where(mc => mc.ManagerId.HasValue && mc.Manager != null && mc.Manager.IsDeleted != true)
@@ -333,7 +336,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             };
         }
 
-        private static (int? NextDayId, DateTime? NextOccurrence) CalculateNextOccurrence(DateTime referenceUtc, IEnumerable<CircleDayDto> schedules)
+        private static (int? NextDayId, DateTime? NextOccurrence) CalculateNextOccurrence(DateTime referenceTime, IEnumerable<CircleDayDto> schedules)
         {
             if (schedules == null)
                 return (null, null);
@@ -346,7 +349,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 if (!schedule.Time.HasValue)
                     continue;
 
-                var candidate = CalculateNextOccurrenceForDay(referenceUtc, schedule.DayId, schedule.Time);
+                var candidate = CalculateNextOccurrenceForDay(referenceTime, schedule.DayId, schedule.Time);
                 if (!candidate.HasValue)
                     continue;
 
@@ -360,28 +363,63 @@ namespace Orbits.GeneralProject.BLL.CircleService
             return (bestDayId, bestDate);
         }
 
-        private static DateTime? CalculateNextOccurrenceForDay(DateTime referenceUtc, int dayId, TimeSpan? startTime)
+        private static DateTime? CalculateNextOccurrenceForDay(DateTime referenceTime, int dayId, TimeSpan? startTime)
         {
             if (!DayOfWeekLookup.TryGetValue(dayId, out var targetDay))
                 return null;
 
-            int currentDay = (int)referenceUtc.DayOfWeek;
+            int currentDay = (int)referenceTime.DayOfWeek;
             int targetDayValue = (int)targetDay;
 
             int daysToAdd = (targetDayValue - currentDay + 7) % 7;
-            DateTime nextDate = referenceUtc.Date.AddDays(daysToAdd);
+            DateTime nextDate = referenceTime.Date.AddDays(daysToAdd);
 
             if (startTime.HasValue)
             {
                 nextDate = nextDate.Add(startTime.Value);
 
-                if (nextDate <= referenceUtc)
+                if (nextDate <= referenceTime)
                 {
                     nextDate = nextDate.AddDays(7);
                 }
             }
 
             return nextDate;
+        }
+
+        private static DateTime ConvertFromUtc(DateTime utcDateTime)
+        {
+            if (utcDateTime.Kind != DateTimeKind.Utc)
+            {
+                utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
+            }
+
+            return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, BusinessTimeZone);
+        }
+
+        private static TimeZoneInfo ResolveBusinessTimeZone()
+        {
+            string[] preferredTimeZoneIds = new[]
+            {
+                "Asia/Riyadh",
+                "Arab Standard Time"
+            };
+
+            foreach (var timeZoneId in preferredTimeZoneIds)
+            {
+                try
+                {
+                    return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                }
+                catch (InvalidTimeZoneException)
+                {
+                }
+            }
+
+            return TimeZoneInfo.Local;
         }
 
         private static string? ResolveDayName(int? dayId, IReadOnlyDictionary<int, string?>? dayNameLookup = null)
