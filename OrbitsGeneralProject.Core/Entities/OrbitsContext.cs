@@ -48,6 +48,8 @@ namespace Orbits.GeneralProject.Core.Entities
             }
         }
 
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Challenge>(entity =>
