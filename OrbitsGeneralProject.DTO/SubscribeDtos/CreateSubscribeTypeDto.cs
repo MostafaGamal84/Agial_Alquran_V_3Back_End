@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Orbits.GeneralProject.Core.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,5 +15,6 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
         public decimal? ForignPricePerHour { get; set; }
         public decimal? ArabPricePerHour { get; set; }
         public decimal? EgyptPricePerHour { get; set; }
+        public SubscribeTypeCategory? Type { get; set; }
     }
 }

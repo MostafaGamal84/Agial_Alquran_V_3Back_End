@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Orbits.GeneralProject.Core.Enums;
+using System;
 using System.Collections.Generic;
 
 namespace Orbits.GeneralProject.Core.Entities
@@ -21,7 +22,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public decimal? ArabPricePerHour { get; set; }
         public decimal? EgyptPricePerHour { get; set; }
         public bool? IsDeleted { get; set; }
-        public int? Type { get; set; }
+        public SubscribeTypeCategory? Type { get; set; }
 
         public virtual ICollection<StudentSubscribe> StudentSubscribes { get; set; }
         public virtual ICollection<Subscribe> Subscribes { get; set; }
