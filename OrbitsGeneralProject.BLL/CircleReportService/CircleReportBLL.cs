@@ -5,6 +5,7 @@ using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.Validation.CircleReportValidation;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.CircleReportDtos;
 using Orbits.GeneralProject.DTO.ManagerDto;
@@ -314,6 +315,11 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 return 0m;
             }
 
+            if (subscribeType.Type.HasValue)
+            {
+                return ResolveHourlyRateBySubscriptionType(subscribeType);
+            }
+
             if (teacher.ForignTeacher == true)
             {
                 return subscribeType.ForignPricePerHour
@@ -334,6 +340,29 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 ?? subscribeType.EgyptPricePerHour
                 ?? subscribeType.ForignPricePerHour
                 ?? 0m;
+        }
+
+        private decimal ResolveHourlyRateBySubscriptionType(SubscribeType subscribeType)
+        {
+            return subscribeType.Type!.Value switch
+            {
+                SubscribeTypeCategory.Foreign => subscribeType.ForignPricePerHour
+                    ?? subscribeType.ArabPricePerHour
+                    ?? subscribeType.EgyptPricePerHour
+                    ?? 0m,
+                SubscribeTypeCategory.Arab => subscribeType.ArabPricePerHour
+                    ?? subscribeType.EgyptPricePerHour
+                    ?? subscribeType.ForignPricePerHour
+                    ?? 0m,
+                SubscribeTypeCategory.Egyptian => subscribeType.EgyptPricePerHour
+                    ?? subscribeType.ArabPricePerHour
+                    ?? subscribeType.ForignPricePerHour
+                    ?? 0m,
+                _ => subscribeType.ArabPricePerHour
+                    ?? subscribeType.EgyptPricePerHour
+                    ?? subscribeType.ForignPricePerHour
+                    ?? 0m,
+            };
         }
 
         private bool IsEgyptianTeacher(User teacher)
