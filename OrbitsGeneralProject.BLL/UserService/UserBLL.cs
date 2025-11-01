@@ -19,18 +19,20 @@ namespace Orbits.GeneralProject.BLL.UserService
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<Circle> _circleRepository;
         private readonly IRepository<ManagerCircle> _managerCircleRepository;
+        private readonly IRepository<Nationality> _nationalityRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public UserBLL(IMapper mapper, IRepository<User> userrepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<Circle> circleRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<Nationality> nationalityRepository, IRepository<ManagerCircle> managerCircleRepository, IRepository<Circle> circleRepository) : base(mapper)
         {
             _userRepository = userrepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _managerCircleRepository = managerCircleRepository;
             _circleRepository = circleRepository;
+            _nationalityRepository = nationalityRepository;
         }
 
         public async Task<IResponse<bool>> Add(DTO.UserDto.CreateUserDto createUserDto)
@@ -52,10 +54,14 @@ namespace Orbits.GeneralProject.BLL.UserService
             if (string.IsNullOrEmpty(createUserDto.PasswordHash))
                 return output.CreateResponse(MessageCodes.PasswordIsRequired);
 
+            var (governorateValid, governorateError) = await ValidateGovernorateRequirementAsync(createUserDto.NationalityId, createUserDto.GovernorateId);
+            if (!governorateValid)
+                return output.AppendError(MessageCodes.InputValidationError, nameof(CreateUserDto.GovernorateId), governorateError ?? string.Empty);
+
             // Create User
             var user = _mapper.Map<User>(createUserDto);
             user.RegisterAt = DateTime.Now;
-           
+
             user.Inactive = false;
             user.IsDeleted = false;
             if (user.UserTypeId == (int)UserTypesEnum.Student)
@@ -90,6 +96,12 @@ namespace Orbits.GeneralProject.BLL.UserService
             var existedUser = await _userRepository.GetByIdAsync(updateUserDto.Id);
             if (existedUser == null)
                 return output.CreateResponse(MessageCodes.NotFound);
+
+            var targetNationalityId = updateUserDto.NationalityId ?? existedUser.NationalityId;
+            var targetGovernorateId = updateUserDto.GovernorateId ?? existedUser.GovernorateId;
+            var (isGovernorateValid, governorateValidationError) = await ValidateGovernorateRequirementAsync(targetNationalityId, targetGovernorateId);
+            if (!isGovernorateValid)
+                return output.AppendError(MessageCodes.InputValidationError, nameof(UpdateUserDto.GovernorateId), governorateValidationError ?? string.Empty);
 
             // 4) Uniqueness: Mobile
             if (!string.IsNullOrWhiteSpace(updateUserDto.Mobile))
@@ -351,6 +363,12 @@ namespace Orbits.GeneralProject.BLL.UserService
                     ? null
                     : updateProfileDto.FullName.Trim();
 
+            var targetNationalityId = updateProfileDto.NationalityId ?? user.NationalityId;
+            var targetGovernorateId = updateProfileDto.GovernorateId ?? user.GovernorateId;
+            var (profileGovernorateValid, profileGovernorateError) = await ValidateGovernorateRequirementAsync(targetNationalityId, targetGovernorateId);
+            if (!profileGovernorateValid)
+                return output.AppendError(MessageCodes.InputValidationError, nameof(UpdateProfileDto.GovernorateId), profileGovernorateError ?? string.Empty);
+
             if (updateProfileDto.SecondMobile != null)
                 user.SecondMobile = string.IsNullOrWhiteSpace(updateProfileDto.SecondMobile)
                     ? null
@@ -406,6 +424,41 @@ namespace Orbits.GeneralProject.BLL.UserService
             PasswordHasher<User> passwordHasher = new PasswordHasher<User>();
             string hashedPassword = passwordHasher.HashPassword(user, newPassword);
             return hashedPassword;
+        }
+
+        private async Task<(bool IsValid, string? ErrorMessage)> ValidateGovernorateRequirementAsync(int? nationalityId, int? governorateId)
+        {
+            if (!nationalityId.HasValue)
+                return (true, null);
+
+            var nationality = await _nationalityRepository.GetByIdAsync(nationalityId.Value);
+            if (!IsEgyptianNationality(nationality))
+                return (true, null);
+
+            if (governorateId.HasValue && governorateId.Value > 0)
+                return (true, null);
+
+            return (false, UserValidationReponseConstants.GovernorateRequiredForEgyptian);
+        }
+
+        private static bool IsEgyptianNationality(Nationality? nationality)
+        {
+            if (nationality == null)
+                return false;
+
+            if (nationality.TelCode.HasValue && nationality.TelCode.Value == 20)
+                return true;
+
+            if (string.IsNullOrWhiteSpace(nationality.Name))
+                return false;
+
+            var normalizedName = nationality.Name.Trim();
+            var normalizedLower = normalizedName.ToLowerInvariant();
+
+            if (normalizedLower.Contains("egypt"))
+                return true;
+
+            return normalizedLower.Contains("مصر") || normalizedLower.Contains("مصري") || normalizedLower.Contains("مصرى");
         }
     }
 
