@@ -42,6 +42,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     FilteredResultRequestDto pagedDto,
     int userId,
     int? studentId = null,
+    int? nationalityId = null,
     string? tab = null,                 // "paid" | "unpaid" | "overdue" | "cancelled" | null/"all"
     DateTime? createdFrom = null,
     DateTime? createdTo   = null,
@@ -72,6 +73,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
 
         // ----- specific student
         (!(studentId.HasValue && studentId.Value > 0) || p.StudentId == studentId.Value) &&
+        (!(nationalityId.HasValue && nationalityId.Value > 0) || (p.Student != null && p.Student.NationalityId == nationalityId.Value)) &&
 
         // ----- month filter:
         // overdue: unpaid & created before month; cancelled: created inside month (like other tabs)
@@ -260,7 +262,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 TotalUnPaidCount = cur.UnpaidCnt,
                 TotalUnPaidMoMPercentage = Pct(cur.UnpaidAmt, cmp.UnpaidAmt),
 
-                // Overdue is “unpaid created before month start”
+                // Overdue is Â“unpaid created before month startÂ”
                 TotalOverdue = curOverdue.OverdueAmt,
                 TotalOverdueCount = curOverdue.OverdueCnt,
                 TotalOverdueMoMPercentage = Pct(curOverdue.OverdueAmt, cmpOverdue.OverdueAmt),

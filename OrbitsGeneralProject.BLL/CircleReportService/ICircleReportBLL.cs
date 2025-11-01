@@ -18,7 +18,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
     public interface ICircleReportBLL
     {
 
-        IResponse<PagedResultDto<CircleReportReDto>> GetPagedList(FilteredResultRequestDto pagedDto,int userId, int? circleId,int? studentId);
+        IResponse<PagedResultDto<CircleReportReDto>> GetPagedList(FilteredResultRequestDto pagedDto,int userId, int? circleId,int? studentId, int? nationalityId);
 
         Task<IResponse<bool>> AddAsync(CircleReportAddDto model, int userId);
         Task<IResponse<bool>> Update(CircleReportAddDto model, int userId);

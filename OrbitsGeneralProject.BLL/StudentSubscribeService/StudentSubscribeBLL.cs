@@ -39,7 +39,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
 
         public IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetStudents(
-     FilteredResultRequestDto pagedDto, int userId,int? studentId)
+     FilteredResultRequestDto pagedDto, int userId,int? studentId, int? nationalityId)
         {
             var output = new Response<PagedResultDto<ViewStudentSubscribeReDto>>();
             var searchWord = pagedDto.SearchTerm?.Trim();
@@ -56,6 +56,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 x.UserTypeId == (int)UserTypesEnum.Student
                 // role-based restriction (applies only when the logged-in role matches)
                 && (!(studentId.HasValue && studentId.Value > 0) || x.Id == studentId.Value)
+                && (!(nationalityId.HasValue && nationalityId.Value > 0) || x.NationalityId == nationalityId.Value)
                 && (!(me.UserTypeId == (int)UserTypesEnum.BranchLeader) || x.BranchId == me.BranchId)
                 && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || x.ManagerId == me.Id)
                 && (!(me.UserTypeId == (int)UserTypesEnum.Teacher) || x.TeacherId == me.Id)
@@ -88,7 +89,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         }
 
         public IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetStudentSubscribesWithPayment(
-    FilteredResultRequestDto pagedDto,  int? studentId)
+    FilteredResultRequestDto pagedDto,  int? studentId, int? nationalityId)
         {
             var output = new Response<PagedResultDto<ViewStudentSubscribeReDto>>();
             var searchWord = pagedDto.SearchTerm?.Trim();
@@ -104,6 +105,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                
                 // role-based restriction (applies only when the logged-in role matches)
                 && (!(studentId.HasValue && studentId.Value > 0) || x.StudentId == studentId.Value)
+                && (!(nationalityId.HasValue && nationalityId.Value > 0) || (x.Student != null && x.Student.NationalityId == nationalityId.Value))
                
                 // optional search (grouped to avoid &&/|| precedence issues)
                 && (

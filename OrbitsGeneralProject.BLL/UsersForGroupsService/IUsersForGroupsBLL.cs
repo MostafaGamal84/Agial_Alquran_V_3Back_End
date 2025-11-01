@@ -20,7 +20,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
     {
       
 
-         IResponse<PagedResultDto<UserLockUpDto>> GetUsersForSelects(FilteredResultRequestDto pagedDto, int UserTypeId, int userId, int? managerId,int? teacherId, int? branchId);
+         IResponse<PagedResultDto<UserLockUpDto>> GetUsersForSelects(FilteredResultRequestDto pagedDto, int UserTypeId, int userId, int? managerId,int? teacherId, int? branchId, int? nationalityId);
 
     }
 }

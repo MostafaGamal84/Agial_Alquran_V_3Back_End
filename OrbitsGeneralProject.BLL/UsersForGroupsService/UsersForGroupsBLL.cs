@@ -84,7 +84,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
      int userId,
      int? managerId,
      int? teacherId,
-     int? branchId = null
+     int? branchId = null,
+     int? nationalityId = null
  )
         {
             var output = new Response<PagedResultDto<UserLockUpDto>>();
@@ -118,6 +119,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             int? safeBranchId = (branchId.HasValue && branchId.Value > 0) ? branchId : null;
             int? safeManagerId = (managerId.HasValue && managerId.Value > 0) ? managerId : null;
             int? safeTeacherId = (teacherId.HasValue && teacherId.Value > 0) ? teacherId : null;
+            int? safeNationalityId = (nationalityId.HasValue && nationalityId.Value > 0) ? nationalityId : null;
             int? myBranchId = (me.BranchId.HasValue && me.BranchId.Value > 0) ? me.BranchId : null;
 
             Func<UserTypesEnum, int> rank = t => t switch
@@ -148,7 +150,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!targetIsTeacher || !safeManagerId.HasValue || x.ManagerId == safeManagerId.Value)
                     && (!targetIsStudent ||
                         (!safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value) &&
-                        (!safeManagerId.HasValue || x.ManagerId == safeManagerId.Value)) &&
+                        (!safeManagerId.HasValue || x.ManagerId == safeManagerId.Value) &&
+                        (!safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value)) &&
                         (!Inactive.HasValue || x.Inactive == Inactive.Value)
                     && (
                         string.IsNullOrEmpty(sw) ||
@@ -177,6 +180,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     // Explicit filters if provided
                     && (!targetIsStudent || !safeManagerId.HasValue || x.ManagerId == safeManagerId.Value)
                     && (!targetIsStudent || !safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value)
+                    && (!targetIsStudent || !safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value)
                     && (!targetIsTeacher || !safeManagerId.HasValue || x.ManagerId == safeManagerId.Value)
                     // Search
                     && (

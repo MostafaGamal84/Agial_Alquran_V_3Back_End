@@ -46,7 +46,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
     FilteredResultRequestDto pagedDto,
     int userId,
     int? circleId,         // ???? ??????? ?????????
-    int? studentId)        // ???? ??????? ???????
+    int? studentId,
+    int? nationalityId)        // ???? ??????? ???????
         {
             var output = new Response<PagedResultDto<CircleReportReDto>>();
 
@@ -89,6 +90,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 // -------- ????? ??????? ----------
                 && (!circleId.HasValue || r.CircleId == circleId.Value)
                 && (!studentId.HasValue || r.StudentId == studentId.Value)
+                && (!nationalityId.HasValue || (r.Student != null && r.Student.NationalityId == nationalityId.Value))
 
                 // -------- ????? ??????? ----------
                 && (
