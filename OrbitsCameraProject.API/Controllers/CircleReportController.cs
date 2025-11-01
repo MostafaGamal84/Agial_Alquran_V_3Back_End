@@ -27,9 +27,10 @@ namespace OrbitsProject.API.Controllers
         public IActionResult GetResultsByFilter(
     [FromQuery] FilteredResultRequestDto pagination,
     [FromQuery] int? circleId,
-    [FromQuery] int? studentId)
+    [FromQuery] int? studentId,
+    [FromQuery] int? nationalityId)
         {
-            return Ok(_circleReportBLL.GetPagedList(pagination, UserId, circleId, studentId));
+            return Ok(_circleReportBLL.GetPagedList(pagination, UserId, circleId, studentId, nationalityId));
         }
 
         [HttpPost("Create"), ProducesResponseType(typeof(IResponse<bool>), 200)]

@@ -23,8 +23,15 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
         Task<IResponse<bool>> AddAsync(AddStudentSubscribeDto model, int userId);
 
-        IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetStudents(FilteredResultRequestDto pagedDto, int userId,int? studentId);
-        IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetStudentSubscribesWithPayment(FilteredResultRequestDto pagedDto, int? studentId);
+        IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetStudents(
+            FilteredResultRequestDto pagedDto,
+            int userId,
+            int? studentId,
+            int? nationalityId);
+        IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetStudentSubscribesWithPayment(
+            FilteredResultRequestDto pagedDto,
+            int? studentId,
+            int? nationalityId);
 
     }
 }

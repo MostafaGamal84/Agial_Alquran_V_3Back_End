@@ -68,6 +68,7 @@ namespace OrbitsProject.API.Controllers
             [FromQuery] FilteredResultRequestDto pagedDto,
             [FromQuery] string? tab,
             [FromQuery] int? studentId,
+            [FromQuery] int? nationalityId,
             [FromQuery] DateTime? createdFrom,
             [FromQuery] DateTime? createdTo,
             [FromQuery] DateTime? dueFrom,
@@ -81,6 +82,7 @@ namespace OrbitsProject.API.Controllers
                 pagedDto: pagedDto,
                 userId: UserId,          // keep as-is if your base controller exposes UserId
                 studentId: studentId,
+                nationalityId: nationalityId,
                 tab: tab,
                 createdFrom: createdFrom,
                 createdTo: createdTo,

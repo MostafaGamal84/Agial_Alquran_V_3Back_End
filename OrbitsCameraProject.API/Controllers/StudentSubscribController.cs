@@ -27,12 +27,18 @@ namespace OrbitsProject.API.Controllers
         }
 
         [HttpGet("GetStudents"), ProducesResponseType(typeof(IResponse<PagedResultDto<ViewStudentSubscribeReDto>>), 200)]
-        public async Task<IActionResult> GetStudents([FromQuery] FilteredResultRequestDto paginationFilterModel,int studentId)
-               => Ok(_StudentSubscribBLL.GetStudents(paginationFilterModel, UserId, studentId));
+        public async Task<IActionResult> GetStudents(
+            [FromQuery] FilteredResultRequestDto paginationFilterModel,
+            [FromQuery] int studentId,
+            [FromQuery] int? nationalityId)
+               => Ok(_StudentSubscribBLL.GetStudents(paginationFilterModel, UserId, studentId, nationalityId));
 
         [HttpGet("GetStudentSubscribesWithPayment"), ProducesResponseType(typeof(IResponse<PagedResultDto<ViewStudentSubscribeReDto>>), 200)]
-        public async Task<IActionResult> GetStudentSubscribesWithPayment([FromQuery] FilteredResultRequestDto paginationFilterModel, int studentId)
-             => Ok(_StudentSubscribBLL.GetStudentSubscribesWithPayment(paginationFilterModel, studentId));
+        public async Task<IActionResult> GetStudentSubscribesWithPayment(
+            [FromQuery] FilteredResultRequestDto paginationFilterModel,
+            [FromQuery] int studentId,
+            [FromQuery] int? nationalityId)
+             => Ok(_StudentSubscribBLL.GetStudentSubscribesWithPayment(paginationFilterModel, studentId, nationalityId));
 
         [HttpPost("Create"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Create(AddStudentSubscribeDto model)

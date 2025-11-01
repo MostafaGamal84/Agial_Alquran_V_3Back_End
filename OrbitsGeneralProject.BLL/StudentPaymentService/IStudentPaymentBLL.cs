@@ -15,10 +15,11 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
   DateTime? dataMonth = null,          // month to report
   DateTime? compareMonth = null);     // month to compare against
                                       //        IResponse<PagedResultDto<StudentPaymentReDto>> GetStudentPayment(FilteredResultRequestDto pagedDto, int userId, int? paymentId);
-        IResponse<PagedResultDto<StudentPaymentReDto>> GetStudentInvoices(
+   IResponse<PagedResultDto<StudentPaymentReDto>> GetStudentInvoices(
    FilteredResultRequestDto pagedDto,
    int userId,
    int? studentId = null,
+   int? nationalityId = null,
    string? tab = null,                 // "paid" | "unpaid" | "overdue" | null/"all"
    DateTime? createdFrom = null,
    DateTime? createdTo = null,
