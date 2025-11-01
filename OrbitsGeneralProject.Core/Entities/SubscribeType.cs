@@ -19,6 +19,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public string? Name { get; set; }
         public decimal? ForignPricePerHour { get; set; }
         public decimal? ArabPricePerHour { get; set; }
+        public decimal? EgyptPricePerHour { get; set; }
         public bool? IsDeleted { get; set; }
 
         public virtual ICollection<StudentSubscribe> StudentSubscribes { get; set; }
