@@ -387,6 +387,8 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.ForignPricePerHour).HasColumnType("decimal(5, 2)");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.Type).HasColumnName("type");
             });
 
             modelBuilder.Entity<TeacherReportRecord>(entity =>
