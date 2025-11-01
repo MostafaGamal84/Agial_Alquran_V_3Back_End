@@ -10,6 +10,7 @@ using Orbits.GeneralProject.DTO.CircleReportDtos;
 using Orbits.GeneralProject.DTO.ManagerDto;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.Repositroy.Base;
+using System;
 using System.Linq.Expressions;
 
 namespace Orbits.GeneralProject.BLL.CircleReportService
@@ -21,12 +22,13 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         private readonly IRepository<StudentSubscribe> _studentSubscribeRecordRepository;
         private readonly IRepository<SubscribeType> _subscribeTypeRepository;
         private readonly IRepository<User> _userRepository;
+        private readonly IRepository<Nationality> _nationalityRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
@@ -35,6 +37,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _teacherReportRecordRepository = teacherReportRecordRepository;
             _studentSubscribeRecordRepository = studentSubscribeRecordRepository;
             _subscribeTypeRepository = subscribeTypeRepository;
+            _nationalityRepository = nationalityRepository;
         }
 
 
@@ -147,16 +150,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             await _unitOfWork.CommitAsync(); // after this, created.Id is available
 
-            var SubscribeType = student.StudentSubscribes.LastOrDefault().StudentSubscribeType;
-            var price = SubscribeType.ArabPricePerHour;
-
-
-            if (teacher.ForignTeacher == true)
-            {
-                price = SubscribeType.ForignPricePerHour;
-            }
-
-
+            var subscribeType = student.StudentSubscribes.LastOrDefault().StudentSubscribeType;
+            var hourlyRate = ResolveHourlyRate(subscribeType, teacher);
 
             var teacherReportRecord = new TeacherReportRecord
             {
@@ -166,7 +161,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 IsDeleted = false,
                 Minutes = (int)created.Minutes!.Value,
                 TeacherId = created.TeacherId,
-                CircleSallary = (int)price * (int)created.Minutes,
+                CircleSallary = CalculateTeacherSalary(hourlyRate, created.Minutes)
             };
             _teacherReportRecordRepository.Add(teacherReportRecord);
             studentSubscribe.ModefiedAt = DateTime.UtcNow;
@@ -270,14 +265,12 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             {
                 // ??? ???????/?????? ??? ??? ???????? ???????
                 var subscribeType = studentSubscribe.StudentSubscribeType;
-                var pricePerUnit = teacher.ForignTeacher == true
-                    ? subscribeType.ForignPricePerHour
-                    : subscribeType.ArabPricePerHour;
+                var pricePerUnit = ResolveHourlyRate(subscribeType, teacher);
 
                 if (newCounts)
                 {
                     teacherReport.Minutes = newMinutes;
-                    teacherReport.CircleSallary = (int)pricePerUnit * newMinutes;
+                    teacherReport.CircleSallary = CalculateTeacherSalary(pricePerUnit, newMinutes);
                 }
                 else
                 {
@@ -294,6 +287,94 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             await _unitOfWork.CommitAsync();
 
             return output.CreateResponse(true);
+        }
+
+        private int CalculateTeacherSalary(decimal hourlyRate, double? minutes)
+        {
+            if (minutes == null)
+            {
+                return 0;
+            }
+
+            decimal minutesValue = Convert.ToDecimal(minutes.Value);
+            var total = hourlyRate * minutesValue;
+            return (int)Math.Round(total, MidpointRounding.AwayFromZero);
+        }
+
+        private int CalculateTeacherSalary(decimal hourlyRate, int minutes)
+        {
+            var total = hourlyRate * minutes;
+            return (int)Math.Round(total, MidpointRounding.AwayFromZero);
+        }
+
+        private decimal ResolveHourlyRate(SubscribeType? subscribeType, User teacher)
+        {
+            if (subscribeType == null)
+            {
+                return 0m;
+            }
+
+            if (teacher.ForignTeacher == true)
+            {
+                return subscribeType.ForignPricePerHour
+                    ?? subscribeType.ArabPricePerHour
+                    ?? subscribeType.EgyptPricePerHour
+                    ?? 0m;
+            }
+
+            if (IsEgyptianTeacher(teacher))
+            {
+                return subscribeType.EgyptPricePerHour
+                    ?? subscribeType.ArabPricePerHour
+                    ?? subscribeType.ForignPricePerHour
+                    ?? 0m;
+            }
+
+            return subscribeType.ArabPricePerHour
+                ?? subscribeType.EgyptPricePerHour
+                ?? subscribeType.ForignPricePerHour
+                ?? 0m;
+        }
+
+        private bool IsEgyptianTeacher(User teacher)
+        {
+            if (teacher == null)
+            {
+                return false;
+            }
+
+            if (teacher.GovernorateId.HasValue)
+            {
+                return true;
+            }
+
+            if (!teacher.NationalityId.HasValue)
+            {
+                return false;
+            }
+
+            var nationality = _nationalityRepository.GetById(teacher.NationalityId.Value);
+            if (nationality == null)
+            {
+                return false;
+            }
+
+            if (nationality.TelCode.HasValue && nationality.TelCode.Value == 20)
+            {
+                return true;
+            }
+
+            var name = nationality.Name;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return false;
+            }
+
+            name = name.Trim();
+            return name.Contains("egypt", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("egyptian", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("مصر", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("مصري", StringComparison.OrdinalIgnoreCase);
         }
 
     }
