@@ -13,5 +13,6 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
         public string? Name { get; set; }
         public decimal? ForignPricePerHour { get; set; }
         public decimal? ArabPricePerHour { get; set; }
+        public decimal? EgyptPricePerHour { get; set; }
     }
 }
