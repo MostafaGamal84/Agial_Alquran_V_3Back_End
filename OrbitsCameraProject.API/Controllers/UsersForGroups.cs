@@ -25,8 +25,14 @@ namespace OrbitsProject.API.Controllers
         }
 
         [HttpGet("GetUsersForSelects"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
-        public async Task<IActionResult> GetUsersForSelects([FromQuery] FilteredResultRequestDto paginationFilterModel, int UserTypeId ,int managerId, int teacherId, int branchId)
-               => Ok(_usersForGroupsBLL.GetUsersForSelects(paginationFilterModel, UserTypeId, UserId, managerId, teacherId, branchId));
+        public async Task<IActionResult> GetUsersForSelects(
+            [FromQuery] FilteredResultRequestDto paginationFilterModel,
+            int UserTypeId,
+            int managerId,
+            int teacherId,
+            int branchId,
+            int? nationalityId)
+               => Ok(_usersForGroupsBLL.GetUsersForSelects(paginationFilterModel, UserTypeId, UserId, managerId, teacherId, branchId, nationalityId));
 
 
 

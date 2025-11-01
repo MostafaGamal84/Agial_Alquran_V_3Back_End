@@ -6,7 +6,8 @@ returned by the lookup API (e.g. `/api/LookUp/GetAllNationality`).
 
 | Page / Feature                    | Endpoint & Method                                        | Notes |
 |----------------------------------|----------------------------------------------------------|-------|
-| Online Course → Students list    | `GET /api/StudentSubscrib/GetStudents`                   | Existing `studentId` filter still works. Combine with `nationalityId` to narrow the list. |
+| Online Course → Students list    | `GET /api/UsersForGroups/GetUsersForSelects`             | Pass the logged-in `UserTypeId` and include `nationalityId` when targeting students. |
+| Online Course → Subscriptions    | `GET /api/StudentSubscrib/GetStudents`                   | Existing `studentId` filter still works. Combine with `nationalityId` to narrow the list. |
 | Membership → Subscriptions list  | `GET /api/StudentSubscrib/GetStudentSubscribesWithPayment` | Filters the subscription records by the nationality of the linked student. |
 | Reports → View report list       | `GET /api/CircleReport/GetResultsByFilter`               | Applies to the student on each report entry. |
 | Finance → Invoices list          | `GET /api/StudentPayment/Invoices`                       | Works alongside the existing tab/date filters. |
@@ -14,6 +15,7 @@ returned by the lookup API (e.g. `/api/LookUp/GetAllNationality`).
 ## Usage
 
 ```http
+GET /api/UsersForGroups/GetUsersForSelects?UserTypeId=5&managerId=0&teacherId=0&branchId=0&nationalityId=3
 GET /api/StudentPayment/Invoices?tab=paid&nationalityId=3
 GET /api/StudentSubscrib/GetStudents?nationalityId=7&studentId=0
 GET /api/CircleReport/GetResultsByFilter?circleId=12&nationalityId=5
