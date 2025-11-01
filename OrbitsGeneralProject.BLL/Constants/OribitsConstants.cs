@@ -77,6 +77,7 @@ namespace Orbits.GeneralProject.BLL.Constants
         public const string ValidEmail = "يجب إدخال بريد إلكتروني صحيح";
         public const string ValidUserName = "لا يجب وضع علامات خاصة في الإسم";
         public const string UserTypeRequired = "يجب إختيار نوع المستخدم";
+        public const string GovernorateRequiredForEgyptian = "يجب اختيار المحافظة عند اختيار الجنسية المصرية";
     }
     #endregion
     #region DepartmentValidationResponse 
