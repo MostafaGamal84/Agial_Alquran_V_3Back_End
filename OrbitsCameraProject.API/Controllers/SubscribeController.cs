@@ -23,6 +23,9 @@ namespace OrbitsProject.API.Controllers
         [HttpGet("GetTypeResultsByFilter"), ProducesResponseType(typeof(IResponse<PagedResultDto<SubscribeTypeReDto>>), 200)]
         public IActionResult GetTypeResultsByFilter([FromQuery] FilteredResultRequestDto paginationFilterModel) => Ok(_SubscribeBLL.GetTypeResultsByFilter(paginationFilterModel));
 
+        [HttpPost("GetTypeResultsByFilter"), ProducesResponseType(typeof(IResponse<PagedResultDto<SubscribeTypeReDto>>), 200)]
+        public IActionResult GetTypeResultsByFilterPost([FromBody] FilteredResultRequestDto paginationFilterModel) => Ok(_SubscribeBLL.GetTypeResultsByFilter(paginationFilterModel));
+
         [HttpGet("TypeStatistics"), ProducesResponseType(typeof(IResponse<SubscribeTypeStatisticsDto>), 200)]
         public async Task<IActionResult> GetTypeStatistics() => Ok(await _SubscribeBLL.GetTypeStatisticsAsync());
 
