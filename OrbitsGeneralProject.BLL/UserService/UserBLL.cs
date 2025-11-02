@@ -56,7 +56,7 @@ namespace Orbits.GeneralProject.BLL.UserService
 
             var (governorateValid, governorateError) = await ValidateGovernorateRequirementAsync(createUserDto.NationalityId, createUserDto.GovernorateId);
             if (!governorateValid)
-                return output.AppendError(MessageCodes.InputValidationError, nameof(CreateUserDto.GovernorateId), governorateError ?? string.Empty);
+                return output.AppendError(MessageCodes.InputValidationError, nameof(DTO.UserDto.CreateUserDto.GovernorateId), governorateError ?? string.Empty);
 
             // Create User
             var user = _mapper.Map<User>(createUserDto);
