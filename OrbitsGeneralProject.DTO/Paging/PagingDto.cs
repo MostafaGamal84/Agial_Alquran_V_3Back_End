@@ -35,6 +35,8 @@ namespace Orbits.GeneralProject.DTO.Paging
         ///-------------------------------------------------------------------------------------------------
 
         public virtual string? Filter { get; set; }
+        public virtual int? StudentId { get; set; }
+        public virtual int? NationalityId { get; set; }
         public virtual string? Lang { get; set; } = "en";
 
         public virtual string? SortingDirection { get; set; } = "ASC";
