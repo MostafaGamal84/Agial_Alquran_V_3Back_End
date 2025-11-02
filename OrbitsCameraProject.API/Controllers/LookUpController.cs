@@ -40,8 +40,8 @@ namespace OrbitsProject.API.Controllers
           => Ok(await _lookUpService.GetAllGovernorate());
 
         [HttpGet("GetAllSubscribesByTypeId"), ProducesResponseType(typeof(IResponse<List<LookupDto>>), 200)]
-        public async Task<IActionResult> GetAllSubscribesByTypeId(int? id)
-           => Ok(await _lookUpService.GetAllSubscribesByTypeId(id));
+        public async Task<IActionResult> GetAllSubscribesByTypeId(int? id, int? studentId)
+           => Ok(await _lookUpService.GetAllSubscribesByTypeId(id, studentId));
 
 
     }

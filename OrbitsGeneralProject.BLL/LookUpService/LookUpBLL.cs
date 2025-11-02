@@ -1,6 +1,7 @@
 using AutoMapper;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
+using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.LookUpService;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
@@ -10,6 +11,7 @@ using Orbits.GeneralProject.DTO.ManagerDto;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.DTO.RegionDtos;
 using Orbits.GeneralProject.Repositroy.Base;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace Orbits.GeneralProject.BLL.LookUpService
@@ -107,16 +109,37 @@ namespace Orbits.GeneralProject.BLL.LookUpService
 
 
 
-        public async Task<IResponse<List<LookupDto>>> GetAllSubscribesByTypeId(int? id)
+        public async Task<IResponse<List<LookupDto>>> GetAllSubscribesByTypeId(int? id, int? studentId)
         {
             var output = new Response<List<LookupDto>>();
-            List<LookupDto> result;
-                result = _SubscribeRepo.Where(e => e.SubscribeTypeId == id)
-                    .Select(x => new LookupDto
+            IQueryable<Subscribe> query = _SubscribeRepo.Where(e => e.SubscribeTypeId == id);
+
+            if (studentId.HasValue && studentId.Value > 0)
+            {
+                var student = _UserRepo.GetById(studentId.Value);
+                if (student != null)
+                {
+                    Nationality? nationality = student.Nationality;
+                    if (nationality == null && student.NationalityId.HasValue)
                     {
-                        Name = x.Name,
-                        Id = x.Id
-                    }).ToList();
+                        nationality = _nationalityRepo.GetById(student.NationalityId.Value);
+                    }
+
+                    var subscribeFor = NationalityClassificationHelper.ResolveSubscribeFor(nationality);
+                    if (subscribeFor.HasValue)
+                    {
+                        int subscribeForValue = (int)subscribeFor.Value;
+                        query = query.Where(e => e.SubscribeFor == subscribeForValue);
+                    }
+                }
+            }
+
+            List<LookupDto> result = query
+                .Select(x => new LookupDto
+                {
+                    Name = x.Name,
+                    Id = x.Id
+                }).ToList();
             return output.CreateResponse(result);
         }
     }
