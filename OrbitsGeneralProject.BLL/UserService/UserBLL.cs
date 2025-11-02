@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Hosting;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
+using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.Validation.UserValidation;
 using Orbits.GeneralProject.Core.Entities;
@@ -442,24 +443,7 @@ namespace Orbits.GeneralProject.BLL.UserService
         }
 
         private static bool IsEgyptianNationality(Nationality? nationality)
-        {
-            if (nationality == null)
-                return false;
-
-            if (nationality.TelCode.HasValue && nationality.TelCode.Value == 20)
-                return true;
-
-            if (string.IsNullOrWhiteSpace(nationality.Name))
-                return false;
-
-            var normalizedName = nationality.Name.Trim();
-            var normalizedLower = normalizedName.ToLowerInvariant();
-
-            if (normalizedLower.Contains("egypt"))
-                return true;
-
-            return normalizedLower.Contains("مصر") || normalizedLower.Contains("مصري") || normalizedLower.Contains("مصرى");
-        }
+            => NationalityClassificationHelper.IsEgyptian(nationality);
     }
 
 
