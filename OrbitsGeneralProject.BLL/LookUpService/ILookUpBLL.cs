@@ -23,7 +23,7 @@ namespace Orbits.GeneralProject.BLL.LookUpService
 
          IResponse<PagedResultDto<UserLockUpDto>> GetUsersByUserType(FilteredResultRequestDto pagedDto, int UserTypeId, int userId);
         Task<IResponse<object>> GetAllNationality();
-        Task<IResponse<List<LookupDto>>> GetAllSubscribesByTypeId(int? id);
+        Task<IResponse<List<LookupDto>>> GetAllSubscribesByTypeId(int? id, int? studentId);
         Task<IResponse<object>> GetAllGovernorate();
 
     }
