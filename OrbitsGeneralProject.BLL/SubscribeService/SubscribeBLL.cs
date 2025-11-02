@@ -3,11 +3,15 @@ using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
+using Orbits.GeneralProject.BLL.Helpers;
+using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.DTO.SubscribeDtos;
 using Orbits.GeneralProject.Repositroy.Base;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -23,14 +27,18 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
         private readonly IRepository<Subscribe> _SubscribeRepository;
         private readonly IRepository<SubscribeType> _SubscribeTypeRepository;
         private readonly IRepository<StudentSubscribe> _StudentSubscribeRepository;
+        private readonly IRepository<User> _UserRepository;
+        private readonly IRepository<Nationality> _NationalityRepository;
         private readonly IUnitOfWork _unitOfWork;
-        public SubscribeBLL(IMapper mapper, IRepository<Subscribe> SubscribeRepository, IUnitOfWork unitOfWork, IRepository<SubscribeType> subscribeTypeRepository, IRepository<StudentSubscribe> studentSubscribeRepository) : base(mapper)
+        public SubscribeBLL(IMapper mapper, IRepository<Subscribe> SubscribeRepository, IUnitOfWork unitOfWork, IRepository<SubscribeType> subscribeTypeRepository, IRepository<StudentSubscribe> studentSubscribeRepository, IRepository<User> userRepository, IRepository<Nationality> nationalityRepository) : base(mapper)
         {
             _mapper = mapper;
             _SubscribeRepository = SubscribeRepository;
             _unitOfWork = unitOfWork;
             _SubscribeTypeRepository = subscribeTypeRepository;
             _StudentSubscribeRepository = studentSubscribeRepository;
+            _UserRepository = userRepository;
+            _NationalityRepository = nationalityRepository;
         }
         public IResponse<PagedResultDto<SubscribeReDto>> GetPagedList(FilteredResultRequestDto pagedDto)
         {
@@ -47,11 +55,42 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
         {
             var searchWord = pagedDto.SearchTerm?.ToLower().Trim();
             var output = new Response<PagedResultDto<SubscribeTypeReDto>>();
-            var list = GetPagedList<SubscribeTypeReDto, SubscribeType, int>(pagedDto, repository: _SubscribeTypeRepository, x => x.Id, searchExpression: x =>
-                string.IsNullOrEmpty(searchWord) ||
-                (!string.IsNullOrEmpty(searchWord) && x.Name.Contains(searchWord)), sortDirection: pagedDto.SortingDirection,
-              disableFilter: true,
-              excluededColumns: null);
+            SubscribeTypeCategory? requiredCategory = null;
+
+            var filters = TryDeserializeFilters(pagedDto.Filter);
+            int? studentIdFromFilters = ExtractIntFilterValue(filters, "StudentId", "studentId");
+            int? nationalityIdFromFilters = ExtractIntFilterValue(filters, "NationalityId", "nationalityId");
+
+            int? studentId = pagedDto.StudentId ?? studentIdFromFilters;
+            int? nationalityId = pagedDto.NationalityId ?? nationalityIdFromFilters;
+
+            if (filters != null)
+                pagedDto.Filter = filters.Count > 0 ? JsonConvert.SerializeObject(filters) : null;
+
+            if (!nationalityId.HasValue && studentId.HasValue && studentId.Value > 0)
+            {
+                var student = _UserRepository.GetById(studentId.Value);
+                if (student?.NationalityId != null && student.NationalityId.Value > 0)
+                    nationalityId = student.NationalityId.Value;
+            }
+
+            if (nationalityId.HasValue && nationalityId.Value > 0)
+            {
+                var nationality = _NationalityRepository.GetById(nationalityId.Value);
+                requiredCategory = ResolveSubscribeTypeCategory(nationality);
+            }
+
+            var list = GetPagedList<SubscribeTypeReDto, SubscribeType, int>(
+                pagedDto,
+                repository: _SubscribeTypeRepository,
+                x => x.Id,
+                searchExpression: x =>
+                    (string.IsNullOrEmpty(searchWord) ||
+                        (!string.IsNullOrEmpty(x.Name) && x.Name.Contains(searchWord))) &&
+                    (requiredCategory == null || x.Type == requiredCategory),
+                sortDirection: pagedDto.SortingDirection,
+                disableFilter: true,
+                excluededColumns: null);
             return output.CreateResponse(list);
         }
 
@@ -248,6 +287,76 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(data: true);
         }
-      
+
+        private static Dictionary<string, FilterValue>? TryDeserializeFilters(string? serializedFilters)
+        {
+            if (string.IsNullOrWhiteSpace(serializedFilters))
+                return null;
+
+            try
+            {
+                return JsonConvert.DeserializeObject<Dictionary<string, FilterValue>>(serializedFilters);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        private static int? ExtractIntFilterValue(Dictionary<string, FilterValue>? filters, params string[] keys)
+        {
+            if (filters == null || filters.Count == 0 || keys == null || keys.Length == 0)
+                return null;
+
+            foreach (var pair in filters.ToList())
+            {
+                var normalizedKey = NormalizeFilterKey(pair.Key);
+                if (keys.Any(expected => KeyMatches(normalizedKey, expected)))
+                {
+                    filters.Remove(pair.Key);
+
+                    if (int.TryParse(pair.Value?.Value, out int parsedValue))
+                        return parsedValue;
+
+                    return null;
+                }
+            }
+
+            return null;
+        }
+
+        private static string NormalizeFilterKey(string key)
+        {
+            return string.IsNullOrWhiteSpace(key) ? string.Empty : key.Replace("-R2-", string.Empty);
+        }
+
+        private static bool KeyMatches(string key, string expected)
+        {
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(expected))
+                return false;
+
+            if (key.Equals(expected, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var segments = key.Split('.', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length > 0 && segments[^1].Equals(expected, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return key.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static SubscribeTypeCategory? ResolveSubscribeTypeCategory(Nationality? nationality)
+        {
+            var subscribeFor = NationalityClassificationHelper.ResolveSubscribeFor(nationality);
+
+            return subscribeFor switch
+            {
+                SubscribeForEnum.Egyptian => SubscribeTypeCategory.Egyptian,
+                SubscribeForEnum.Gulf => SubscribeTypeCategory.Arab,
+                SubscribeForEnum.NonArab => SubscribeTypeCategory.Foreign,
+                _ => null
+            };
+        }
+
     }
 }
