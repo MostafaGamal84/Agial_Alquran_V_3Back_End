@@ -13,9 +13,7 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
 
         public int Id { get; set; }
         public string? Name { get; set; }
-        public decimal? ForignPricePerHour { get; set; }
-        public decimal? ArabPricePerHour { get; set; }
-        public decimal? EgyptPricePerHour { get; set; }
+        public decimal? HourPrice { get; set; }
         public SubscribeTypeCategory? Group { get; set; }
 
     }
