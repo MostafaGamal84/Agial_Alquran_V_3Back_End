@@ -1,14 +1,11 @@
 using AutoMapper;
-using Microsoft.Extensions.Hosting;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.Validation.CircleReportValidation;
 using Orbits.GeneralProject.Core.Entities;
-using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.CircleReportDtos;
-using Orbits.GeneralProject.DTO.ManagerDto;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.Repositroy.Base;
 using System;
@@ -23,13 +20,12 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         private readonly IRepository<StudentSubscribe> _studentSubscribeRecordRepository;
         private readonly IRepository<SubscribeType> _subscribeTypeRepository;
         private readonly IRepository<User> _userRepository;
-        private readonly IRepository<Nationality> _nationalityRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository) : base(mapper)
+             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
@@ -38,7 +34,6 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _teacherReportRecordRepository = teacherReportRecordRepository;
             _studentSubscribeRecordRepository = studentSubscribeRecordRepository;
             _subscribeTypeRepository = subscribeTypeRepository;
-            _nationalityRepository = nationalityRepository;
         }
 
 
@@ -154,7 +149,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             await _unitOfWork.CommitAsync(); // after this, created.Id is available
 
             var subscribeType = student.StudentSubscribes.LastOrDefault().StudentSubscribeType;
-            var hourlyRate = ResolveHourlyRate(subscribeType, teacher);
+            var hourlyRate = ResolveHourlyRate(subscribeType);
 
             var teacherReportRecord = new TeacherReportRecord
             {
@@ -268,7 +263,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             {
                 // ??? ???????/?????? ??? ??? ???????? ???????
                 var subscribeType = studentSubscribe.StudentSubscribeType;
-                var pricePerUnit = ResolveHourlyRate(subscribeType, teacher);
+                var pricePerUnit = ResolveHourlyRate(subscribeType);
 
                 if (newCounts)
                 {
@@ -310,113 +305,14 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             return (int)Math.Round(total, MidpointRounding.AwayFromZero);
         }
 
-        private decimal ResolveHourlyRate(SubscribeType? subscribeType, User teacher)
+        private decimal ResolveHourlyRate(SubscribeType? subscribeType)
         {
             if (subscribeType == null)
             {
                 return 0m;
             }
 
-            var subscribeGroup = ResolveSubscribeTypeGroup(subscribeType);
-            if (subscribeGroup.HasValue)
-            {
-                return ResolveHourlyRateBySubscriptionType(subscribeType, subscribeGroup.Value);
-            }
-
-            if (teacher.ForignTeacher == true)
-            {
-                return subscribeType.ForignPricePerHour
-                    ?? subscribeType.ArabPricePerHour
-                    ?? subscribeType.EgyptPricePerHour
-                    ?? 0m;
-            }
-
-            if (IsEgyptianTeacher(teacher))
-            {
-                return subscribeType.EgyptPricePerHour
-                    ?? subscribeType.ArabPricePerHour
-                    ?? subscribeType.ForignPricePerHour
-                    ?? 0m;
-            }
-
-            return subscribeType.ArabPricePerHour
-                ?? subscribeType.EgyptPricePerHour
-                ?? subscribeType.ForignPricePerHour
-                ?? 0m;
-        }
-
-        private static SubscribeTypeCategory? ResolveSubscribeTypeGroup(SubscribeType? subscribeType)
-        {
-            if (subscribeType?.Group.HasValue != true)
-            {
-                return null;
-            }
-
-            return (SubscribeTypeCategory?)subscribeType.Group.Value;
-        }
-
-        private decimal ResolveHourlyRateBySubscriptionType(SubscribeType subscribeType, SubscribeTypeCategory group)
-        {
-            return group switch
-            {
-                SubscribeTypeCategory.Foreign => subscribeType.ForignPricePerHour
-                    ?? subscribeType.ArabPricePerHour
-                    ?? subscribeType.EgyptPricePerHour
-                    ?? 0m,
-                SubscribeTypeCategory.Arab => subscribeType.ArabPricePerHour
-                    ?? subscribeType.EgyptPricePerHour
-                    ?? subscribeType.ForignPricePerHour
-                    ?? 0m,
-                SubscribeTypeCategory.Egyptian => subscribeType.EgyptPricePerHour
-                    ?? subscribeType.ArabPricePerHour
-                    ?? subscribeType.ForignPricePerHour
-                    ?? 0m,
-                _ => subscribeType.ArabPricePerHour
-                    ?? subscribeType.EgyptPricePerHour
-                    ?? subscribeType.ForignPricePerHour
-                    ?? 0m,
-            };
-        }
-
-        private bool IsEgyptianTeacher(User teacher)
-        {
-            if (teacher == null)
-            {
-                return false;
-            }
-
-            if (teacher.GovernorateId.HasValue)
-            {
-                return true;
-            }
-
-            if (!teacher.NationalityId.HasValue)
-            {
-                return false;
-            }
-
-            var nationality = _nationalityRepository.GetById(teacher.NationalityId.Value);
-            if (nationality == null)
-            {
-                return false;
-            }
-
-            if (nationality.TelCode.HasValue && nationality.TelCode.Value == 20)
-            {
-                return true;
-            }
-
-            var name = nationality.Name;
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                return false;
-            }
-
-            name = name.Trim();
-            return name.Contains("egypt", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("egyptian", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("مصر", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("مصري", StringComparison.OrdinalIgnoreCase);
+            return subscribeType.HourPrice ?? 0m;
         }
 
     }
