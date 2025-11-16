@@ -1,6 +1,7 @@
 using AutoMapper;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
+using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.DTO.CircleDto;
@@ -121,6 +122,9 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             int? safeTeacherId = (teacherId.HasValue && teacherId.Value > 0) ? teacherId : null;
             int? safeNationalityId = (nationalityId.HasValue && nationalityId.Value > 0) ? nationalityId : null;
             int? myBranchId = (me.BranchId.HasValue && me.BranchId.Value > 0) ? me.BranchId : null;
+            var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
+            var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
+            bool applyResidentFilter = residentIdsFilter != null;
 
             Func<UserTypesEnum, int> rank = t => t switch
             {
@@ -151,7 +155,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!targetIsStudent ||
                         (!safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value) &&
                         (!safeManagerId.HasValue || x.ManagerId == safeManagerId.Value) &&
-                        (!safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value)) &&
+                        (!safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value) &&
+                        (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value))))) &&
                         (!Inactive.HasValue || x.Inactive == Inactive.Value)
                     && (
                         string.IsNullOrEmpty(sw) ||
@@ -181,6 +186,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!targetIsStudent || !safeManagerId.HasValue || x.ManagerId == safeManagerId.Value)
                     && (!targetIsStudent || !safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value)
                     && (!targetIsStudent || !safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value)
+                    && (!targetIsStudent || !applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))
                     && (!targetIsTeacher || !safeManagerId.HasValue || x.ManagerId == safeManagerId.Value)
                     // Search
                     && (

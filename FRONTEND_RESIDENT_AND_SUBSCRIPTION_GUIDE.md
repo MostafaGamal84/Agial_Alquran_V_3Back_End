@@ -24,4 +24,14 @@
 - قوائم الاشتراكات حسب النوع (`LookUp/GetAllSubscribesByTypeId`) تختار الآن الخطة الملائمة تلقائيًا بناءً على مجموعة نوع الاشتراك؛ لا حاجة لإرسال `subscribeFor` بعد الآن.
 - يتم إرجاع قيمة نصية لاسم محل الإقامة ضمن معظم استجابات المستخدم، لذلك يفضل عرضها في الجداول أو في الـ filters النصية حتى يتمكن المستخدم من البحث عنها.
 
+## 5. فلتر فئة الإقامة في القوائم
+- أُضيف معامل استعلام جديد باسم `residentGroup` إلى النداءات التالية ليصفي النتائج وفق فئة الإقامة (مصر، عرب، أجانب):
+  - `GET /api/UsersForGroups/GetUsersForSelects`
+  - `GET /api/StudentSubscrib/GetStudents`
+  - `GET /api/StudentSubscrib/GetStudentSubscribesWithPayment`
+  - `GET /api/CircleReport/GetResultsByFilter`
+  - `GET /api/StudentPayment/Invoices`
+- القيم المدعومة: `egyptian`, `arab`, `foreign`. استخدم `all` أو اتركه فارغًا لإرجاع كل النتائج.
+- يتم الربط داخليًا مع حقل `residentId`، لذا تأكد من أن القوائم التي تسمح باختيار مكان الإقامة ترسل القيمة الصحيحة.
+
 تأكد من نشر هذه التغييرات بالتزامن مع تحديث الـ API حتى لا يحدث تعارض بين الواجهة والخلفية.
