@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.FilesUploaderService;
+using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.Core.Infrastructure;
@@ -24,17 +25,19 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
         private readonly IRepository<StudentPayment> _StudentPaymentRepo;
         private readonly IRepository<StudentSubscribe> _StudentSubscribeRepo;
         private readonly IRepository<User> _UserRepo;
+        private readonly IRepository<Nationality> _nationalityRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileServiceBLL _fileService;
 
 
 
-        public StudentPaymentBLL(IMapper mapper, IRepository<StudentPayment> studentPaymentRepo, IRepository<User> userRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IUnitOfWork unitOfWork, IFileServiceBLL fileService) : base(mapper)
+        public StudentPaymentBLL(IMapper mapper, IRepository<StudentPayment> studentPaymentRepo, IRepository<User> userRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork, IFileServiceBLL fileService) : base(mapper)
         {
             _mapper = mapper;
             _StudentPaymentRepo = studentPaymentRepo;
             _UserRepo = userRepo;
             _StudentSubscribeRepo = studentSubscribeRepo;
+            _nationalityRepo = nationalityRepo;
             _unitOfWork = unitOfWork;
             _fileService = fileService;
         }
@@ -62,6 +65,9 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     var monthEnd = monthStart.AddMonths(1);
 
     var sw = pagedDto?.SearchTerm?.Trim().ToLower();
+    var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
+    var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
+    bool applyResidentFilter = residentIdsFilter != null;
     tab = string.IsNullOrWhiteSpace(tab) ? null : tab.Trim().ToLower();
 
     // ONE EF-translatable predicate
@@ -74,6 +80,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
         // ----- specific student
         (!(studentId.HasValue && studentId.Value > 0) || p.StudentId == studentId.Value) &&
         (!(nationalityId.HasValue && nationalityId.Value > 0) || (p.Student != null && p.Student.NationalityId == nationalityId.Value)) &&
+        (!applyResidentFilter || (p.Student != null && p.Student.ResidentId.HasValue && residentIdsFilter!.Contains(p.Student.ResidentId.Value))) &&
 
         // ----- month filter:
         // overdue: unpaid & created before month; cancelled: created inside month (like other tabs)

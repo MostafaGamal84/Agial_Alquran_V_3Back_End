@@ -1,6 +1,7 @@
 using AutoMapper;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
+using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.Validation.CircleReportValidation;
 using Orbits.GeneralProject.Core.Entities;
@@ -19,13 +20,14 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         private readonly IRepository<TeacherReportRecord> _teacherReportRecordRepository;
         private readonly IRepository<StudentSubscribe> _studentSubscribeRecordRepository;
         private readonly IRepository<SubscribeType> _subscribeTypeRepository;
+        private readonly IRepository<Nationality> _nationalityRepository;
         private readonly IRepository<User> _userRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository) : base(mapper)
+             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
@@ -34,6 +36,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _teacherReportRecordRepository = teacherReportRecordRepository;
             _studentSubscribeRecordRepository = studentSubscribeRecordRepository;
             _subscribeTypeRepository = subscribeTypeRepository;
+            _nationalityRepository = nationalityRepository;
         }
 
 
@@ -59,6 +62,9 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             bool isAdmin = userType == UserTypesEnum.Admin;
             bool isManager = userType == UserTypesEnum.Manager;
             bool isTeacher = userType == UserTypesEnum.Teacher;
+            var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
+            var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
+            bool applyResidentFilter = residentIdsFilter != null;
 
             // ?????? ??????: ??????? + ????? ????? + ???
             Expression<Func<CircleReport, bool>> predicate = r =>
@@ -86,6 +92,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 && (!circleId.HasValue || r.CircleId == circleId.Value)
                 && (!studentId.HasValue || r.StudentId == studentId.Value)
                 && (!nationalityId.HasValue || (r.Student != null && r.Student.NationalityId == nationalityId.Value))
+                && (!applyResidentFilter || (r.Student != null && r.Student.ResidentId.HasValue && residentIdsFilter!.Contains(r.Student.ResidentId.Value)))
 
                 // -------- ????? ??????? ----------
                 && (
