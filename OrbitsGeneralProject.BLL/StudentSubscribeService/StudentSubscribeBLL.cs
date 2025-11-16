@@ -1,6 +1,7 @@
 using AutoMapper;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
+using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.Validation.CircleValidation;
 using Orbits.GeneralProject.Core.Entities;
@@ -24,10 +25,11 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         private readonly IRepository<StudentPayment> _StudentPaymentRepo;
         private readonly IRepository<Subscribe> _SubscribeRepo;
         private readonly IRepository<SubscribeType> _SubscribeTypeRepo;
+        private readonly IRepository<Nationality> _nationalityRepo;
         private readonly IUnitOfWork _unitOfWork;
 
 
-        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Subscribe> subscribeRepo, IRepository<SubscribeType> subscribeTypeRepo, IRepository<StudentPayment> studentPaymentRepo, IUnitOfWork unitOfWork) : base(mapper)
+        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Subscribe> subscribeRepo, IRepository<SubscribeType> subscribeTypeRepo, IRepository<StudentPayment> studentPaymentRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork) : base(mapper)
         {
             _mapper = mapper;
             _UserRepo = UserRepo;
@@ -35,6 +37,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             _SubscribeRepo = subscribeRepo;
             _SubscribeTypeRepo = subscribeTypeRepo;
             _StudentPaymentRepo = studentPaymentRepo;
+            _nationalityRepo = nationalityRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -50,6 +53,9 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             if (me == null) return output.AppendError(MessageCodes.NotFound);
 
             var sw = searchWord?.ToLower();
+            var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
+            var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
+            bool applyResidentFilter = residentIdsFilter != null;
 
             // Build ONE predicate that includes:
             // - target user type (userTypeId)
@@ -63,6 +69,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 && (!(me.UserTypeId == (int)UserTypesEnum.BranchLeader) || x.BranchId == me.BranchId)
                 && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || x.ManagerId == me.Id)
                 && (!(me.UserTypeId == (int)UserTypesEnum.Teacher) || x.TeacherId == me.Id)
+                && (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))
                 // optional search (grouped to avoid &&/|| precedence issues)
                 && (
                     string.IsNullOrEmpty(sw) ||
@@ -98,6 +105,9 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             var searchWord = pagedDto.SearchTerm?.Trim();
 
             var sw = searchWord?.ToLower();
+            var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
+            var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
+            bool applyResidentFilter = residentIdsFilter != null;
 
             // Build ONE predicate that includes:
             // - target user type (userTypeId)
@@ -109,6 +119,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 // role-based restriction (applies only when the logged-in role matches)
                 && (!(studentId.HasValue && studentId.Value > 0) || x.StudentId == studentId.Value)
                 && (!(nationalityId.HasValue && nationalityId.Value > 0) || (x.Student != null && x.Student.NationalityId == nationalityId.Value))
+                && (!applyResidentFilter || (x.Student != null && x.Student.ResidentId.HasValue && residentIdsFilter!.Contains(x.Student.ResidentId.Value)))
                
                 // optional search (grouped to avoid &&/|| precedence issues)
                 && (

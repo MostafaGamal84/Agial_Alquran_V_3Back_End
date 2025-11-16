@@ -38,6 +38,10 @@ namespace Orbits.GeneralProject.DTO.Paging
         public virtual int? StudentId { get; set; }
         public virtual int? NationalityId { get; set; }
         public virtual int? ResidentId { get; set; }
+        /// <summary>
+        /// Optional resident-group filter: egyptian | arab | foreign | all.
+        /// </summary>
+        public virtual string? ResidentGroup { get; set; }
         public virtual string? Lang { get; set; } = "en";
 
         public virtual string? SortingDirection { get; set; } = "ASC";
