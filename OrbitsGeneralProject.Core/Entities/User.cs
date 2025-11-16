@@ -36,6 +36,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? RegisterAt { get; set; }
         public string? PasswordHash { get; set; }
         public int? UserTypeId { get; set; }
+        public int? ResidentId { get; set; }
         public int? NationalityId { get; set; }
         public int? GovernorateId { get; set; }
         public int? BranchId { get; set; }
@@ -49,12 +50,12 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? CircleId { get; set; }
         public int? TeacherId { get; set; }
         public int? ManagerId { get; set; }
-        public bool? ForignTeacher { get; set; }
 
         public virtual Circle? Circle { get; set; }
         public virtual Governorate? Governorate { get; set; }
         public virtual User? Manager { get; set; }
         public virtual Nationality? Nationality { get; set; }
+        public virtual Nationality? Resident { get; set; }
         public virtual User? Teacher { get; set; }
         public virtual ICollection<ChallengeParticipant> ChallengeParticipants { get; set; }
         public virtual ICollection<CircleReport> CircleReportStudents { get; set; }

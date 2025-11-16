@@ -23,7 +23,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? Minutes { get; set; }
         public int? SubscribeTypeId { get; set; }
         public bool? IsDeleted { get; set; }
-        public int? SubscribeFor { get; set; }
 
         public virtual SubscribeType? SubscribeType { get; set; }
         public virtual ICollection<StudentPayment> StudentPayments { get; set; }

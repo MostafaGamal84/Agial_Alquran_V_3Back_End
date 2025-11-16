@@ -44,11 +44,9 @@ namespace Orbits.GeneralProject.Core.Entities
             if (!optionsBuilder.IsConfigured)
             {
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-                optionsBuilder.UseSqlServer("workstation id=agial_alquran_V_3_DB.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=agial_alquran_V_3_DB.mssql.somee.com;persist security info=False;initial catalog=agial_alquran_V_3_DB;TrustServerCertificate=True");
+                optionsBuilder.UseSqlServer("workstation id=agial_alquran_V_3_Final_DB.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=agial_alquran_V_3_Final_DB.mssql.somee.com;persist security info=False;initial catalog=agial_alquran_V_3_Final_DB;TrustServerCertificate=True");
             }
         }
-
-
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -380,17 +378,11 @@ namespace Orbits.GeneralProject.Core.Entities
             {
                 entity.ToTable("SubscribeType");
 
-                entity.Property(e => e.ArabPricePerHour).HasColumnType("decimal(5, 2)");
-
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
-                entity.Property(e => e.EgyptPricePerHour).HasColumnType("decimal(5, 2)");
-
-                entity.Property(e => e.ForignPricePerHour).HasColumnType("decimal(5, 2)");
+                entity.Property(e => e.HourPrice).HasColumnType("decimal(5, 2)");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
-
-                entity.Property(e => e.Type).HasColumnName("type");
             });
 
             modelBuilder.Entity<TeacherReportRecord>(entity =>
@@ -489,9 +481,14 @@ namespace Orbits.GeneralProject.Core.Entities
                     .HasConstraintName("FK_User_Manager");
 
                 entity.HasOne(d => d.Nationality)
-                    .WithMany(p => p.Users)
+                    .WithMany(p => p.UserNationalities)
                     .HasForeignKey(d => d.NationalityId)
                     .HasConstraintName("FK_User_Nationality");
+
+                entity.HasOne(d => d.Resident)
+                    .WithMany(p => p.UserResidents)
+                    .HasForeignKey(d => d.ResidentId)
+                    .HasConstraintName("FK_User_Resident");
 
                 entity.HasOne(d => d.Teacher)
                     .WithMany(p => p.InverseTeacher)

@@ -7,7 +7,8 @@ namespace Orbits.GeneralProject.Core.Entities
     {
         public Nationality()
         {
-            Users = new HashSet<User>();
+            UserNationalities = new HashSet<User>();
+            UserResidents = new HashSet<User>();
         }
 
         public int Id { get; set; }
@@ -18,6 +19,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public string? Name { get; set; }
         public int? TelCode { get; set; }
 
-        public virtual ICollection<User> Users { get; set; }
+        public virtual ICollection<User> UserNationalities { get; set; }
+        public virtual ICollection<User> UserResidents { get; set; }
     }
 }
