@@ -156,7 +156,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         (!safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value) &&
                         (!safeManagerId.HasValue || x.ManagerId == safeManagerId.Value) &&
                         (!safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value) &&
-                        (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value))))) &&
+                        (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))) &&
                         (!Inactive.HasValue || x.Inactive == Inactive.Value)
                     && (
                         string.IsNullOrEmpty(sw) ||
