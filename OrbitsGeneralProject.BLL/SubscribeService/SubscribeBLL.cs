@@ -80,6 +80,8 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
                 requiredCategory = ResolveSubscribeTypeCategory(nationality);
             }
 
+            int? requiredGroupValue = requiredCategory.HasValue ? (int?)requiredCategory.Value : null;
+
             var list = GetPagedList<SubscribeTypeReDto, SubscribeType, int>(
                 pagedDto,
                 repository: _SubscribeTypeRepository,
@@ -87,7 +89,7 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
                 searchExpression: x =>
                     (string.IsNullOrEmpty(searchWord) ||
                         (!string.IsNullOrEmpty(x.Name) && x.Name.Contains(searchWord))) &&
-                    (requiredCategory == null || x.Type == requiredCategory),
+                    (requiredGroupValue == null || x.Group == requiredGroupValue),
                 sortDirection: pagedDto.SortingDirection,
                 disableFilter: true,
                 excluededColumns: null);

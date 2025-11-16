@@ -11,8 +11,9 @@ namespace Orbits.GeneralProject.DTO.UserDto
         public string? PasswordHash { get; set; }
         public int? UserTypeId { get; set; }
         public int? NationalityId { get; set; }
+        public int? ResidentId { get; set; }
         public int? GovernorateId { get; set; }
         public int? BranchId { get; set; }
- 
+
     }
 }

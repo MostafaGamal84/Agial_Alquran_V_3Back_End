@@ -1,6 +1,7 @@
 using AutoMapper;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.DTO;
 using Orbits.GeneralProject.DTO.CircleDto;
 using Orbits.GeneralProject.DTO.CircleReportDtos;
@@ -39,6 +40,7 @@ namespace Orbits.GeneralProject.BLL.Mapping
             CreateMap<User, ProfileDto>();
             CreateMap<User, UserLockUpDto>()
                 .ForMember(x => x.Nationality, xx => xx.MapFrom(c => c.Nationality.Name))
+                .ForMember(x => x.Resident, xx => xx.MapFrom(c => c.Resident.Name))
                 .ForMember(x => x.Governorate, xx => xx.MapFrom(c => c.Governorate.Name))
                 .ForMember(x => x.CircleName, xx => xx.MapFrom(c => c.Circle.Name))
                 .ForMember(x => x.CircleId, xx => xx.MapFrom(c => c.CircleId))
@@ -58,7 +60,8 @@ namespace Orbits.GeneralProject.BLL.Mapping
             CreateMap<Subscribe, SubscribeReDto>()
             .ForMember(x => x.SubscribeType, xx => xx.MapFrom(c => c.SubscribeType))
 ;
-            CreateMap<SubscribeType, SubscribeTypeReDto>();
+            CreateMap<SubscribeType, SubscribeTypeReDto>()
+                .ForMember(d => d.Group, o => o.MapFrom(s => s.Group.HasValue ? (SubscribeTypeCategory?)s.Group.Value : null));
 
 
             CreateMap<User, ViewStudentSubscribeReDto>()

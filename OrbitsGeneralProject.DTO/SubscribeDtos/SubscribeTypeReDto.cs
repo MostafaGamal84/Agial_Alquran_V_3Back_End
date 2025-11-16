@@ -16,7 +16,7 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
         public decimal? ForignPricePerHour { get; set; }
         public decimal? ArabPricePerHour { get; set; }
         public decimal? EgyptPricePerHour { get; set; }
-        public SubscribeTypeCategory? Type { get; set; }
+        public SubscribeTypeCategory? Group { get; set; }
 
     }
 }

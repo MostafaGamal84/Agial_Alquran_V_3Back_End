@@ -15,7 +15,6 @@ namespace Orbits.GeneralProject.DTO.SubscribeDtos
         public decimal? Usdprice { get; set; }
         public int? Minutes { get; set; }
         public int? SubscribeTypeId { get; set; }
-        public int? SubscribeFor { get; set; }
 
     }
 }

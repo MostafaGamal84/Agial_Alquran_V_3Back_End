@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.DTO.CircleDto;
 using Orbits.GeneralProject.DTO.CircleReportDtos;
 using Orbits.GeneralProject.DTO.Paging;
@@ -23,7 +24,8 @@ namespace Orbits.GeneralProject.BLL.Mapping
             .ForMember(x => x.StudentId, xx => xx.MapFrom(c => c.StudentId))
             .ForMember(x => x.TeacherId, xx => xx.MapFrom(c => c.TeacherId));
             CreateMap<CreateSubscribeDto, Subscribe>();
-            CreateMap<CreateSubscribeTypeDto, SubscribeType>();
+            CreateMap<CreateSubscribeTypeDto, SubscribeType>()
+                .ForMember(d => d.Group, o => o.MapFrom(s => s.Group.HasValue ? (int?)s.Group.Value : null));
 
             ;
 

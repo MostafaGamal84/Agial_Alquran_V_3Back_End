@@ -4,6 +4,7 @@ using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.Validation.CircleValidation;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.CircleDto;
 using Orbits.GeneralProject.DTO.LockUpDtos;
@@ -22,15 +23,17 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         private readonly IRepository<StudentSubscribe> _StudentSubscribeRepo;
         private readonly IRepository<StudentPayment> _StudentPaymentRepo;
         private readonly IRepository<Subscribe> _SubscribeRepo;
+        private readonly IRepository<SubscribeType> _SubscribeTypeRepo;
         private readonly IUnitOfWork _unitOfWork;
 
 
-        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Subscribe> subscribeRepo, IRepository<StudentPayment> studentPaymentRepo, IUnitOfWork unitOfWork) : base(mapper)
+        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Subscribe> subscribeRepo, IRepository<SubscribeType> subscribeTypeRepo, IRepository<StudentPayment> studentPaymentRepo, IUnitOfWork unitOfWork) : base(mapper)
         {
             _mapper = mapper;
             _UserRepo = UserRepo;
             _StudentSubscribeRepo = studentSubscribeRepo;
             _SubscribeRepo = subscribeRepo;
+            _SubscribeTypeRepo = subscribeTypeRepo;
             _StudentPaymentRepo = studentPaymentRepo;
             _unitOfWork = unitOfWork;
         }
@@ -138,21 +141,21 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         {
             var output = new Response<bool>();
             var subscribe = _SubscribeRepo.GetById(model.StudentSubscribeId.Value);
+            if (subscribe == null)
+            {
+                return output.AppendError(MessageCodes.NotFound);
+            }
             var student = _UserRepo.GetById(model.StudentId.Value);
-            int Amount = subscribe.SubscribeFor switch
+            var subscribeGroup = ResolveSubscribeGroup(subscribe);
+            if (!subscribeGroup.HasValue)
             {
-                (int)SubscribeForEnum.Egyptian => (int)subscribe.Leprice,
-                (int)SubscribeForEnum.Gulf => (int)subscribe.Sarprice,
-                (int)SubscribeForEnum.NonArab => (int)subscribe.Usdprice,
-                _ => throw new ArgumentOutOfRangeException(nameof(subscribe.SubscribeFor), "Unsupported currency type")
-            };
-            int Currency = subscribe.SubscribeFor switch
-            {
-                (int)SubscribeForEnum.Egyptian => (int)CurrencyEnum.LE,
-                (int)SubscribeForEnum.Gulf => (int)CurrencyEnum.SAR,
-                (int)SubscribeForEnum.NonArab => (int)CurrencyEnum.USD,
-                _ => throw new ArgumentOutOfRangeException(nameof(subscribe.SubscribeFor), "Unsupported currency type")
-            };
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(AddStudentSubscribeDto.StudentSubscribeId),
+                    "Subscribe type group is not configured for this plan.");
+            }
+
+            var (Amount, Currency) = ResolvePaymentDetails(subscribe, subscribeGroup.Value);
             var studentPayment = new StudentPayment
             {
                 CreatedAt = DateTime.Now,
@@ -184,6 +187,37 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             await _unitOfWork.CommitAsync(); // after this, created.Id is available
            
                 return output.CreateResponse(data: true);
+        }
+
+        private SubscribeTypeCategory? ResolveSubscribeGroup(Subscribe subscribe)
+        {
+            var category = ConvertGroup(subscribe.SubscribeType?.Group);
+            if (category.HasValue)
+            {
+                return category;
+            }
+
+            if (!subscribe.SubscribeTypeId.HasValue)
+            {
+                return null;
+            }
+
+            var subscribeType = _SubscribeTypeRepo.GetById(subscribe.SubscribeTypeId.Value);
+            return ConvertGroup(subscribeType?.Group);
+        }
+
+        private static SubscribeTypeCategory? ConvertGroup(int? groupValue)
+            => groupValue.HasValue ? (SubscribeTypeCategory?)groupValue.Value : null;
+
+        private static (int Amount, int Currency) ResolvePaymentDetails(Subscribe subscribe, SubscribeTypeCategory group)
+        {
+            return group switch
+            {
+                SubscribeTypeCategory.Egyptian => ((int)subscribe.Leprice, (int)CurrencyEnum.LE),
+                SubscribeTypeCategory.Arab => ((int)subscribe.Sarprice, (int)CurrencyEnum.SAR),
+                SubscribeTypeCategory.Foreign => ((int)subscribe.Usdprice, (int)CurrencyEnum.USD),
+                _ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unsupported subscription group")
+            };
         }
 
     }

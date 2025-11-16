@@ -14,6 +14,7 @@ namespace Orbits.GeneralProject.DTO.UserDtos
         public string? Mobile { get; set; }
         public string? SecondMobile { get; set; }
         public int? NationalityId { get; set; }
+        public int? ResidentId { get; set; }
         public int? GovernorateId { get; set; }
         public int? BranchId { get; set; }
     }
