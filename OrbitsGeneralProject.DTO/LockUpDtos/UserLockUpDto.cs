@@ -16,6 +16,8 @@ namespace Orbits.GeneralProject.DTO.LockUpDtos
         public string? SecondMobile { get; set; }
         public string? Nationality { get; set; }
         public int? NationalityId { get; set; }
+        public string? Resident { get; set; }
+        public int? ResidentId { get; set; }
         public string? Governorate { get; set; }
         public int? GovernorateId { get; set; }
         public int? BranchId { get; set; }

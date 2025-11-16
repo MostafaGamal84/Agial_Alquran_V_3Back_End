@@ -17,6 +17,7 @@ namespace Orbits.GeneralProject.DTO.UserDtos
         public string? SecondMobile { get; set; }
         public DateTime? RegisterAt { get; set; }
         public int? NationalityId { get; set; }
+        public int? ResidentId { get; set; }
         public int? GovernorateId { get; set; }
         public int? BranchId { get; set; }
         public bool Inactive { get; set; }
@@ -28,6 +29,7 @@ namespace Orbits.GeneralProject.DTO.UserDtos
         public virtual string? GovernorateName { get; set; }
         public virtual string? ManagerName { get; set; }
         public virtual RegionDto? Nationality { get; set; }
+        public virtual RegionDto? Resident { get; set; }
         public virtual string? TeacherName { get; set; }
         public virtual ICollection<ChallengeParticipant> ChallengeParticipants { get; set; }
         public virtual ICollection<CircleReport> CircleReportCircleNavigations { get; set; }

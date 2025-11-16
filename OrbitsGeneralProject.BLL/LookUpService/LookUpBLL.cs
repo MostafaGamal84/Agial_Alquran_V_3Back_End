@@ -5,6 +5,7 @@ using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.LookUpService;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.DTO;
 using Orbits.GeneralProject.DTO.LockUpDtos;
 using Orbits.GeneralProject.DTO.ManagerDto;
@@ -60,6 +61,7 @@ namespace Orbits.GeneralProject.BLL.LookUpService
                     (x.Mobile != null && x.Mobile.ToLower().Contains(sw)) ||
                     (x.Email != null && x.Email.ToLower().Contains(sw)) ||
                     (x.Nationality != null && x.Nationality.Name != null && x.Nationality.Name.ToLower().Contains(sw)) ||
+                    (x.Resident != null && x.Resident.Name != null && x.Resident.Name.ToLower().Contains(sw)) ||
                     (x.Governorate != null && x.Governorate.Name != null && x.Governorate.Name.ToLower().Contains(sw))
                 );
 
@@ -128,8 +130,19 @@ namespace Orbits.GeneralProject.BLL.LookUpService
                     var subscribeFor = NationalityClassificationHelper.ResolveSubscribeFor(nationality);
                     if (subscribeFor.HasValue)
                     {
-                        int subscribeForValue = (int)subscribeFor.Value;
-                        query = query.Where(e => e.SubscribeFor == subscribeForValue);
+                        SubscribeTypeCategory? targetCategory = subscribeFor.Value switch
+                        {
+                            SubscribeForEnum.Egyptian => SubscribeTypeCategory.Egyptian,
+                            SubscribeForEnum.Gulf => SubscribeTypeCategory.Arab,
+                            SubscribeForEnum.NonArab => SubscribeTypeCategory.Foreign,
+                            _ => null
+                        };
+
+                        if (targetCategory.HasValue)
+                        {
+                            int groupValue = (int)targetCategory.Value;
+                            query = query.Where(e => e.SubscribeType != null && e.SubscribeType.Group == groupValue);
+                        }
                     }
                 }
             }

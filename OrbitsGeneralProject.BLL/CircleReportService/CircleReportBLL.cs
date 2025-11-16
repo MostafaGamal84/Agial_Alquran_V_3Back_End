@@ -317,9 +317,10 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 return 0m;
             }
 
-            if (subscribeType.Type.HasValue)
+            var subscribeGroup = ResolveSubscribeTypeGroup(subscribeType);
+            if (subscribeGroup.HasValue)
             {
-                return ResolveHourlyRateBySubscriptionType(subscribeType);
+                return ResolveHourlyRateBySubscriptionType(subscribeType, subscribeGroup.Value);
             }
 
             if (teacher.ForignTeacher == true)
@@ -344,9 +345,19 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 ?? 0m;
         }
 
-        private decimal ResolveHourlyRateBySubscriptionType(SubscribeType subscribeType)
+        private static SubscribeTypeCategory? ResolveSubscribeTypeGroup(SubscribeType? subscribeType)
         {
-            return subscribeType.Type!.Value switch
+            if (subscribeType?.Group.HasValue != true)
+            {
+                return null;
+            }
+
+            return (SubscribeTypeCategory?)subscribeType.Group.Value;
+        }
+
+        private decimal ResolveHourlyRateBySubscriptionType(SubscribeType subscribeType, SubscribeTypeCategory group)
+        {
+            return group switch
             {
                 SubscribeTypeCategory.Foreign => subscribeType.ForignPricePerHour
                     ?? subscribeType.ArabPricePerHour
