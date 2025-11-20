@@ -12,6 +12,7 @@ using Orbits.GeneralProject.DTO.LockUpDtos;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.DTO.StudentSubscribDtos;
 using Orbits.GeneralProject.Repositroy.Base;
+using System;
 using System.Linq.Expressions;
 using Twilio.TwiML.Voice;
 
@@ -222,13 +223,16 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
         private static (int Amount, int Currency) ResolvePaymentDetails(Subscribe subscribe, SubscribeTypeCategory group)
         {
-            return group switch
+            decimal price = subscribe.Price ?? 0;
+            int currencyId = group switch
             {
-                SubscribeTypeCategory.Egyptian => ((int)subscribe.Leprice, (int)CurrencyEnum.LE),
-                SubscribeTypeCategory.Arab => ((int)subscribe.Sarprice, (int)CurrencyEnum.SAR),
-                SubscribeTypeCategory.Foreign => ((int)subscribe.Usdprice, (int)CurrencyEnum.USD),
+                SubscribeTypeCategory.Egyptian => (int)CurrencyEnum.LE,
+                SubscribeTypeCategory.Arab => (int)CurrencyEnum.SAR,
+                SubscribeTypeCategory.Foreign => (int)CurrencyEnum.USD,
                 _ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unsupported subscription group")
             };
+
+            return ((int)Math.Round(price, MidpointRounding.AwayFromZero), currencyId);
         }
 
     }
