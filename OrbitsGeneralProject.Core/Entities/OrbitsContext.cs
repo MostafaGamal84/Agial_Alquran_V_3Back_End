@@ -354,19 +354,9 @@ namespace Orbits.GeneralProject.Core.Entities
 
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
-                entity.Property(e => e.Leprice)
-                    .HasColumnType("decimal(5, 2)")
-                    .HasColumnName("LEPrice");
-
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
-                entity.Property(e => e.Sarprice)
-                    .HasColumnType("decimal(5, 2)")
-                    .HasColumnName("SARPrice");
-
-                entity.Property(e => e.Usdprice)
-                    .HasColumnType("decimal(5, 2)")
-                    .HasColumnName("USDPrice");
+                entity.Property(e => e.Price).HasColumnType("decimal(5, 2)");
 
                 entity.HasOne(d => d.SubscribeType)
                     .WithMany(p => p.Subscribes)
