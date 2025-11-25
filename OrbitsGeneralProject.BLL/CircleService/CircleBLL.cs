@@ -168,6 +168,68 @@ namespace Orbits.GeneralProject.BLL.CircleService
         }
 
 
+        public async Task<IResponse<CircleDto>> GetByIdAsync(int id, int userId)
+        {
+            var output = new Response<CircleDto>();
+
+            var currentUser = await _userRepository.GetByIdAsync(userId);
+            if (currentUser == null)
+                return output.AppendError(MessageCodes.NotFound);
+
+            var userType = (UserTypesEnum)(currentUser.UserTypeId ?? 0);
+
+            var query = _circleRepository
+                .GetAll()
+                .Include(c => c.Teacher)
+                .Include(c => c.ManagerCircles)
+                    .ThenInclude(mc => mc.Manager)
+                .Include(c => c.CircleDays)
+                .Include(c => c.Users)
+                .Where(c => c.IsDeleted != true);
+
+            switch (userType)
+            {
+                case UserTypesEnum.Manager:
+                    query = query.Where(c => c.ManagerCircles.Any(mc => mc.ManagerId == userId));
+                    break;
+                case UserTypesEnum.Teacher:
+                    query = query.Where(c => c.TeacherId == userId);
+                    break;
+                case UserTypesEnum.Student:
+                    query = query.Where(c => c.Users.Any(u => u.Id == userId && u.IsDeleted != true));
+                    break;
+            }
+
+            var circle = await query.FirstOrDefaultAsync(c => c.Id == id);
+            if (circle == null)
+                return output.AppendError(MessageCodes.NotFound);
+
+            var dto = _mapper.Map<CircleDto>(circle);
+
+            switch (userType)
+            {
+                case UserTypesEnum.Manager:
+                    if (dto.Students != null)
+                        dto.Students = dto.Students.Where(s => s.ManagerId == userId).ToList();
+                    break;
+                case UserTypesEnum.Teacher:
+                    if (dto.Students != null)
+                        dto.Students = dto.Students.Where(s => s.TeacherId == userId).ToList();
+                    break;
+                case UserTypesEnum.Student:
+                    if (dto.Students != null)
+                        dto.Students = dto.Students.Where(s => s.Id == userId).ToList();
+                    if (dto.Managers != null && currentUser.ManagerId.HasValue)
+                        dto.Managers = dto.Managers.Where(m => m.ManagerId == currentUser.ManagerId.Value).ToList();
+                    break;
+            }
+
+            PopulateCircleDayMetadata(new List<CircleDto> { dto });
+
+            return output.CreateResponse(dto);
+        }
+
+
         public async Task<IResponse<IEnumerable<UpcomingCircleDto>>> GetUpcomingAsync(
             int userId,
             int? managerId = null,
