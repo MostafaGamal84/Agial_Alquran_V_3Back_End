@@ -21,6 +21,10 @@ namespace OrbitsProject.API.Controllers
             _circleBLL = circleBLL;
         }
 
+        [HttpGet("Get"), ProducesResponseType(typeof(IResponse<CircleDto>), 200)]
+        public async Task<IActionResult> Get(int id)
+           => Ok(await _circleBLL.GetByIdAsync(id, UserId));
+
         [HttpGet("GetResultsByFilter"), ProducesResponseType(typeof(IResponse<PagedResultDto<CircleDto>>), 200)]
         public async Task<IActionResult> GetResultsByFilter([FromQuery] FilteredResultRequestDto paginationFilterModel ,int? managerId, int? teacherId)
            => Ok(_circleBLL.GetPagedList(paginationFilterModel, managerId, teacherId, UserId));
