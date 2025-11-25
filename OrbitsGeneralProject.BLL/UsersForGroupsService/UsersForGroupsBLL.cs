@@ -9,6 +9,7 @@ using Orbits.GeneralProject.DTO.LockUpDtos;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.Repositroy.Base;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 {
@@ -93,12 +94,17 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             var searchWord = pagedDto.SearchTerm?.Trim();
             // --- NEW: read Filter without adding any helper method ---
             bool? Inactive = null; // true => IsActive=true, false => IsActive=false
+            bool includeManagerRelations = true; // keep previous behaviour unless explicitly disabled
             var f = pagedDto.Filter?.Trim();
             if (!string.IsNullOrWhiteSpace(f))
             {
                 var fl = f.ToLowerInvariant();
                 if (fl.Contains("inactive=true")) Inactive = true;
                 if (fl.Contains("inactive=false")) Inactive = false;
+                if (fl.Contains("includemanagerrelations=false") || fl.Contains("includemanagers=false") || fl.Contains("includerelations=false"))
+                    includeManagerRelations = false;
+                if (fl.Contains("includemanagerrelations=true") || fl.Contains("includemanagers=true") || fl.Contains("includerelations=true"))
+                    includeManagerRelations = true;
                 pagedDto.Filter = null;
             }
             var me = _UserRepo.GetById(userId);
@@ -213,7 +219,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             // ============================================
             // Target: Managers -> attach Teachers/Students + ManagerCircles
             // ============================================
-            if (targetIsManager && paged.Items?.Any() == true)
+            if (targetIsManager && includeManagerRelations && paged.Items?.Any() == true)
             {
                 var managerIds = paged.Items.Select(m => m.Id).ToList();
 
@@ -223,6 +229,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                                 && managerIds.Contains(u.ManagerId.Value)
                                 && (u.UserTypeId == (int)UserTypesEnum.Teacher
                                     || u.UserTypeId == (int)UserTypesEnum.Student))
+                    .AsNoTracking()
                     .Select(u => new
                     {
                         u.Id,
@@ -288,8 +295,11 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 // 2) ManagerCircles (many-to-many)
                 var mcQ = _managerCircleRepo
-                    .Where(mc => mc.ManagerId.HasValue && managerIds.Contains(mc.ManagerId.Value));
-                var cQ = _circleRepo.Where(c => true);
+                    .Where(mc => mc.ManagerId.HasValue && managerIds.Contains(mc.ManagerId.Value))
+                    .AsNoTracking();
+                var cQ = _circleRepo
+                    .Where(c => true)
+                    .AsNoTracking();
 
                 var circlesFlat = (from mc in mcQ
                                    join c in cQ on mc.CircleId equals c.Id
@@ -332,6 +342,16 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     }
                 }
             }
+            else if (targetIsManager && paged.Items?.Any() == true)
+            {
+                // Preserve response shape when related data is skipped
+                foreach (var m in paged.Items)
+                {
+                    m.Teachers = new List<UserLockUpDto>();
+                    m.Students = new List<UserLockUpDto>();
+                    m.ManagerCircles = new List<ManagerCirclesDto>();
+                }
+            }
 
             // ============================================
             // Target: Teachers -> attach Students (by TeacherId) + Manager (Id & Name)
@@ -345,6 +365,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     .Where(u => u.UserTypeId == (int)UserTypesEnum.Student
                                 && u.TeacherId.HasValue
                                 && teacherIds.Contains(u.TeacherId.Value))
+                    .AsNoTracking()
                     .Select(u => new
                     {
                         u.Id,
@@ -387,6 +408,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 // (B) Teachers' ManagerId
                 var teacherManagerPairs = _UserRepo
                     .Where(u => teacherIds.Contains(u.Id))
+                    .AsNoTracking()
                     .Select(u => new { u.Id, u.ManagerId })
                     .ToList()
                     .ToDictionary(x => x.Id, x => x.ManagerId);
@@ -402,6 +424,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     ? new Dictionary<int, string>()
                     : _UserRepo
                         .Where(u => managerIds.Contains(u.Id))
+                        .AsNoTracking()
                         .Select(u => new { u.Id, u.FullName })
                         .ToList()
                         .ToDictionary(m => m.Id, m => m.FullName);
@@ -434,6 +457,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 // (A) The student -> TeacherId/ManagerId links
                 var studentLinks = _UserRepo
                     .Where(u => studentIds.Contains(u.Id))
+                    .AsNoTracking()
                     .Select(u => new
                     {
                         u.Id,
@@ -460,6 +484,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     ? new Dictionary<int, string>()
                     : _UserRepo
                         .Where(u => teacherIds.Contains(u.Id))
+                        .AsNoTracking()
                         .Select(u => new { u.Id, u.FullName })
                         .ToList()
                         .ToDictionary(t => t.Id, t => t.FullName);
@@ -469,6 +494,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     ? new Dictionary<int, string>()
                     : _UserRepo
                         .Where(u => managerIds.Contains(u.Id))
+                        .AsNoTracking()
                         .Select(u => new { u.Id, u.FullName })
                         .ToList()
                         .ToDictionary(m => m.Id, m => m.FullName);
