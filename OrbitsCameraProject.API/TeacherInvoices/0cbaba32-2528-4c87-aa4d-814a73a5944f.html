@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <title>فاتورة راتب المعلم رقم ٥</title>
+  <style>
+
+      :root {
+        color-scheme: only light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f3f6fd;
+        color: #212121;
+        font-family: 'Cairo Variable', 'Cairo', 'Tajawal', 'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
+      }
+      .print-page {
+        max-width: 860px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 32px;
+        border-radius: 20px;
+        box-shadow: 0 24px 48px rgba(19, 66, 115, 0.12);
+      }
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        background: #134273;
+        color: #fff;
+        padding: 24px;
+        border-radius: 16px;
+      }
+      .header-text h1 {
+        margin: 0;
+        font-size: 28px;
+      }
+      .header-text h2 {
+        margin: 4px 0 0;
+        font-size: 22px;
+        font-weight: 500;
+      }
+      .header-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        font-weight: 600;
+      }
+      .header-meta .label {
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 1px;
+        opacity: 0.8;
+      }
+      .header-meta .value {
+        font-size: 20px;
+      }
+      .summary-cards {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        margin: 28px 0;
+      }
+      .summary-card {
+        background: #f3f6fd;
+        border: 1px solid #dfe6f2;
+        border-radius: 14px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .summary-card .summary-title {
+        font-weight: 600;
+        color: #5a5a5a;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .summary-card .summary-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #134273;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .print-section + .print-section {
+        margin-top: 32px;
+      }
+      .section-title h3,
+      .section-title h4 {
+        margin: 0;
+      }
+      .section-title h4 {
+        color: #5a5a5a;
+        font-weight: 500;
+      }
+      .print-grid {
+        margin-top: 16px;
+        display: grid;
+        gap: 12px;
+      }
+      .print-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        align-items: stretch;
+        border: 1px solid #dfe6f2;
+        border-radius: 12px;
+        padding: 14px 18px;
+        background: #fff;
+      }
+      .print-row.highlight {
+        border-color: #134273;
+        background: rgba(19, 66, 115, 0.08);
+      }
+      .row-text {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .row-text .label {
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #5a5a5a;
+        letter-spacing: 0.5px;
+      }
+      .row-text .value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #212121;
+        word-break: break-word;
+      }
+      .row-text.ar {
+        text-align: right;
+        direction: rtl;
+      }
+      .row-text.ar .value {
+        font-family: 'Cairo Variable', 'Cairo', 'Tajawal', 'Helvetica Neue', Arial, sans-serif;
+      }
+      .notes-card {
+        border: 1px dashed #134273;
+        border-radius: 12px;
+        padding: 18px;
+        background: #f3f6fd;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .notes-card p {
+        margin: 0;
+        color: #5a5a5a;
+        font-size: 15px;
+      }
+      @media print {
+        body {
+          background: #fff;
+          padding: 0;
+        }
+        .print-page {
+          box-shadow: none;
+          border-radius: 0;
+        }
+      }
+    
+  </style>
+</head>
+<body>
+  <div class="print-page">
+    <header class="print-header">
+      <div class="header-text">
+        <h1 dir="rtl">فاتورة راتب المعلم</h1>
+        <h2 dir="rtl">سند دفع الراتب</h2>
+      </div>
+      <div class="header-meta">
+        <span class="label">رقم الفاتورة</span>
+        <span class="value" dir="rtl">٥</span>
+      </div>
+    </header>
+    <section class="summary-cards">
+      
+      <div class="summary-card">
+        <div class="summary-title">
+          <span>إجمالي الفاتورة</span>
+          <span dir="rtl">إجمالي الفاتورة</span>
+        </div>
+        <div class="summary-value">
+          <span>‏١٬٥٠٠٫٠٠ US$</span>
+          <span dir="rtl">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+      </div>
+    
+      <div class="summary-card">
+        <div class="summary-title">
+          <span>صافي الراتب</span>
+          <span dir="rtl">صافي الراتب</span>
+        </div>
+        <div class="summary-value">
+          <span>‏١٬٥٠٠٫٠٠ US$</span>
+          <span dir="rtl">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+      </div>
+    
+      <div class="summary-card">
+        <div class="summary-title">
+          <span>نسبة الحضور</span>
+          <span dir="rtl">نسبة الحضور</span>
+        </div>
+        <div class="summary-value">
+          <span>—</span>
+          <span dir="rtl">—</span>
+        </div>
+      </div>
+    
+      <div class="summary-card">
+        <div class="summary-title">
+          <span>الحالة</span>
+          <span dir="rtl">الحالة</span>
+        </div>
+        <div class="summary-value">
+          <span>Paid</span>
+          <span dir="rtl">Paid</span>
+        </div>
+      </div>
+    
+    </section>
+    <section class="print-section">
+      <div class="section-title">
+        <h3 dir="rtl">بيانات الفاتورة</h3>
+        <h4 dir="rtl">تفاصيل الطلب</h4>
+      </div>
+      <div class="print-grid">
+        
+      <div class="print-row">
+        <div class="row-text en">
+          <span class="label">رقم الفاتورة</span>
+          <span class="value">٥</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">رقم الفاتورة</span>
+          <span class="value">٥</span>
+        </div>
+      </div>
+    
+      <div class="print-row">
+        <div class="row-text en">
+          <span class="label">رقم المعلم</span>
+          <span class="value">٦٠٨</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">رقم المعلم</span>
+          <span class="value">٦٠٨</span>
+        </div>
+      </div>
+    
+      <div class="print-row">
+        <div class="row-text en">
+          <span class="label">اسم المعلم</span>
+          <span class="value">أمل أبو الفتوح</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">اسم المعلم</span>
+          <span class="value">أمل أبو الفتوح</span>
+        </div>
+      </div>
+    
+      <div class="print-row">
+        <div class="row-text en">
+          <span class="label">شهر الفاتورة</span>
+          <span class="value">نوفمبر ٢٠٢٥</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">شهر الفاتورة</span>
+          <span class="value">نوفمبر ٢٠٢٥</span>
+        </div>
+      </div>
+    
+      <div class="print-row">
+        <div class="row-text en">
+          <span class="label">تاريخ الدفع</span>
+          <span class="value">٢٥‏/١١‏/٢٠٢٥، ١٢:٠٤ م</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">تاريخ الدفع</span>
+          <span class="value">٢٥‏/١١‏/٢٠٢٥، ١٢:٠٤ م</span>
+        </div>
+      </div>
+    
+      <div class="print-row">
+        <div class="row-text en">
+          <span class="label">الحالة</span>
+          <span class="value">Paid</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">الحالة</span>
+          <span class="value">Paid</span>
+        </div>
+      </div>
+    
+      <div class="print-row highlight">
+        <div class="row-text en">
+          <span class="label">قيمة الفاتورة</span>
+          <span class="value">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">قيمة الفاتورة</span>
+          <span class="value">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+      </div>
+    
+      <div class="print-row">
+        <div class="row-text en">
+          <span class="label">تاريخ الإنشاء</span>
+          <span class="value">٢٥‏/١١‏/٢٠٢٥، ٣:٠٤ م</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">تاريخ الإنشاء</span>
+          <span class="value">٢٥‏/١١‏/٢٠٢٥، ٣:٠٤ م</span>
+        </div>
+      </div>
+    
+      </div>
+    </section>
+    <section class="print-section">
+      <div class="section-title">
+        <h3 dir="rtl">تفاصيل الراتب</h3>
+        <h4 dir="rtl">ملخص المستحقات</h4>
+      </div>
+      <div class="print-grid">
+        
+      <div class="print-row highlight">
+        <div class="row-text en">
+          <span class="label">صافي الراتب</span>
+          <span class="value">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">صافي الراتب</span>
+          <span class="value">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+      </div>
+    
+      <div class="print-row highlight">
+        <div class="row-text en">
+          <span class="label">إجمالي الراتب</span>
+          <span class="value">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+        <div class="row-text ar" dir="rtl">
+          <span class="label">إجمالي الراتب</span>
+          <span class="value">‏١٬٥٠٠٫٠٠ US$</span>
+        </div>
+      </div>
+    
+      </div>
+    </section>
+      <section class="print-section">
+        <div class="section-title">
+        <h3 dir="rtl">ملخص الحضور</h3>
+        <h4 dir="rtl">بيانات الالتزام</h4>
+        </div>
+        <div class="print-grid">
+          
+        
+      </div>
+    </section>
+    <section class="print-section">
+      <div class="section-title">
+        <h3 dir="rtl">ملاحظات</h3>
+        <h4 dir="rtl">معلومات إضافية</h4>
+      </div>
+      <div class="notes-card">
+        <p dir="rtl">تم إنشاء هذه الفاتورة تلقائياً استناداً إلى بيانات الراتب والحضور للفترة المحددة.</p>
+      </div>
+    </section>
+  </div>
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        try {
+          window.print();
+        } catch (err) {
+          console.error(err);
+        }
+      }, 300);
+    });
+  </script>
+</body>
+</html>

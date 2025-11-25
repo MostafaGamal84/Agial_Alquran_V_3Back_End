@@ -166,7 +166,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 IsDeleted = false,
                 Minutes = (int)created.Minutes!.Value,
                 TeacherId = created.TeacherId,
-                CircleSallary = CalculateTeacherSalary(hourlyRate, created.Minutes)
+                CircleSallary = CalculateTeacherSalary(hourlyRate / 60 , created.Minutes)
             };
             _teacherReportRecordRepository.Add(teacherReportRecord);
             studentSubscribe.ModefiedAt = DateTime.UtcNow;
