@@ -93,12 +93,17 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             var searchWord = pagedDto.SearchTerm?.Trim();
             // --- NEW: read Filter without adding any helper method ---
             bool? Inactive = null; // true => IsActive=true, false => IsActive=false
+            bool includeManagerRelations = true; // keep previous behaviour unless explicitly disabled
             var f = pagedDto.Filter?.Trim();
             if (!string.IsNullOrWhiteSpace(f))
             {
                 var fl = f.ToLowerInvariant();
                 if (fl.Contains("inactive=true")) Inactive = true;
                 if (fl.Contains("inactive=false")) Inactive = false;
+                if (fl.Contains("includemanagerrelations=false") || fl.Contains("includemanagers=false") || fl.Contains("includerelations=false"))
+                    includeManagerRelations = false;
+                if (fl.Contains("includemanagerrelations=true") || fl.Contains("includemanagers=true") || fl.Contains("includerelations=true"))
+                    includeManagerRelations = true;
                 pagedDto.Filter = null;
             }
             var me = _UserRepo.GetById(userId);
@@ -213,7 +218,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             // ============================================
             // Target: Managers -> attach Teachers/Students + ManagerCircles
             // ============================================
-            if (targetIsManager && paged.Items?.Any() == true)
+            if (targetIsManager && includeManagerRelations && paged.Items?.Any() == true)
             {
                 var managerIds = paged.Items.Select(m => m.Id).ToList();
 
@@ -330,6 +335,16 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     {
                         m.ManagerCircles = new List<ManagerCirclesDto>();
                     }
+                }
+            }
+            else if (targetIsManager && paged.Items?.Any() == true)
+            {
+                // Preserve response shape when related data is skipped
+                foreach (var m in paged.Items)
+                {
+                    m.Teachers = new List<UserLockUpDto>();
+                    m.Students = new List<UserLockUpDto>();
+                    m.ManagerCircles = new List<ManagerCirclesDto>();
                 }
             }
 
