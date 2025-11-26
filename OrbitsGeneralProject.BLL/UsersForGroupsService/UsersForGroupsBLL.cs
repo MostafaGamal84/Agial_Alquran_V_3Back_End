@@ -8,6 +8,7 @@ using Orbits.GeneralProject.DTO.CircleDto;
 using Orbits.GeneralProject.DTO.LockUpDtos;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.Repositroy.Base;
+using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
@@ -87,14 +88,17 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
      int? managerId,
      int? teacherId,
      int? branchId = null,
-     int? nationalityId = null
+     int? nationalityId = null,
+     bool includeRelations = false,
+     int? targetUserId = null
  )
         {
             var output = new Response<PagedResultDto<UserLockUpDto>>();
             var searchWord = pagedDto.SearchTerm?.Trim();
             // --- NEW: read Filter without adding any helper method ---
             bool? Inactive = null; // true => IsActive=true, false => IsActive=false
-            bool includeManagerRelations = true; // keep previous behaviour unless explicitly disabled
+            bool includeManagerRelations = includeRelations; // keep previous behaviour unless explicitly disabled
+            bool includeTeacherAndStudentRelations = includeRelations;
             bool lookupOnly = false; // when true, return Id/FullName only for lightweight lookups
             var f = pagedDto.Filter?.Trim();
             if (!string.IsNullOrWhiteSpace(f))
@@ -103,13 +107,20 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 if (fl.Contains("inactive=true")) Inactive = true;
                 if (fl.Contains("inactive=false")) Inactive = false;
                 if (fl.Contains("includemanagerrelations=false") || fl.Contains("includemanagers=false") || fl.Contains("includerelations=false"))
+                {
                     includeManagerRelations = false;
+                    includeTeacherAndStudentRelations = false;
+                }
                 if (fl.Contains("includemanagerrelations=true") || fl.Contains("includemanagers=true") || fl.Contains("includerelations=true"))
+                {
                     includeManagerRelations = true;
+                    includeTeacherAndStudentRelations = true;
+                }
                 if (fl.Contains("lookuponly=true") || fl.Contains("lookup=true") || fl.Contains("idsonly=true"))
                 {
                     lookupOnly = true;
                     includeManagerRelations = false; // skip heavy joins for lookup-only mode
+                    includeTeacherAndStudentRelations = false;
                 }
                 pagedDto.Filter = null;
             }
@@ -161,6 +172,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             {
                 predicate = x =>
                     x.UserTypeId == userTypeId
+                    && (!targetUserId.HasValue || x.Id == targetUserId.Value)
                     // Admin optional narrowing:
                     && (!targetIsManager || !safeBranchId.HasValue || x.BranchId == safeBranchId.Value)
                     && (!targetIsTeacher || !safeManagerId.HasValue || x.ManagerId == safeManagerId.Value)
@@ -186,6 +198,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 // Non-admin scope restrictions (branch/ownership)
                 predicate = x =>
                     x.UserTypeId == userTypeId
+                    && (!targetUserId.HasValue || x.Id == targetUserId.Value)
                     // Branch leaders (and managers when targeting managers) see only their branch
                     && (!isBranchLeader || !myBranchId.HasValue || x.BranchId == myBranchId.Value)
                     && (!targetIsManager || !isManager || !myBranchId.HasValue || x.BranchId == myBranchId.Value)
@@ -389,7 +402,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             // ============================================
             // Target: Teachers -> attach Students (by TeacherId) + Manager (Id & Name)
             // ============================================
-            if (targetIsTeacher && paged.Items?.Any() == true)
+            if (targetIsTeacher && includeTeacherAndStudentRelations && paged.Items?.Any() == true)
             {
                 var teacherIds = paged.Items.Select(t => t.Id).ToList();
 
@@ -483,7 +496,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             // ============================================
             // Target: Students -> attach Teacher (Id & Name) + Manager (Id & Name)
             // ============================================
-            if (targetIsStudent && paged.Items?.Any() == true)
+            if (targetIsStudent && includeTeacherAndStudentRelations && paged.Items?.Any() == true)
             {
                 var studentIds = paged.Items.Select(s => s.Id).ToList();
 
@@ -560,6 +573,40 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             }
 
             return output.CreateResponse(paged);
+        }
+
+        public IResponse<UserLockUpDto> GetUserDetails(int targetUserId, int requesterId)
+        {
+            var output = new Response<UserLockUpDto>();
+            var targetUser = _UserRepo.GetById(targetUserId);
+            if (targetUser == null)
+            {
+                return output.AppendError(MessageCodes.NotFound);
+            }
+
+            var pagedDto = new FilteredResultRequestDto
+            {
+                SkipCount = 0,
+                MaxResultCount = 1
+            };
+
+            var detailsResponse = GetUsersForSelects(
+                pagedDto,
+                targetUser.UserTypeId ?? 0,
+                requesterId,
+                targetUser.ManagerId,
+                targetUser.TeacherId,
+                targetUser.BranchId,
+                targetUser.NationalityId,
+                includeRelations: true,
+                targetUserId: targetUserId);
+
+            if (!detailsResponse.IsSuccess || detailsResponse.Result?.Items == null || !detailsResponse.Result.Items.Any())
+            {
+                return output.AppendError(detailsResponse.MessageCode ?? MessageCodes.NotFound);
+            }
+
+            return output.CreateResponse(detailsResponse.Result.Items.First());
         }
 
     }
