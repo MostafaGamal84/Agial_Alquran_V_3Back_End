@@ -95,6 +95,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             // --- NEW: read Filter without adding any helper method ---
             bool? Inactive = null; // true => IsActive=true, false => IsActive=false
             bool includeManagerRelations = true; // keep previous behaviour unless explicitly disabled
+            bool lookupOnly = false; // when true, return Id/FullName only for lightweight lookups
             var f = pagedDto.Filter?.Trim();
             if (!string.IsNullOrWhiteSpace(f))
             {
@@ -105,6 +106,11 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     includeManagerRelations = false;
                 if (fl.Contains("includemanagerrelations=true") || fl.Contains("includemanagers=true") || fl.Contains("includerelations=true"))
                     includeManagerRelations = true;
+                if (fl.Contains("lookuponly=true") || fl.Contains("lookup=true") || fl.Contains("idsonly=true"))
+                {
+                    lookupOnly = true;
+                    includeManagerRelations = false; // skip heavy joins for lookup-only mode
+                }
                 pagedDto.Filter = null;
             }
             var me = _UserRepo.GetById(userId);
@@ -206,6 +212,33 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             }
 
             // -------- Fetch paged users (base list) --------
+            if (lookupOnly)
+            {
+                var lookupQuery = _UserRepo
+                    .Where(predicate)
+                    .AsNoTracking();
+
+                var lookupTotal = lookupQuery.Count();
+                var lookupItems = lookupQuery
+                    .OrderByDescending(x => x.Id)
+                    .Skip(pagedDto.SkipCount)
+                    .Take(pagedDto.MaxResultCount)
+                    .Select(x => new UserLockUpDto
+                    {
+                        Id = x.Id,
+                        FullName = x.FullName
+                    })
+                    .ToList();
+
+                var lookupResult = new PagedResultDto<UserLockUpDto>
+                {
+                    Items = lookupItems,
+                    TotalCount = lookupTotal
+                };
+
+                return output.CreateResponse(lookupResult);
+            }
+
             var paged = GetPagedList<UserLockUpDto, User, int>(
                 pagedDto,
                 _UserRepo,
