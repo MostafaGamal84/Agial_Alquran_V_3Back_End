@@ -252,6 +252,48 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 return output.CreateResponse(lookupResult);
             }
 
+            // Fast path for lightweight table view: project only scalar fields with AsNoTracking
+            // to avoid loading navigation properties / tracking overhead.
+            if (!includeManagerRelations && !includeTeacherAndStudentRelations)
+            {
+                var baseQuery = _UserRepo
+                    .Where(predicate)
+                    .AsNoTracking();
+
+                var totalCount = baseQuery.Count();
+                var items = baseQuery
+                    .OrderByDescending(x => x.Id)
+                    .Skip(pagedDto.SkipCount)
+                    .Take(pagedDto.MaxResultCount)
+                    .Select(x => new UserLockUpDto
+                    {
+                        Id = x.Id,
+                        FullName = x.FullName,
+                        Email = x.Email,
+                        Mobile = x.Mobile,
+                        SecondMobile = x.SecondMobile,
+                        Nationality = x.Nationality != null ? x.Nationality.Name : null,
+                        NationalityId = x.NationalityId,
+                        Resident = x.Resident != null ? x.Resident.Name : null,
+                        ResidentId = x.ResidentId,
+                        Governorate = x.Governorate != null ? x.Governorate.Name : null,
+                        GovernorateId = x.GovernorateId,
+                        BranchId = x.BranchId,
+                        TeacherId = x.TeacherId,
+                        ManagerId = x.ManagerId,
+                        Inactive = x.Inactive
+                    })
+                    .ToList();
+
+                var lightweight = new PagedResultDto<UserLockUpDto>
+                {
+                    Items = items,
+                    TotalCount = totalCount
+                };
+
+                return output.CreateResponse(lightweight);
+            }
+
             var paged = GetPagedList<UserLockUpDto, User, int>(
                 pagedDto,
                 _UserRepo,
