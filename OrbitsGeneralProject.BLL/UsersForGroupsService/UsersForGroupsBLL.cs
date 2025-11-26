@@ -601,12 +601,12 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 includeRelations: true,
                 targetUserId: targetUserId);
 
-            if (!detailsResponse.IsSuccess || detailsResponse.Result?.Items == null || !detailsResponse.Result.Items.Any())
+            if (!detailsResponse.IsSuccess || detailsResponse.Data?.Items == null || !detailsResponse.Data.Items.Any())
             {
-                return output.AppendError(detailsResponse.MessageCode ?? MessageCodes.NotFound);
+                return output.AppendError(MessageCodes.NotFound);
             }
 
-            return output.CreateResponse(detailsResponse.Result.Items.First());
+            return output.CreateResponse(detailsResponse.Data.Items.First());
         }
 
     }

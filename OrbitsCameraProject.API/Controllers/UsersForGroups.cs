@@ -33,7 +33,7 @@ namespace OrbitsProject.API.Controllers
             int branchId,
             int? nationalityId,
             bool includeRelations = false)
-               => Ok(_usersForGroupsBLL.GetUsersForSelects(paginationFilterModel, UserTypeId, UserId, managerId, teacherId, branchId, nationalityId, includeRelations));
+               => Ok(_usersForGroupsBLL.GetUsersForSelects(paginationFilterModel, UserTypeId, UserId, managerId, teacherId, branchId, nationalityId, includeRelations, null));
 
         [HttpGet("GetUserDetails"), ProducesResponseType(typeof(IResponse<UserLockUpDto>), 200)]
         public async Task<IActionResult> GetUserDetails(int id)
