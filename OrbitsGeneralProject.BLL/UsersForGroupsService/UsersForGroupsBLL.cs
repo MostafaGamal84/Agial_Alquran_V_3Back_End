@@ -33,54 +33,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             _circleRepo = circleRepo;
         }
 
-        //   public IResponse<PagedResultDto<UserLockUpDto>> ManagerRequestTeacherAndStudent(
-        //FilteredResultRequestDto pagedDto, int userTypeId, int userId, int? managerId, int? teacherId)
-        //   {
-        //       var output = new Response<PagedResultDto<UserLockUpDto>>();
-        //       var searchWord = pagedDto.SearchTerm?.Trim();
-        //       var me = _UserRepo.GetById(userId);
-        //       if (me == null) return output.AppendError(MessageCodes.NotFound);
 
-        //       var sw = searchWord?.ToLower();
-
-        //       // Build ONE predicate that includes:
-        //       // - target user type (userTypeId)
-        //       // - role-based restrictions (branch/manager/teacher)
-        //       // - optional text search
-        //       Expression<Func<User, bool>> predicate = x =>
-        //           x.UserTypeId == userTypeId
-        //           // role-based restriction (applies only when the logged-in role matches)
-        //           && (!(me.UserTypeId == (int)UserTypesEnum.BranchLeader) || x.BranchId == me.BranchId )
-        //           && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || x.ManagerId == me.Id)
-        //             && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || x.ManagerId == me.Id || x.TeacherId == teacherId)
-        //           && (!(me.UserTypeId == (int)UserTypesEnum.Teacher) || x.TeacherId == me.Id)
-        //           // optional search (grouped to avoid &&/|| precedence issues)
-        //           && (
-        //               string.IsNullOrEmpty(sw) ||
-        //               (x.FullName != null && x.FullName.ToLower().Contains(sw)) ||
-        //               (x.Mobile != null && x.Mobile.ToLower().Contains(sw)) ||
-        //               (x.Email != null && x.Email.ToLower().Contains(sw)) ||
-        //               (x.Nationality != null && x.Nationality.Name != null && x.Nationality.Name.ToLower().Contains(sw)) ||
-        //               (x.Governorate != null && x.Governorate.Name != null && x.Governorate.Name.ToLower().Contains(sw))
-        //           );
-
-        //       // IMPORTANT: pass the predicate to GetPagedList so filtering happens before paging
-        //       var paged = GetPagedList<UserLockUpDto, User, int>(
-        //           pagedDto,
-        //           _UserRepo,
-        //           x => x.Id,               // positional key selector
-        //           searchExpression: predicate,
-        //           sortDirection: "DESC",
-        //           disableFilter: true,
-        //           excluededColumns: null
-        //       );
-
-        //       //// If you want NotFound when there are no items:
-        //       //if (paged == null || paged.Items == null || paged.Items.Count == 0)
-        //       //    return output.CreateResponse(MessageCodes.NotFound);
-
-        //       return output.CreateResponse(paged);
-        //   }
         public IResponse<PagedResultDto<UserLockUpDto>> GetUsersForSelects(
      FilteredResultRequestDto pagedDto,
      int userTypeId,

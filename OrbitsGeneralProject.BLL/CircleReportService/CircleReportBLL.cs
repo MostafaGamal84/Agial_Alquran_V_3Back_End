@@ -155,23 +155,28 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             await _unitOfWork.CommitAsync(); // after this, created.Id is available
 
-            var subscribeType = student.StudentSubscribes.LastOrDefault().StudentSubscribeType;
-            var hourlyRate = ResolveHourlyRate(subscribeType);
-
-            var teacherReportRecord = new TeacherReportRecord
+            var subscribeType = studentSubscribe.StudentSubscribeType;
+            
+            if (model.Minutes > 0 || model.Minutes is not null)
             {
-                CircleReportId = created.Id,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId,
-                IsDeleted = false,
-                Minutes = (int)created.Minutes!.Value,
-                TeacherId = created.TeacherId,
-                CircleSallary = CalculateTeacherSalary(hourlyRate / 60 , created.Minutes)
-            };
-            _teacherReportRecordRepository.Add(teacherReportRecord);
-            studentSubscribe.ModefiedAt = DateTime.UtcNow;
-            studentSubscribe.ModefiedBy = userId;
-            studentSubscribe.RemainingMinutes = studentSubscribe.RemainingMinutes - (int)model.Minutes;
+                var hourlyRate = ResolveHourlyRate(subscribeType);
+
+                var teacherReportRecord = new TeacherReportRecord
+                {
+                    CircleReportId = created.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = userId,
+                    IsDeleted = false,
+                    Minutes = (int)created.Minutes!.Value,
+                    TeacherId = created.TeacherId,
+                    CircleSallary = CalculateTeacherSalary(hourlyRate , created.Minutes)
+                };
+                _teacherReportRecordRepository.Add(teacherReportRecord);
+                studentSubscribe.ModefiedAt = DateTime.UtcNow;
+                studentSubscribe.ModefiedBy = userId;
+                studentSubscribe.RemainingMinutes = studentSubscribe.RemainingMinutes - (int)model.Minutes;
+            }
+           
 
             await _unitOfWork.CommitAsync();
 
@@ -302,13 +307,13 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             }
 
             decimal minutesValue = Convert.ToDecimal(minutes.Value);
-            var total = hourlyRate * minutesValue;
+            var total = (hourlyRate / 60) * minutesValue;
             return (int)Math.Round(total, MidpointRounding.AwayFromZero);
         }
 
         private int CalculateTeacherSalary(decimal hourlyRate, int minutes)
         {
-            var total = hourlyRate * minutes;
+            var total = (hourlyRate / 60 )  * minutes;
             return (int)Math.Round(total, MidpointRounding.AwayFromZero);
         }
 
