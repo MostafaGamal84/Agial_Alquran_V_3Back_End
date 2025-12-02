@@ -258,6 +258,195 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             );
 
             // ============================================
+            // Target: BranchLeader -> attach Managers (with their teachers/students/circles)
+            // ============================================
+            if (targetIsBranchLeader && includeManagerRelations && paged.Items?.Any() == true)
+            {
+                var branchIds = paged.Items
+                    .Where(bl => bl.BranchId.HasValue)
+                    .Select(bl => bl.BranchId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                // Load all managers that belong to the target branch leaders' branches
+                var managerRecords = _UserRepo
+                    .Where(u => u.UserTypeId == (int)UserTypesEnum.Manager
+                                && u.BranchId.HasValue
+                                && branchIds.Contains(u.BranchId.Value))
+                    .AsNoTracking()
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.FullName,
+                        u.Email,
+                        u.Mobile,
+                        u.SecondMobile,
+                        Nationality = u.Nationality != null ? u.Nationality.Name : null,
+                        u.NationalityId,
+                        Resident = u.Resident != null ? u.Resident.Name : null,
+                        u.ResidentId,
+                        Governorate = u.Governorate != null ? u.Governorate.Name : null,
+                        u.GovernorateId,
+                        u.BranchId
+                    })
+                    .ToList();
+
+                var managerIds = managerRecords.Select(m => m.Id).ToList();
+
+                // Teachers for these managers
+                var teachersByManager = (managerIds.Count == 0)
+                    ? new Dictionary<int, List<UserLockUpDto>>()
+                    : _UserRepo
+                        .Where(u => u.ManagerId.HasValue
+                                    && managerIds.Contains(u.ManagerId.Value)
+                                    && u.UserTypeId == (int)UserTypesEnum.Teacher)
+                        .AsNoTracking()
+                        .Select(u => new
+                        {
+                            u.Id,
+                            u.FullName,
+                            u.Email,
+                            u.Mobile,
+                            u.SecondMobile,
+                            Nationality = u.Nationality != null ? u.Nationality.Name : null,
+                            u.NationalityId,
+                            Resident = u.Resident != null ? u.Resident.Name : null,
+                            u.ResidentId,
+                            Governorate = u.Governorate != null ? u.Governorate.Name : null,
+                            u.GovernorateId,
+                            u.BranchId,
+                            u.ManagerId
+                        })
+                        .ToList()
+                        .GroupBy(u => u.ManagerId!.Value)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.Select(u => new UserLockUpDto
+                            {
+                                Id = u.Id,
+                                FullName = u.FullName,
+                                Email = u.Email,
+                                Mobile = u.Mobile,
+                                SecondMobile = u.SecondMobile,
+                                Nationality = u.Nationality,
+                                NationalityId = u.NationalityId,
+                                Resident = u.Resident,
+                                ResidentId = u.ResidentId,
+                                Governorate = u.Governorate,
+                                GovernorateId = u.GovernorateId,
+                                BranchId = u.BranchId
+                            }).ToList()
+                        );
+
+                // Students for these managers
+                var studentsByManager = (managerIds.Count == 0)
+                    ? new Dictionary<int, List<UserLockUpDto>>()
+                    : _UserRepo
+                        .Where(u => u.ManagerId.HasValue
+                                    && managerIds.Contains(u.ManagerId.Value)
+                                    && u.UserTypeId == (int)UserTypesEnum.Student)
+                        .AsNoTracking()
+                        .Select(u => new
+                        {
+                            u.Id,
+                            u.FullName,
+                            u.Email,
+                            u.Mobile,
+                            u.SecondMobile,
+                            Nationality = u.Nationality != null ? u.Nationality.Name : null,
+                            u.NationalityId,
+                            Resident = u.Resident != null ? u.Resident.Name : null,
+                            u.ResidentId,
+                            Governorate = u.Governorate != null ? u.Governorate.Name : null,
+                            u.GovernorateId,
+                            u.BranchId,
+                            u.ManagerId
+                        })
+                        .ToList()
+                        .GroupBy(u => u.ManagerId!.Value)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.Select(u => new UserLockUpDto
+                            {
+                                Id = u.Id,
+                                FullName = u.FullName,
+                                Email = u.Email,
+                                Mobile = u.Mobile,
+                                SecondMobile = u.SecondMobile,
+                                Nationality = u.Nationality,
+                                NationalityId = u.NationalityId,
+                                Resident = u.Resident,
+                                ResidentId = u.ResidentId,
+                                Governorate = u.Governorate,
+                                GovernorateId = u.GovernorateId,
+                                BranchId = u.BranchId
+                            }).ToList()
+                        );
+
+                // Manager circles
+                var circlesByManager = (managerIds.Count == 0)
+                    ? new Dictionary<int, List<ManagerCirclesDto>>()
+                    : (from mc in _managerCircleRepo.Where(mc => mc.ManagerId.HasValue && managerIds.Contains(mc.ManagerId.Value)).AsNoTracking()
+                       join c in _circleRepo.Where(c => true).AsNoTracking() on mc.CircleId equals c.Id
+                       select new
+                       {
+                           mc.ManagerId,
+                           mc.CircleId,
+                           CircleName = c.Name
+                       })
+                       .AsEnumerable()
+                       .GroupBy(x => x.ManagerId!.Value)
+                       .ToDictionary(
+                           g => g.Key,
+                           g => g.Select(x => new ManagerCirclesDto
+                           {
+                               ManagerId = x.ManagerId,
+                               CircleId = x.CircleId,
+                               Circle = x.CircleName
+                           }).ToList()
+                       );
+
+                // Build manager DTOs grouped by branch
+                var managersByBranch = managerRecords
+                    .GroupBy(m => m.BranchId!.Value)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(m => new UserLockUpDto
+                        {
+                            Id = m.Id,
+                            FullName = m.FullName,
+                            Email = m.Email,
+                            Mobile = m.Mobile,
+                            SecondMobile = m.SecondMobile,
+                            Nationality = m.Nationality,
+                            NationalityId = m.NationalityId,
+                            Resident = m.Resident,
+                            ResidentId = m.ResidentId,
+                            Governorate = m.Governorate,
+                            GovernorateId = m.GovernorateId,
+                            BranchId = m.BranchId,
+                            Teachers = teachersByManager.TryGetValue(m.Id, out var tl) ? tl : new List<UserLockUpDto>(),
+                            Students = studentsByManager.TryGetValue(m.Id, out var sl) ? sl : new List<UserLockUpDto>(),
+                            ManagerCircles = circlesByManager.TryGetValue(m.Id, out var cl) ? cl : new List<ManagerCirclesDto>()
+                        }).ToList()
+                    );
+
+                foreach (var bl in paged.Items)
+                {
+                    bl.Managers = (bl.BranchId.HasValue && managersByBranch.TryGetValue(bl.BranchId.Value, out var mgrs))
+                        ? mgrs
+                        : new List<UserLockUpDto>();
+                }
+            }
+            else if (targetIsBranchLeader && paged.Items?.Any() == true)
+            {
+                foreach (var bl in paged.Items)
+                {
+                    bl.Managers = new List<UserLockUpDto>();
+                }
+            }
+
+            // ============================================
             // Target: Managers -> attach Teachers/Students + ManagerCircles
             // ============================================
             if (targetIsManager && includeManagerRelations && paged.Items?.Any() == true)
