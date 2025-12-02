@@ -42,6 +42,6 @@ namespace OrbitsProject.API.Controllers
 
         [HttpPost("Create"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Create(AddStudentSubscribeDto model)
-         => Ok(await _StudentSubscribBLL.AddAsync(model, UserId));
+         => Ok(await _StudentSubscribBLL.AddAsync(model, 1));
     }
 }

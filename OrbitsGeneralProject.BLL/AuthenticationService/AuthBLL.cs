@@ -185,6 +185,9 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             }
             loginResult.Token = tokenString;
             loginResult.Role = user.UserTypeId;
+            loginResult.BranchId = user.BranchId;
+            loginResult.UserId = user.Id;
+            loginResult.FullName = user.FullName;
             user.Code = null;
             user.CodeExpirationTime = null;
             _userRepository.Update(user);
