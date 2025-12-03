@@ -328,10 +328,19 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 var teacherSalaryPrevious = teacherSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
 
+                double teacherPayoutPreviousDouble = await teacherSalaryPrevious
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+
+                var managerSalaryPrevious = managerSalaryBase
+                    .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
+
                 double teacherPayoutRangeDouble = await teacherSalaryRange
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
                 double teacherPayoutPreviousDouble = await teacherSalaryPrevious
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+
+                double managerPayoutRangeDouble = await managerSalaryRange
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
                 double managerPayoutPreviousDouble = await managerSalaryPrevious
@@ -340,8 +349,14 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 decimal teacherPayoutRaw = Convert.ToDecimal(teacherPayoutRangeDouble);
                 decimal previousTeacherPayoutRaw = Convert.ToDecimal(teacherPayoutPreviousDouble);
 
-                decimal netRaw = earningsRaw - teacherPayoutRaw;
-                decimal previousNetRaw = previousEarningsRaw - previousTeacherPayoutRaw;
+                decimal managerPayoutRaw = Convert.ToDecimal(managerPayoutRangeDouble);
+                decimal previousManagerPayoutRaw = Convert.ToDecimal(managerPayoutPreviousDouble);
+
+                decimal outgoingRaw = teacherPayoutRaw + managerPayoutRaw;
+                decimal previousOutgoingRaw = previousTeacherPayoutRaw + previousManagerPayoutRaw;
+
+                decimal netRaw = earningsRaw - outgoingRaw;
+                decimal previousNetRaw = previousEarningsRaw - previousOutgoingRaw;
 
                 var incomingByCurrency = await paymentsRangeQuery
                     .Where(p => p.CurrencyId.HasValue)
@@ -357,7 +372,6 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 decimal incomingSarRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.SAR)?.Amount ?? 0m;
                 decimal incomingUsdRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.USD)?.Amount ?? 0m;
 
-                decimal outgoingRaw = teacherPayoutRaw;
                 decimal netProfitRaw = earningsRaw - outgoingRaw;
 
                 metrics.CurrencyCode = DefaultCurrencyCode;
@@ -540,7 +554,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 DateTime startPeriod = currentMonthStart.AddMonths(1 - months);
                 DateTime endPeriod = currentMonthStart.AddMonths(1);
 
-                var revenueData = await _studentPaymentRepository
+                var revenueData = await ApplyPaymentScope(_studentPaymentRepository.GetAll().AsNoTracking(), new DashboardScope())
                     .Where(payment => payment.PaymentDate.HasValue && payment.Amount.HasValue &&
                                        payment.PaymentDate.Value >= startPeriod && payment.PaymentDate.Value < endPeriod)
                     .GroupBy(payment => new { payment.PaymentDate!.Value.Year, payment.PaymentDate!.Value.Month })
@@ -552,7 +566,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     })
                     .ToListAsync();
 
-                var teacherData = await _teacherSalaryRepository
+                var teacherData = await ApplyTeacherSalaryScope(_teacherSalaryRepository.GetAll().AsNoTracking(), new DashboardScope())
                     .Where(salary => salary.Month.HasValue && salary.Month.Value >= startPeriod && salary.Month.Value < endPeriod)
                     .GroupBy(salary => new { salary.Month!.Value.Year, salary.Month!.Value.Month })
                     .Select(group => new
@@ -563,7 +577,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     })
                     .ToListAsync();
 
-                var managerData = await _managerSalaryRepository
+                var managerData = await ApplyManagerSalaryScope(_managerSalaryRepository.GetAll().AsNoTracking(), new DashboardScope())
                     .Where(salary => salary.Month.HasValue && salary.Month.Value >= startPeriod && salary.Month.Value < endPeriod)
                     .GroupBy(salary => new { salary.Month!.Value.Year, salary.Month!.Value.Month })
                     .Select(group => new
