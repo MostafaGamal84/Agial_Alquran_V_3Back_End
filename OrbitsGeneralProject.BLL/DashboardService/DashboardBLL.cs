@@ -334,25 +334,14 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 double teacherPayoutPreviousDouble = await teacherSalaryPrevious
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
-                var managerSalaryRange = managerSalaryBase
-                    .Where(s => s.Month.HasValue && s.Month.Value >= rangeInfo.Start && s.Month.Value < rangeInfo.EndExclusive);
-
-                var managerSalaryPrevious = managerSalaryBase
-                    .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
-
-                double managerPayoutRangeDouble = await managerSalaryRange
-                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
-
                 double managerPayoutPreviousDouble = await managerSalaryPrevious
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
                 decimal teacherPayoutRaw = Convert.ToDecimal(teacherPayoutRangeDouble);
-                decimal managerPayoutRaw = Convert.ToDecimal(managerPayoutRangeDouble);
                 decimal previousTeacherPayoutRaw = Convert.ToDecimal(teacherPayoutPreviousDouble);
-                decimal previousManagerPayoutRaw = Convert.ToDecimal(managerPayoutPreviousDouble);
 
-                decimal netRaw = earningsRaw - teacherPayoutRaw - managerPayoutRaw;
-                decimal previousNetRaw = previousEarningsRaw - previousTeacherPayoutRaw - previousManagerPayoutRaw;
+                decimal netRaw = earningsRaw - teacherPayoutRaw;
+                decimal previousNetRaw = previousEarningsRaw - previousTeacherPayoutRaw;
 
                 var incomingByCurrency = await paymentsRangeQuery
                     .Where(p => p.CurrencyId.HasValue)
@@ -368,7 +357,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 decimal incomingSarRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.SAR)?.Amount ?? 0m;
                 decimal incomingUsdRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.USD)?.Amount ?? 0m;
 
-                decimal outgoingRaw = teacherPayoutRaw + managerPayoutRaw;
+                decimal outgoingRaw = teacherPayoutRaw;
                 decimal netProfitRaw = earningsRaw - outgoingRaw;
 
                 metrics.CurrencyCode = DefaultCurrencyCode;
@@ -876,7 +865,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 decimal teacherRaw = Convert.ToDecimal(teacherRawDouble);
                 decimal managerRaw = Convert.ToDecimal(managerRawDouble);
-                decimal netRaw = earningsRaw - teacherRaw - managerRaw;
+                decimal netRaw = earningsRaw - teacherRaw;
 
                 results.Add(new DashboardMonthlyRevenuePointDto
                 {
@@ -1083,6 +1072,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         private static IQueryable<TeacherSallary> ApplyTeacherSalaryScope(IQueryable<TeacherSallary> query, DashboardScope scope)
         {
             query = query.Where(s => s.Sallary.HasValue)
+                         .Where(s => s.IsPayed == true)
                          .Where(s => s.IsDeleted == null || !s.IsDeleted.Value);
 
             if (scope.BranchId.HasValue)
@@ -1108,7 +1098,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
         private static IQueryable<ManagerSallary> ApplyManagerSalaryScope(IQueryable<ManagerSallary> query, DashboardScope scope)
         {
-            query = query.Where(s => s.Sallary.HasValue);
+            query = query.Where(s => s.Sallary.HasValue)
+                         .Where(s => s.IsPayed == true);
 
             if (scope.BranchId.HasValue)
             {
