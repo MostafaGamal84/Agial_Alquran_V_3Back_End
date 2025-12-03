@@ -311,10 +311,14 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     .CountAsync();
 
                 var paymentsRangeQuery = paymentsBaseQuery
-                    .Where(p => p.PaymentDate >= rangeInfo.Start && p.PaymentDate < rangeInfo.EndExclusive);
+                    .Where(p =>
+                        (p.PaymentDate ?? p.CreatedAt) >= rangeInfo.Start &&
+                        (p.PaymentDate ?? p.CreatedAt) < rangeInfo.EndExclusive);
 
                 var paymentsPreviousQuery = paymentsBaseQuery
-                    .Where(p => p.PaymentDate >= previousRangeStart && p.PaymentDate < previousRangeEndExclusive);
+                    .Where(p =>
+                        (p.PaymentDate ?? p.CreatedAt) >= previousRangeStart &&
+                        (p.PaymentDate ?? p.CreatedAt) < previousRangeEndExclusive);
 
                 decimal earningsRaw = await paymentsRangeQuery
                     .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
@@ -328,8 +332,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 var teacherSalaryPrevious = teacherSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
 
-                double teacherPayoutPreviousDouble = await teacherSalaryPrevious
-                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+                var managerSalaryRange = managerSalaryBase
+                    .Where(s => s.Month.HasValue && s.Month.Value >= rangeInfo.Start && s.Month.Value < rangeInfo.EndExclusive);
 
                 var managerSalaryPrevious = managerSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
@@ -867,7 +871,9 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 DateTime monthEndExclusive = monthStart.AddMonths(1);
 
                 decimal earningsRaw = await paymentsBaseQuery
-                    .Where(p => p.PaymentDate >= monthStart && p.PaymentDate < monthEndExclusive)
+                    .Where(p =>
+                        (p.PaymentDate ?? p.CreatedAt) >= monthStart &&
+                        (p.PaymentDate ?? p.CreatedAt) < monthEndExclusive)
                     .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
 
                 double teacherRawDouble = await teacherSalaryBaseQuery
@@ -898,8 +904,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         private async Task<List<DashboardTransactionDto>> LoadRecentTransactionsAsync(IQueryable<StudentPayment> paymentsBaseQuery, int take = 10)
         {
             var recentPayments = await paymentsBaseQuery
-                .Where(p => p.PaymentDate.HasValue)
-                .OrderByDescending(p => p.PaymentDate)
+                .Where(p => p.PaymentDate.HasValue || p.CreatedAt.HasValue)
+                .OrderByDescending(p => p.PaymentDate ?? p.CreatedAt)
                 .Take(take)
                 .Select(p => new
                 {
@@ -907,6 +913,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     p.Amount,
                     p.CurrencyId,
                     p.PaymentDate,
+                    p.CreatedAt,
                     p.PayStatue,
                     StudentName = p.Student != null ? p.Student.FullName : null,
                     StudentEmail = p.Student != null ? p.Student.Email : null
@@ -921,7 +928,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     Currency = entry.CurrencyId.HasValue && CurrencyLabels.TryGetValue(entry.CurrencyId.Value, out var label)
                         ? label
                         : "N/A",
-                    Date = entry.PaymentDate,
+                    Date = entry.PaymentDate ?? entry.CreatedAt,
                     Status = entry.PayStatue == true ? "Paid" : "Pending",
                     Student = !string.IsNullOrWhiteSpace(entry.StudentName)
                         ? entry.StudentName
@@ -1058,7 +1065,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         private static IQueryable<StudentPayment> ApplyPaymentScope(IQueryable<StudentPayment> query, DashboardScope scope)
         {
             query = query
-                .Where(p => p.Amount.HasValue && p.PaymentDate.HasValue)
+                .Where(p => p.Amount.HasValue)
                 .Where(p => p.PayStatue == true)
                 .Where(p => !(p.IsCancelled ?? false))
                 .Where(p => p.Student != null && !p.Student.IsDeleted && !p.Student.Inactive);
