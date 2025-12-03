@@ -328,8 +328,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 var teacherSalaryPrevious = teacherSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
 
-                var managerSalaryRange = managerSalaryBase
-                    .Where(s => s.Month.HasValue && s.Month.Value >= rangeInfo.Start && s.Month.Value < rangeInfo.EndExclusive);
+                double teacherPayoutPreviousDouble = await teacherSalaryPrevious
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
                 var managerSalaryPrevious = managerSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
@@ -879,7 +879,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 decimal teacherRaw = Convert.ToDecimal(teacherRawDouble);
                 decimal managerRaw = Convert.ToDecimal(managerRawDouble);
-                decimal netRaw = earningsRaw - teacherRaw - managerRaw;
+                decimal netRaw = earningsRaw - teacherRaw;
 
                 results.Add(new DashboardMonthlyRevenuePointDto
                 {
