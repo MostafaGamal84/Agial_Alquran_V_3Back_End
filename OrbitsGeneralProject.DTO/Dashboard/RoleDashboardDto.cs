@@ -22,10 +22,36 @@ namespace Orbits.GeneralProject.DTO.Dashboard
 
     public class DashboardRoleMetricsDto
     {
+        public string CurrencyCode { get; set; } = string.Empty;
+
         public decimal? Earnings { get; set; }
-        public int? NewStudents { get; set; }
-        public int? CircleReports { get; set; }
+        public string? EarningsCurrencyCode { get; set; }
+        public decimal? EarningsPercentChange { get; set; }
+
         public decimal? NetIncome { get; set; }
+        public string? NetIncomeCurrencyCode { get; set; }
+        public decimal? NetIncomePercentChange { get; set; }
+
+        public decimal? Outgoing { get; set; }
+        public string? OutgoingCurrencyCode { get; set; }
+
+        public decimal? IncomingEgp { get; set; }
+        public string? IncomingEgpCurrencyCode { get; set; }
+
+        public decimal? IncomingSar { get; set; }
+        public string? IncomingSarCurrencyCode { get; set; }
+
+        public decimal? IncomingUsd { get; set; }
+        public string? IncomingUsdCurrencyCode { get; set; }
+
+        public decimal? NetProfit { get; set; }
+        public string? NetProfitCurrencyCode { get; set; }
+
+        public int? NewStudents { get; set; }
+        public decimal? NewStudentsPercentChange { get; set; }
+
+        public int? CircleReports { get; set; }
+        public decimal? CircleReportsPercentChange { get; set; }
         public int? BranchManagersCount { get; set; }
         public int? SupervisorsCount { get; set; }
         public int? TeachersCount { get; set; }

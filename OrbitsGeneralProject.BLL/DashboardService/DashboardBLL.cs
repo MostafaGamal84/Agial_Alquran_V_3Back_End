@@ -13,6 +13,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 {
     public class DashboardBLL : BaseBLL, IDashboardBLL
     {
+        private const string DefaultCurrencyCode = "EGP";
         private static readonly Dictionary<int, string> CurrencyLabels = new()
         {
             { 1, "EGP" },
@@ -276,10 +277,18 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 int reportsTotal = await circleReportsBase.CountAsync();
                 metrics.ReportsCount = reportsTotal;
 
+                TimeSpan rangeDuration = rangeInfo.EndExclusive - rangeInfo.Start;
+                DateTime previousRangeStart = rangeInfo.Start - rangeDuration;
+                DateTime previousRangeEndExclusive = rangeInfo.Start;
+
                 var circleReportsRangeQuery = circleReportsBase
                     .Where(r => r.CreationTime >= rangeInfo.Start && r.CreationTime < rangeInfo.EndExclusive);
 
                 metrics.CircleReports = await circleReportsRangeQuery.CountAsync();
+
+                int previousCircleReports = await circleReportsBase
+                    .Where(r => r.CreationTime >= previousRangeStart && r.CreationTime < previousRangeEndExclusive)
+                    .CountAsync();
 
                 int circlesWithReports = await circleReportsRangeQuery
                     .Where(r => r.CircleId.HasValue)
@@ -295,30 +304,86 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 metrics.NewStudents = newStudentsCount;
 
+                int previousNewStudentsCount = await studentsQuery
+                    .Where(u => u.RegisterAt.HasValue &&
+                                u.RegisterAt.Value >= previousRangeStart &&
+                                u.RegisterAt.Value < previousRangeEndExclusive)
+                    .CountAsync();
+
                 var paymentsRangeQuery = paymentsBaseQuery
                     .Where(p => p.PaymentDate >= rangeInfo.Start && p.PaymentDate < rangeInfo.EndExclusive);
 
+                var paymentsPreviousQuery = paymentsBaseQuery
+                    .Where(p => p.PaymentDate >= previousRangeStart && p.PaymentDate < previousRangeEndExclusive);
+
                 decimal earningsRaw = await paymentsRangeQuery
+                    .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
+
+                decimal previousEarningsRaw = await paymentsPreviousQuery
                     .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
 
                 var teacherSalaryRange = teacherSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= rangeInfo.Start && s.Month.Value < rangeInfo.EndExclusive);
 
+                var teacherSalaryPrevious = teacherSalaryBase
+                    .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
+
                 double teacherPayoutRangeDouble = await teacherSalaryRange
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
-                var managerSalaryRange = managerSalaryBase
-                    .Where(s => s.Month.HasValue && s.Month.Value >= rangeInfo.Start && s.Month.Value < rangeInfo.EndExclusive);
-
-                double managerPayoutRangeDouble = await managerSalaryRange
+                double teacherPayoutPreviousDouble = await teacherSalaryPrevious
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
                 decimal teacherPayoutRaw = Convert.ToDecimal(teacherPayoutRangeDouble);
-                decimal managerPayoutRaw = Convert.ToDecimal(managerPayoutRangeDouble);
-                decimal netRaw = earningsRaw - teacherPayoutRaw - managerPayoutRaw;
+                decimal previousTeacherPayoutRaw = Convert.ToDecimal(teacherPayoutPreviousDouble);
+
+                decimal netRaw = earningsRaw - teacherPayoutRaw;
+                decimal previousNetRaw = previousEarningsRaw - previousTeacherPayoutRaw;
+
+                var incomingByCurrency = await paymentsRangeQuery
+                    .Where(p => p.CurrencyId.HasValue)
+                    .GroupBy(p => p.CurrencyId!.Value)
+                    .Select(group => new
+                    {
+                        CurrencyId = group.Key,
+                        Amount = group.Sum(p => (decimal?)(p.Amount ?? 0)) ?? 0m
+                    })
+                    .ToListAsync();
+
+                decimal incomingEgpRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.LE)?.Amount ?? 0m;
+                decimal incomingSarRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.SAR)?.Amount ?? 0m;
+                decimal incomingUsdRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.USD)?.Amount ?? 0m;
+
+                decimal outgoingRaw = teacherPayoutRaw;
+                decimal netProfitRaw = earningsRaw - outgoingRaw;
+
+                metrics.CurrencyCode = DefaultCurrencyCode;
 
                 metrics.Earnings = Round(earningsRaw);
+                metrics.EarningsCurrencyCode = DefaultCurrencyCode;
+                metrics.EarningsPercentChange = CalculatePercentageChange(Round(earningsRaw), Round(previousEarningsRaw));
+
                 metrics.NetIncome = Round(netRaw);
+                metrics.NetIncomeCurrencyCode = DefaultCurrencyCode;
+                metrics.NetIncomePercentChange = CalculatePercentageChange(Round(netRaw), Round(previousNetRaw));
+
+                metrics.Outgoing = Round(outgoingRaw);
+                metrics.OutgoingCurrencyCode = DefaultCurrencyCode;
+
+                metrics.IncomingEgp = Round(incomingEgpRaw);
+                metrics.IncomingEgpCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.LE);
+
+                metrics.IncomingSar = Round(incomingSarRaw);
+                metrics.IncomingSarCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.SAR);
+
+                metrics.IncomingUsd = Round(incomingUsdRaw);
+                metrics.IncomingUsdCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.USD);
+
+                metrics.NetProfit = Round(netProfitRaw);
+                metrics.NetProfitCurrencyCode = DefaultCurrencyCode;
+
+                metrics.NewStudentsPercentChange = CalculatePercentageChange(metrics.NewStudents ?? 0, previousNewStudentsCount);
+                metrics.CircleReportsPercentChange = CalculatePercentageChange(metrics.CircleReports ?? 0, previousCircleReports);
 
                 charts.MonthlyRevenue = await BuildMonthlyRevenueAsync(
                     rangeInfo.ReferenceEnd,
@@ -797,7 +862,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 decimal teacherRaw = Convert.ToDecimal(teacherRawDouble);
                 decimal managerRaw = Convert.ToDecimal(managerRawDouble);
-                decimal netRaw = earningsRaw - teacherRaw - managerRaw;
+                decimal netRaw = earningsRaw - teacherRaw;
 
                 results.Add(new DashboardMonthlyRevenuePointDto
                 {
@@ -868,6 +933,11 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 UserTypesEnum.Teacher => "Teacher",
                 _ => role.ToString()
             };
+        }
+
+        private static string ResolveCurrencyCode(int currencyId)
+        {
+            return CurrencyLabels.TryGetValue(currencyId, out var label) ? label : DefaultCurrencyCode;
         }
 
         private static DashboardRange ResolveRange(DashboardRangeInputDto? range)
@@ -999,6 +1069,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         private static IQueryable<TeacherSallary> ApplyTeacherSalaryScope(IQueryable<TeacherSallary> query, DashboardScope scope)
         {
             query = query.Where(s => s.Sallary.HasValue)
+                         .Where(s => s.IsPayed == true)
                          .Where(s => s.IsDeleted == null || !s.IsDeleted.Value);
 
             if (scope.BranchId.HasValue)
@@ -1024,7 +1095,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
         private static IQueryable<ManagerSallary> ApplyManagerSalaryScope(IQueryable<ManagerSallary> query, DashboardScope scope)
         {
-            query = query.Where(s => s.Sallary.HasValue);
+            query = query.Where(s => s.Sallary.HasValue)
+                         .Where(s => s.IsPayed == true);
 
             if (scope.BranchId.HasValue)
             {
