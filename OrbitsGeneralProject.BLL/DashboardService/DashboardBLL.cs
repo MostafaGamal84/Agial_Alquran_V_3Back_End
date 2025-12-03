@@ -337,11 +337,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 double teacherPayoutRangeDouble = await teacherSalaryRange
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
-                double teacherPayoutPreviousDouble = await teacherSalaryPrevious
-                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
-                double managerPayoutRangeDouble = await managerSalaryRange
-                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+                double managerPayoutRangeDouble = 0;
 
                 double managerPayoutPreviousDouble = await managerSalaryPrevious
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
