@@ -334,6 +334,9 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 double teacherPayoutPreviousDouble = await teacherSalaryPrevious
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
+                double managerPayoutPreviousDouble = await managerSalaryPrevious
+                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+
                 decimal teacherPayoutRaw = Convert.ToDecimal(teacherPayoutRangeDouble);
                 decimal previousTeacherPayoutRaw = Convert.ToDecimal(teacherPayoutPreviousDouble);
 
