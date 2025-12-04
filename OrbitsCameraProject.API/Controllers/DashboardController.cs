@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -20,10 +21,18 @@ namespace OrbitsProject.API.Controllers
 
         [HttpGet("overview")]
         [Authorize]
-        [ProducesResponseType(typeof(IResponse<RoleDashboardOverviewDto>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetRoleOverview([FromQuery] DashboardRangeInputDto? range = null)
+        [ProducesResponseType(typeof(IResponse<DashboardOverviewResponseDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRoleOverview([FromQuery] DashboardRangeInputDto? range = null, [FromQuery] string? role = null)
         {
-            return Ok(await _dashboardBLL.GetRoleOverviewAsync(UserId, range));
+            return Ok(await _dashboardBLL.GetRoleOverviewAsync(UserId, range, role));
+        }
+
+        [HttpGet("upcoming-circles")]
+        [Authorize]
+        [ProducesResponseType(typeof(IResponse<IEnumerable<DashboardUpcomingCircleDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetUpcomingCircles([FromQuery] int? limit = null, [FromQuery] string? role = null)
+        {
+            return Ok(await _dashboardBLL.GetUpcomingCirclesAsync(UserId, limit, role));
         }
 
         [HttpGet("summary")]

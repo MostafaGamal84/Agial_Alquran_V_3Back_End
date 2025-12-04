@@ -13,13 +13,14 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 {
     public class DashboardBLL : BaseBLL, IDashboardBLL
     {
-        private const string DefaultCurrencyCode = "EGP";
         private static readonly Dictionary<int, string> CurrencyLabels = new()
         {
-            { 1, "EGP" },
-            { 2, "SAR" },
-            { 3, "USD" }
+            { (int)CurrencyEnum.EGP, "EGP" },
+            { (int)CurrencyEnum.SAR, "SAR" },
+            { (int)CurrencyEnum.USD, "USD" }
         };
+
+        private static readonly string DefaultCurrencyCode = CurrencyLabels[(int)CurrencyEnum.EGP];
 
         private readonly IRepository<StudentPayment> _studentPaymentRepository;
         private readonly IRepository<User> _UserRepository;
@@ -201,9 +202,10 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             }
         }
 
-        public async Task<IResponse<RoleDashboardOverviewDto>> GetRoleOverviewAsync(int userId, DashboardRangeInputDto? range = null)
+
+        public async Task<IResponse<DashboardOverviewResponseDto>> GetRoleOverviewAsync(int userId, DashboardRangeInputDto? range = null, string? role = null)
         {
-            Response<RoleDashboardOverviewDto> output = new();
+            Response<DashboardOverviewResponseDto> output = new();
 
             try
             {
@@ -218,7 +220,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     return output.AppendError(MessageCodes.NotFound);
                 }
 
-                var userType = (UserTypesEnum)userInfo.UserTypeId.Value;
+                var userType = ResolveUserRole(role, (UserTypesEnum)userInfo.UserTypeId.Value);
 
                 if (userType == UserTypesEnum.BranchLeader && !userInfo.BranchId.HasValue)
                 {
@@ -227,6 +229,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 DashboardScope scope = CreateScope(userType, userInfo.BranchId, userInfo.Id);
                 DashboardRange rangeInfo = ResolveRange(range);
+                string rangeLabel = ResolveRangeLabel(rangeInfo, range?.Range);
 
                 var paymentsBaseQuery = ApplyPaymentScope(_studentPaymentRepository.GetAll().AsNoTracking(), scope);
                 var teacherSalaryBase = ApplyTeacherSalaryScope(_teacherSalaryRepository.GetAll().AsNoTracking(), scope);
@@ -239,43 +242,15 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 var teachersQuery = CreateScopedTeachersQuery(scope);
                 var studentsQuery = CreateScopedStudentsQuery(scope);
 
-                DashboardRoleMetricsDto metrics = new();
-                DashboardRoleChartsDto charts = new();
+                DashboardOverviewMetricsDto metrics = new();
 
-                switch (userType)
-                {
-                    case UserTypesEnum.Admin:
-                        metrics.BranchManagersCount = await branchLeadersQuery.CountAsync();
-                        metrics.SupervisorsCount = await managersQuery.CountAsync();
-                        metrics.TeachersCount = await teachersQuery.CountAsync();
-                        metrics.StudentsCount = await studentsQuery.CountAsync();
-                        break;
-                    case UserTypesEnum.BranchLeader:
-                        metrics.BranchManagersCount = await branchLeadersQuery.CountAsync();
-                        metrics.SupervisorsCount = await managersQuery.CountAsync();
-                        metrics.TeachersCount = await teachersQuery.CountAsync();
-                        metrics.StudentsCount = await studentsQuery.CountAsync();
-                        break;
-                    case UserTypesEnum.Manager:
-                        metrics.SupervisorsCount = await managersQuery.CountAsync();
-                        metrics.TeachersCount = await teachersQuery.CountAsync();
-                        metrics.StudentsCount = await studentsQuery.CountAsync();
-                        break;
-                    case UserTypesEnum.Teacher:
-                        metrics.TeachersCount = await teachersQuery.CountAsync();
-                        metrics.StudentsCount = await studentsQuery.CountAsync();
-                        break;
-                    default:
-                        metrics.TeachersCount = await teachersQuery.CountAsync();
-                        metrics.StudentsCount = await studentsQuery.CountAsync();
-                        break;
-                }
+                metrics.BranchManagersCount = await branchLeadersQuery.CountAsync();
+                metrics.SupervisorsCount = await managersQuery.CountAsync();
+                metrics.TeachersCount = await teachersQuery.CountAsync();
+                metrics.StudentsCount = await studentsQuery.CountAsync();
 
-                int circlesTotal = await circleBase.Select(c => c.Id).Distinct().CountAsync();
-                metrics.CirclesCount = circlesTotal;
-
-                int reportsTotal = await circleReportsBase.CountAsync();
-                metrics.ReportsCount = reportsTotal;
+                metrics.CirclesCount = await circleBase.Select(c => c.Id).Distinct().CountAsync();
+                metrics.ReportsCount = await circleReportsBase.CountAsync();
 
                 TimeSpan rangeDuration = rangeInfo.EndExclusive - rangeInfo.Start;
                 DateTime previousRangeStart = rangeInfo.Start - rangeDuration;
@@ -290,11 +265,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     .Where(r => r.CreationTime >= previousRangeStart && r.CreationTime < previousRangeEndExclusive)
                     .CountAsync();
 
-                int circlesWithReports = await circleReportsRangeQuery
-                    .Where(r => r.CircleId.HasValue)
-                    .Select(r => r.CircleId!.Value)
-                    .Distinct()
-                    .CountAsync();
+                metrics.CircleReportsPercentChange = CalculatePercentageChange(metrics.CircleReports, previousCircleReports);
 
                 int newStudentsCount = await studentsQuery
                     .Where(u => u.RegisterAt.HasValue &&
@@ -309,6 +280,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                                 u.RegisterAt.Value >= previousRangeStart &&
                                 u.RegisterAt.Value < previousRangeEndExclusive)
                     .CountAsync();
+
+                metrics.NewStudentsPercentChange = CalculatePercentageChange(metrics.NewStudents, previousNewStudentsCount);
 
                 var paymentsRangeQuery = paymentsBaseQuery
                     .Where(p =>
@@ -338,61 +311,45 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 var managerSalaryPrevious = managerSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
 
-                double teacherPayoutRangeDouble = await teacherSalaryRange
-                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+                decimal teacherSalaryTotal = Round(await teacherSalaryRange.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
+                decimal teacherSalaryPreviousTotal = Round(await teacherSalaryPrevious.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
 
+                decimal managerSalaryTotal = Round(await managerSalaryRange.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
+                decimal managerSalaryPreviousTotal = Round(await managerSalaryPrevious.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
 
-                double managerPayoutRangeDouble = 0;
-                double teacherPayoutPreviousDouble = await teacherSalaryPrevious
-                  .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+                decimal outgoing = Round(teacherSalaryTotal + managerSalaryTotal);
+                decimal previousOutgoing = Round(teacherSalaryPreviousTotal + managerSalaryPreviousTotal);
 
-                double managerPayoutPreviousDouble = await managerSalaryPrevious
-                    .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
+                decimal netIncomeRaw = Round(earningsRaw - outgoing);
+                decimal previousNetIncomeRaw = Round(previousEarningsRaw - previousOutgoing);
 
+                decimal incomingEgpRaw = await paymentsRangeQuery
+                    .Where(p => p.CurrencyId == (int)CurrencyEnum.EGP || p.CurrencyId == null)
+                    .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
+                decimal incomingSarRaw = await paymentsRangeQuery
+                    .Where(p => p.CurrencyId == (int)CurrencyEnum.SAR)
+                    .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
+                decimal incomingUsdRaw = await paymentsRangeQuery
+                    .Where(p => p.CurrencyId == (int)CurrencyEnum.USD)
+                    .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
 
-                decimal teacherPayoutRaw = Convert.ToDecimal(teacherPayoutRangeDouble);
-                decimal previousTeacherPayoutRaw = Convert.ToDecimal(teacherPayoutPreviousDouble);
-
-                decimal managerPayoutRaw = Convert.ToDecimal(managerPayoutRangeDouble);
-                decimal previousManagerPayoutRaw = Convert.ToDecimal(managerPayoutPreviousDouble);
-
-                decimal outgoingRaw = teacherPayoutRaw + managerPayoutRaw;
-                decimal previousOutgoingRaw = previousTeacherPayoutRaw + previousManagerPayoutRaw;
-
-                decimal netRaw = earningsRaw - outgoingRaw;
-                decimal previousNetRaw = previousEarningsRaw - previousOutgoingRaw;
-
-                var incomingByCurrency = await paymentsRangeQuery
-                    .Where(p => p.CurrencyId.HasValue)
-                    .GroupBy(p => p.CurrencyId!.Value)
-                    .Select(group => new
-                    {
-                        CurrencyId = group.Key,
-                        Amount = group.Sum(p => (decimal?)(p.Amount ?? 0)) ?? 0m
-                    })
-                    .ToListAsync();
-
-                decimal incomingEgpRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.LE)?.Amount ?? 0m;
-                decimal incomingSarRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.SAR)?.Amount ?? 0m;
-                decimal incomingUsdRaw = incomingByCurrency.FirstOrDefault(x => x.CurrencyId == (int)CurrencyEnum.USD)?.Amount ?? 0m;
-
-                decimal netProfitRaw = earningsRaw - outgoingRaw;
+                decimal netProfitRaw = incomingSarRaw + incomingUsdRaw + incomingEgpRaw - outgoing;
 
                 metrics.CurrencyCode = DefaultCurrencyCode;
 
                 metrics.Earnings = Round(earningsRaw);
-                metrics.EarningsCurrencyCode = DefaultCurrencyCode;
-                metrics.EarningsPercentChange = CalculatePercentageChange(Round(earningsRaw), Round(previousEarningsRaw));
+                metrics.EarningsCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.EGP);
+                metrics.EarningsPercentChange = CalculatePercentageChange(metrics.Earnings, previousEarningsRaw);
 
-                metrics.NetIncome = Round(netRaw);
+                metrics.NetIncome = netIncomeRaw;
                 metrics.NetIncomeCurrencyCode = DefaultCurrencyCode;
-                metrics.NetIncomePercentChange = CalculatePercentageChange(Round(netRaw), Round(previousNetRaw));
+                metrics.NetIncomePercentChange = CalculatePercentageChange(metrics.NetIncome, previousNetIncomeRaw);
 
-                metrics.Outgoing = Round(outgoingRaw);
+                metrics.Outgoing = outgoing;
                 metrics.OutgoingCurrencyCode = DefaultCurrencyCode;
 
                 metrics.IncomingEgp = Round(incomingEgpRaw);
-                metrics.IncomingEgpCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.LE);
+                metrics.IncomingEgpCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.EGP);
 
                 metrics.IncomingSar = Round(incomingSarRaw);
                 metrics.IncomingSarCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.SAR);
@@ -403,32 +360,18 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 metrics.NetProfit = Round(netProfitRaw);
                 metrics.NetProfitCurrencyCode = DefaultCurrencyCode;
 
-                metrics.NewStudentsPercentChange = CalculatePercentageChange(metrics.NewStudents ?? 0, previousNewStudentsCount);
-                metrics.CircleReportsPercentChange = CalculatePercentageChange(metrics.CircleReports ?? 0, previousCircleReports);
-
-                charts.MonthlyRevenue = await BuildMonthlyRevenueAsync(
-                    rangeInfo.ReferenceEnd,
-                    paymentsBaseQuery,
-                    teacherSalaryBase,
-                    managerSalaryBase);
-
-                charts.ProjectOverview = new DashboardProjectOverviewDto
+                DashboardOverviewChartsDto charts = new()
                 {
-                    TotalCircles = circlesTotal,
-                    ActiveCircles = circlesWithReports,
-                    Teachers = metrics.TeachersCount ?? 0,
-                    Students = metrics.StudentsCount ?? 0,
-                    Reports = metrics.CircleReports ?? 0
+                    MonthlyRevenue = await BuildOverviewMonthlyRevenueAsync(rangeInfo, paymentsBaseQuery, teacherSalaryBase, managerSalaryBase, circleReportsBase),
+                    Transactions = await LoadOverviewTransactionsAsync(paymentsBaseQuery)
                 };
 
-                charts.Transactions = await LoadRecentTransactionsAsync(paymentsBaseQuery);
-
-                var dto = new RoleDashboardOverviewDto
+                var dto = new DashboardOverviewResponseDto
                 {
                     Role = MapRoleName(userType),
-                    RangeStart = rangeInfo.Start,
-                    RangeEnd = rangeInfo.EndInclusive,
-                    RangeLabel = range?.Range,
+                    RangeStart = FormatDate(rangeInfo.Start),
+                    RangeEnd = FormatDate(rangeInfo.EndInclusive),
+                    RangeLabel = rangeLabel,
                     Metrics = metrics,
                     Charts = charts
                 };
@@ -440,6 +383,64 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 return output.CreateResponse(ex);
             }
         }
+
+        public async Task<IResponse<IEnumerable<DashboardUpcomingCircleDto>>> GetUpcomingCirclesAsync(int userId, int? limit = null, string? role = null)
+        {
+            Response<IEnumerable<DashboardUpcomingCircleDto>> output = new();
+
+            try
+            {
+                var userInfo = await _UserRepository.GetAll()
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Id, u.UserTypeId, u.BranchId })
+                    .FirstOrDefaultAsync();
+
+                if (userInfo == null || !userInfo.UserTypeId.HasValue)
+                {
+                    return output.AppendError(MessageCodes.NotFound);
+                }
+
+                var userType = ResolveUserRole(role, (UserTypesEnum)userInfo.UserTypeId.Value);
+                DashboardScope scope = CreateScope(userType, userInfo.BranchId, userInfo.Id);
+
+                int effectiveLimit = limit.GetValueOrDefault(5);
+                if (effectiveLimit <= 0)
+                {
+                    effectiveLimit = 5;
+                }
+
+                var circlesQuery = ApplyCircleScope(
+                        _circleRepository.GetAll()
+                            .AsNoTracking()
+                            .Include(c => c.CircleDays)
+                            .Include(c => c.ManagerCircles)
+                                .ThenInclude(mc => mc.Manager)
+                            .Include(c => c.Teacher),
+                        scope)
+                    .Where(c => c.CircleDays.Any());
+
+                DateTime reference = DateTime.UtcNow;
+
+                var circles = await circlesQuery
+                    .ToListAsync();
+
+                var mapped = circles
+                    .Select(circle => BuildUpcomingDashboardCircle(circle, reference))
+                    .Where(result => result.Dto.Day != null)
+                    .OrderBy(result => result.NextOccurrence ?? DateTime.MaxValue)
+                    .Take(effectiveLimit)
+                    .Select(result => result.Dto)
+                    .ToList();
+
+                return output.CreateResponse(mapped);
+            }
+            catch (Exception ex)
+            {
+                return output.CreateResponse(ex);
+            }
+        }
+
 
         public async Task<IResponse<RepeatCustomerRateDto>> GetRepeatCustomerRateAsync(int months = 6)
         {
@@ -973,7 +974,38 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
         private static DashboardRange ResolveRange(DashboardRangeInputDto? range)
         {
-            DateTime referenceEnd = (range?.EndDate?.ToUniversalTime() ?? DateTime.UtcNow);
+            DateTime utcNow = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(range?.Range))
+            {
+                var requested = range.Range!.Trim();
+                if (string.Equals(requested, "monthly", StringComparison.OrdinalIgnoreCase))
+                {
+                    DateTime start = new DateTime(utcNow.Year, utcNow.Month, 1);
+                    return new DashboardRange(start, start.AddMonths(1), start.AddMonths(1));
+                }
+
+                if (string.Equals(requested, "last30d", StringComparison.OrdinalIgnoreCase))
+                {
+                    DateTime end = utcNow.Date.AddDays(1);
+                    return new DashboardRange(end.AddDays(-30), end, end);
+                }
+
+                var rangeParts = requested.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (rangeParts.Length == 2 && DateTime.TryParse(rangeParts[0], out var parsedStart) && DateTime.TryParse(rangeParts[1], out var parsedEnd))
+                {
+                    parsedStart = parsedStart.ToUniversalTime();
+                    parsedEnd = parsedEnd.ToUniversalTime();
+                    if (parsedStart > parsedEnd)
+                    {
+                        (parsedStart, parsedEnd) = (parsedEnd, parsedStart);
+                    }
+
+                    return new DashboardRange(parsedStart.Date, parsedEnd.Date.AddDays(1), parsedEnd);
+                }
+            }
+
+            DateTime referenceEnd = (range?.EndDate?.ToUniversalTime() ?? utcNow);
             DateTime startCandidate = (range?.StartDate?.ToUniversalTime() ?? referenceEnd.AddDays(-29));
 
             if (startCandidate > referenceEnd)
@@ -1219,6 +1251,176 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             public DateTime EndExclusive { get; }
             public DateTime ReferenceEnd { get; }
             public DateTime EndInclusive => EndExclusive.AddTicks(-1);
+        }
+
+        private static UserTypesEnum ResolveUserRole(string? requestedRole, UserTypesEnum actualRole)
+        {
+            if (!string.IsNullOrWhiteSpace(requestedRole) && Enum.TryParse<UserTypesEnum>(requestedRole, true, out var parsed))
+            {
+                return parsed;
+            }
+
+            return actualRole;
+        }
+
+        private static string ResolveRangeLabel(DashboardRange rangeInfo, string? requestedRange)
+        {
+            if (!string.IsNullOrWhiteSpace(requestedRange))
+            {
+                return requestedRange!;
+            }
+
+            int days = (int)(rangeInfo.EndExclusive - rangeInfo.Start).TotalDays;
+            return days switch
+            {
+                <= 1 => "today",
+                <= 7 => "last7d",
+                <= 30 => "last30d",
+                _ => "custom"
+            };
+        }
+
+        private static string FormatDate(DateTime date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        private static string? FormatTime(TimeSpan? time) => time?.ToString("HH\\:mm", CultureInfo.InvariantCulture);
+
+        private async Task<List<DashboardOverviewMonthlyRevenueDto>> BuildOverviewMonthlyRevenueAsync(
+            DashboardRange range,
+            IQueryable<StudentPayment> paymentsQuery,
+            IQueryable<TeacherSallary> teacherSalaryQuery,
+            IQueryable<ManagerSallary> managerSalaryQuery,
+            IQueryable<CircleReport> circleReportQuery)
+        {
+            List<DashboardOverviewMonthlyRevenueDto> result = new();
+
+            DateTime monthCursor = new DateTime(range.Start.Year, range.Start.Month, 1);
+            DateTime endCursor = new DateTime(range.EndExclusive.Year, range.EndExclusive.Month, 1);
+
+            while (monthCursor <= endCursor)
+            {
+                DateTime monthStart = monthCursor;
+                DateTime nextMonth = monthStart.AddMonths(1);
+
+                decimal earnings = await paymentsQuery
+                    .Where(p => (p.PaymentDate ?? p.CreatedAt) >= monthStart && (p.PaymentDate ?? p.CreatedAt) < nextMonth)
+                    .SumAsync(p => (decimal?)(p.Amount ?? 0m)) ?? 0m;
+
+                decimal teacherPayout = await teacherSalaryQuery
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < nextMonth)
+                    .SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m;
+
+                decimal managerPayout = await managerSalaryQuery
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < nextMonth)
+                    .SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m;
+
+                int reports = await circleReportQuery
+                    .Where(r => r.CreationTime >= monthStart && r.CreationTime < nextMonth)
+                    .CountAsync();
+
+                decimal netIncome = Round(earnings - teacherPayout - managerPayout);
+
+                if (earnings != 0 || netIncome != 0 || reports != 0)
+                {
+                    result.Add(new DashboardOverviewMonthlyRevenueDto
+                    {
+                        Month = monthStart.ToString("MMM", CultureInfo.InvariantCulture),
+                        Earnings = Round(earnings),
+                        NetIncome = netIncome,
+                        Reports = reports
+                    });
+                }
+
+                monthCursor = nextMonth;
+            }
+
+            return result;
+        }
+
+        private async Task<List<DashboardOverviewTransactionDto>> LoadOverviewTransactionsAsync(IQueryable<StudentPayment> paymentsBaseQuery)
+        {
+            return await paymentsBaseQuery
+                .OrderByDescending(p => p.PaymentDate ?? p.CreatedAt)
+                .Take(10)
+                .Select(entry => new DashboardOverviewTransactionDto
+                {
+                    Id = entry.Id,
+                    Amount = Round(entry.Amount ?? 0m),
+                    Currency = ResolveCurrencyCode(entry.CurrencyId ?? (int)CurrencyEnum.EGP),
+                    Date = FormatDate((entry.PaymentDate ?? entry.CreatedAt) ?? DateTime.UtcNow),
+                    Status = entry.IsCancelled == true
+                        ? "failed"
+                        : entry.PayStatue == true
+                            ? "completed"
+                            : entry.PayStatue == false
+                                ? "failed"
+                                : "pending",
+                    Student = !string.IsNullOrWhiteSpace(entry.StudentName)
+                        ? entry.StudentName
+                        : (!string.IsNullOrWhiteSpace(entry.StudentEmail) ? entry.StudentEmail : $"Student #{entry.Id}")
+                })
+                .ToListAsync();
+        }
+
+        private (DashboardUpcomingCircleDto Dto, DateTime? NextOccurrence) BuildUpcomingDashboardCircle(Circle circle, DateTime reference)
+        {
+            DateTime? next = null;
+            string? day = null;
+            string? startTime = null;
+
+            foreach (var schedule in circle.CircleDays)
+            {
+                var nextCandidate = CalculateNextOccurrenceForDay(reference, schedule.DayId, schedule.Time);
+                if (!nextCandidate.HasValue)
+                {
+                    continue;
+                }
+
+                if (!next.HasValue || nextCandidate < next)
+                {
+                    next = nextCandidate;
+                    day = ResolveDayName(schedule.DayId);
+                    startTime = FormatTime(schedule.Time);
+                }
+            }
+
+            DashboardUpcomingCircleDto dto = new()
+            {
+                Id = circle.Id,
+                Name = circle.Name ?? string.Empty,
+                Day = day,
+                StartTime = startTime,
+                EndTime = null,
+                Teacher = circle.Teacher?.FullName,
+                Managers = circle.ManagerCircles?
+                    .Where(mc => mc.Manager != null && mc.Manager.IsDeleted != true)
+                    .Select(mc => mc.Manager!.FullName ?? string.Empty)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .ToList() ?? new List<string>()
+            };
+
+            return (dto, next);
+        }
+
+        private static DateTime? CalculateNextOccurrenceForDay(DateTime reference, int? dayId, TimeSpan? time)
+        {
+            if (!dayId.HasValue || !time.HasValue)
+            {
+                return null;
+            }
+
+            var desiredDay = (DayOfWeek)(dayId.Value % 7);
+            int offset = ((int)desiredDay - (int)reference.DayOfWeek + 7) % 7;
+            if (offset == 0 && reference.TimeOfDay > time.Value)
+            {
+                offset = 7;
+            }
+
+            return reference.Date.AddDays(offset).Add(time.Value);
+        }
+
+        private static string? ResolveDayName(int? dayId)
+        {
+            return dayId.HasValue ? ((DayOfWeek)(dayId.Value % 7)).ToString().ToLowerInvariant() : null;
         }
 
         private static decimal CalculatePercentageChange(decimal current, decimal previous)
