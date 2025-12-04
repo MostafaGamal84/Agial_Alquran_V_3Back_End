@@ -30,70 +30,93 @@ The payload adapts to the caller's role. Common envelope:
 ```json
 {
   "isSuccess": true,
+  "errors": [],
   "data": {
-    "role": "Admin | BranchManager | Supervisor | Teacher",
-    "rangeStart": "2024-05-01T00:00:00Z",
-    "rangeEnd": "2024-05-30T23:59:59.9999999Z",
-    "rangeLabel": "Last 30 Days",
+    "role": "Admin",
+    "rangeStart": "2025-11-05T00:00:00Z",
+    "rangeEnd": "2025-12-04T23:59:59.9999999Z",
+    "rangeLabel": null,
     "metrics": {
-      "earnings": 12500.75,
-      "newStudents": 42,
-      "circleReports": 58,
-      "netIncome": 8300.10,
-      "branchManagersCount": 7,
-      "supervisorsCount": 18,
-      "teachersCount": 145,
-      "studentsCount": 2100,
-      "circlesCount": 320,
-      "reportsCount": 1590
+      "currencyCode": "SAR",
+      "earnings": 70,
+      "earningsCurrencyCode": "SAR",
+      "earningsPercentChange": null,
+      "newStudents": 28,
+      "newStudentsPercentChange": null,
+      "circleReports": 2,
+      "circleReportsPercentChange": null,
+      "netIncome": 70,
+      "netIncomeCurrencyCode": "SAR",
+      "netIncomePercentChange": null,
+      "branchManagersCount": 2,
+      "supervisorsCount": 10,
+      "teachersCount": 108,
+      "studentsCount": 1085,
+      "circlesCount": 113,
+      "reportsCount": 2,
+      "outgoing": 0,
+      "incomingEgp": 0,
+      "incomingSar": 70,
+      "incomingUsd": 0,
+      "netProfit": 70
     },
     "charts": {
       "monthlyRevenue": [
-        {
-          "month": "Jan 2024",
-          "earnings": 9800.50,
-          "teacherPayout": 2100.00,
-          "managerPayout": 900.00,
-          "netIncome": 6800.50
-        },
-        {
-          "month": "Feb 2024",
-          "earnings": 11250.25,
-          "teacherPayout": 2500.00,
-          "managerPayout": 1000.00,
-          "netIncome": 7750.25
-        }
+        {"month": "Jul 2025", "earnings": 0, "teacherPayout": 0, "managerPayout": 0, "netIncome": 0},
+        {"month": "Aug 2025", "earnings": 0, "teacherPayout": 0, "managerPayout": 0, "netIncome": 0},
+        {"month": "Sep 2025", "earnings": 0, "teacherPayout": 0, "managerPayout": 0, "netIncome": 0},
+        {"month": "Oct 2025", "earnings": 0, "teacherPayout": 0, "managerPayout": 0, "netIncome": 0},
+        {"month": "Nov 2025", "earnings": 0, "teacherPayout": 0, "managerPayout": 0, "netIncome": 0},
+        {"month": "Dec 2025", "earnings": 70, "teacherPayout": 0, "managerPayout": 0, "netIncome": 70}
       ],
       "projectOverview": {
-        "totalCircles": 320,
-        "activeCircles": 245,
-        "teachers": 145,
-        "students": 2100,
-        "reports": 1590
+        "totalCircles": 113,
+        "activeCircles": 2,
+        "teachers": 108,
+        "students": 1085,
+        "reports": 2
       },
       "transactions": [
         {
-          "id": 5812,
-          "student": "Omar Ali",
-          "amount": 250.00,
+          "id": 2639,
+          "student": "حسناء إبراهيم بدر",
+          "amount": 70,
           "currency": "SAR",
-          "date": "2024-05-29T16:12:00Z",
+          "date": "2025-12-04T01:58:37.863",
           "status": "Paid"
-        },
-        {
-          "id": 5804,
-          "student": "Student #5804",
-          "amount": 150.00,
-          "currency": "EGP",
-          "date": "2024-05-28T08:45:00Z",
-          "status": "Pending"
         }
       ]
     }
-  },
-  "errors": null
+  }
 }
 ```
+
+### What each section means (front-end binding)
+- **Top-level envelope:** `isSuccess` + `errors` + `data` keeps the API contract consistent with other endpoints.
+- **Range metadata:** `rangeStart`/`rangeEnd` are ISO-8601 and build the header subtitle. `rangeLabel` echoes any preset name passed as `range`.
+- **Role label:** `role` is an English role key (Admin/BranchManager/Supervisor/Teacher/...) that the UI translates to an Arabic chip.
+
+#### Metrics contract
+These keys are referenced directly by the dashboard cards and financial chart:
+
+| Key | Purpose |
+| --- | --- |
+| `earnings` + `earningsCurrencyCode` + `earningsPercentChange` | Main revenue card (value + change arrow). |
+| `newStudents` + `newStudentsPercentChange` | New students card. |
+| `circleReports` + `circleReportsPercentChange` | Circle reports card. |
+| `netIncome` + `netIncomeCurrencyCode` + `netIncomePercentChange` | Net income card. |
+| `branchManagersCount`, `supervisorsCount`, `teachersCount`, `studentsCount`, `circlesCount`, `reportsCount` | Role-scoped counters; hidden if `null`. |
+| `outgoing` + `outgoingCurrencyCode` | Outgoing bar on the financial chart. |
+| `incomingEgp`, `incomingSar`, `incomingUsd` (+ matching currency codes) | Incoming bars per currency. |
+| `netProfit` + `netProfitCurrencyCode` (or `netIncomeCurrencyCode`) | Net profit bar. |
+| `currencyCode` | Default currency fallback if a specific code is missing. |
+
+> نسبة التغير يمكن أن تعاد كرقم (`-5.2`) أو نص (`"+5%"`)، والواجهة تلون السهم بناءً على الإشارة فقط.
+
+#### Charts contract
+- `monthlyRevenue`: array of points with `month`, `earnings`, `teacherPayout`, `managerPayout`, `netIncome`. Any series disappears if all its values are `null`.
+- `projectOverview`: `totalCircles`, `activeCircles`, `teachers`, `students`, `reports`; any `null` entry hides its widget.
+- `transactions`: up to 10 recent student payments. Each item exposes `id`, `student`, `amount`, `currency`, `date` (ISO), and `status` (`paid`, `pending`, `failed`, or `cancelled`).
 
 ### Metrics by Role
 | Role | What you get |
@@ -104,11 +127,6 @@ The payload adapts to the caller's role. Common envelope:
 | **Teacher** | Teacher-specific counts for their circles, students, and submitted reports. Only their own earnings/net income are returned. |
 
 Missing/irrelevant fields are serialized as `null` so the UI can safely hide unused widgets.
-
-### Transactions Feed
-- Maximum of 10 most recent student payments for the visible scope.
-- `currency` maps to `EGP`, `SAR`, or `USD`; if an unknown ID arrives you'll get `"N/A"`.
-- `status` is either `"Paid"` (`payStatue == true`) or `"Pending"`.
 
 ## 4. Wiring Tips
 1. **Dashboard cards** (`earnings`, `newStudents`, `circleReports`, `netIncome`): bind directly to `data.metrics` using the same keys already expected in the UI.

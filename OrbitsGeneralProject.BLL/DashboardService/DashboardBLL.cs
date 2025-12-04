@@ -914,6 +914,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     p.PaymentDate,
                     p.CreatedAt,
                     p.PayStatue,
+                    p.IsCancelled,
                     StudentName = p.Student != null ? p.Student.FullName : null,
                     StudentEmail = p.Student != null ? p.Student.Email : null
                 })
@@ -928,7 +929,13 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                         ? label
                         : "N/A",
                     Date = entry.PaymentDate ?? entry.CreatedAt,
-                    Status = entry.PayStatue == true ? "Paid" : "Pending",
+                    Status = entry.IsCancelled == true
+                        ? "cancelled"
+                        : entry.PayStatue == true
+                            ? "paid"
+                            : entry.PayStatue == false
+                                ? "failed"
+                                : "pending",
                     Student = !string.IsNullOrWhiteSpace(entry.StudentName)
                         ? entry.StudentName
                         : (!string.IsNullOrWhiteSpace(entry.StudentEmail) ? entry.StudentEmail : $"Student #{entry.Id}")
