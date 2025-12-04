@@ -13,13 +13,14 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 {
     public class DashboardBLL : BaseBLL, IDashboardBLL
     {
-        private const string DefaultCurrencyCode = "EGP";
         private static readonly Dictionary<int, string> CurrencyLabels = new()
         {
-            { 1, "EGP" },
-            { 2, "SAR" },
-            { 3, "USD" }
+            { (int)CurrencyEnum.EGP, "EGP" },
+            { (int)CurrencyEnum.SAR, "SAR" },
+            { (int)CurrencyEnum.USD, "USD" }
         };
+
+        private static readonly string DefaultCurrencyCode = CurrencyLabels[(int)CurrencyEnum.EGP];
 
         private readonly IRepository<StudentPayment> _studentPaymentRepository;
         private readonly IRepository<User> _UserRepository;
