@@ -310,11 +310,11 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 var managerSalaryPrevious = managerSalaryBase
                     .Where(s => s.Month.HasValue && s.Month.Value >= previousRangeStart && s.Month.Value < previousRangeEndExclusive);
 
-                decimal teacherSalaryTotal = Round(await teacherSalaryRange.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
-                decimal teacherSalaryPreviousTotal = Round(await teacherSalaryPrevious.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
+                decimal teacherSalaryTotal = Round(await teacherSalaryRange.SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m);
+                decimal teacherSalaryPreviousTotal = Round(await teacherSalaryPrevious.SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m);
 
-                decimal managerSalaryTotal = Round(await managerSalaryRange.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
-                decimal managerSalaryPreviousTotal = Round(await managerSalaryPrevious.SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m);
+                decimal managerSalaryTotal = Round(await managerSalaryRange.SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m);
+                decimal managerSalaryPreviousTotal = Round(await managerSalaryPrevious.SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m);
 
                 decimal outgoing = Round(teacherSalaryTotal + managerSalaryTotal);
                 decimal previousOutgoing = Round(teacherSalaryPreviousTotal + managerSalaryPreviousTotal);
@@ -323,7 +323,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 decimal previousNetIncomeRaw = Round(previousEarningsRaw - previousOutgoing);
 
                 decimal incomingEgpRaw = await paymentsRangeQuery
-                    .Where(p => p.CurrencyId == (int)CurrencyEnum.EGP || p.CurrencyId == null)
+                    .Where(p => p.CurrencyId == (int)CurrencyEnum.LE || p.CurrencyId == null)
                     .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
                 decimal incomingSarRaw = await paymentsRangeQuery
                     .Where(p => p.CurrencyId == (int)CurrencyEnum.SAR)
@@ -337,7 +337,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 metrics.CurrencyCode = DefaultCurrencyCode;
 
                 metrics.Earnings = Round(earningsRaw);
-                metrics.EarningsCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.EGP);
+                metrics.EarningsCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.LE);
                 metrics.EarningsPercentChange = CalculatePercentageChange(metrics.Earnings, previousEarningsRaw);
 
                 metrics.NetIncome = netIncomeRaw;
@@ -348,7 +348,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 metrics.OutgoingCurrencyCode = DefaultCurrencyCode;
 
                 metrics.IncomingEgp = Round(incomingEgpRaw);
-                metrics.IncomingEgpCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.EGP);
+                metrics.IncomingEgpCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.LE);
 
                 metrics.IncomingSar = Round(incomingSarRaw);
                 metrics.IncomingSarCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.SAR);
@@ -1306,11 +1306,11 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 decimal teacherPayout = await teacherSalaryQuery
                     .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < nextMonth)
-                    .SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m;
+                    .SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m;
 
                 decimal managerPayout = await managerSalaryQuery
                     .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < nextMonth)
-                    .SumAsync(s => (decimal?)(s.Sallary ?? 0m)) ?? 0m;
+                    .SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m;
 
                 int reports = await circleReportQuery
                     .Where(r => r.CreationTime >= monthStart && r.CreationTime < nextMonth)
@@ -1344,7 +1344,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 {
                     Id = entry.Id,
                     Amount = Round(entry.Amount ?? 0m),
-                    Currency = ResolveCurrencyCode(entry.CurrencyId ?? (int)CurrencyEnum.EGP),
+                    Currency = ResolveCurrencyCode(entry.CurrencyId ?? (int)CurrencyEnum.LE),
                     Date = FormatDate((entry.PaymentDate ?? entry.CreatedAt) ?? DateTime.UtcNow),
                     Status = entry.IsCancelled == true
                         ? "failed"
@@ -1353,9 +1353,9 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                             : entry.PayStatue == false
                                 ? "failed"
                                 : "pending",
-                    Student = !string.IsNullOrWhiteSpace(entry.StudentName)
-                        ? entry.StudentName
-                        : (!string.IsNullOrWhiteSpace(entry.StudentEmail) ? entry.StudentEmail : $"Student #{entry.Id}")
+                    Student = !string.IsNullOrWhiteSpace(entry.Student!.FullName)
+                        ? entry.Student!.FullName
+                        : (!string.IsNullOrWhiteSpace(entry.Student!.Email) ? entry.Student!.Email : $"Student #{entry.Student.Id}")
                 })
                 .ToListAsync();
         }
