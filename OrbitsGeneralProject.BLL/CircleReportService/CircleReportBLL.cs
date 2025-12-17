@@ -51,7 +51,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             var me = _userRepository
                 .Where(u => u.Id == userId)
-                .Select(u => new { u.Id, u.UserTypeId })
+                .Select(u => new { u.Id, u.UserTypeId, u.BranchId })
                 .FirstOrDefault();
 
             if (me == null) return output.AppendError(MessageCodes.NotFound);
@@ -60,6 +60,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             string? sw = pagedDto.SearchTerm?.Trim().ToLower();
 
             bool isAdmin = userType == UserTypesEnum.Admin;
+            bool isBranchLeader = userType == UserTypesEnum.BranchLeader;
             bool isManager = userType == UserTypesEnum.Manager;
             bool isTeacher = userType == UserTypesEnum.Teacher;
             var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
@@ -73,6 +74,11 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 (
                     // Admin: ?? ????????
                     isAdmin
+
+                    // Branch Leader: ?????? ????? ?? ?????? ???? ??? ????????
+                    || (isBranchLeader &&
+                        (r.Student != null && r.Student.BranchId.HasValue && r.Student.BranchId == me.BranchId)
+                       )
 
                     // Manager: ?????? ????? ?????? ??? ???????
                     || (isManager &&
