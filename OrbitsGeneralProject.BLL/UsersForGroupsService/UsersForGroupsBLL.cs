@@ -299,7 +299,9 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     : _UserRepo
                         .Where(u => u.ManagerId.HasValue
                                     && managerIds.Contains(u.ManagerId.Value)
-                                    && u.UserTypeId == (int)UserTypesEnum.Teacher)
+                                    && u.UserTypeId == (int)UserTypesEnum.Teacher
+                                    && u.BranchId.HasValue
+                                    && branchIds.Contains(u.BranchId.Value))
                         .AsNoTracking()
                         .Select(u => new
                         {
@@ -344,7 +346,9 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     : _UserRepo
                         .Where(u => u.ManagerId.HasValue
                                     && managerIds.Contains(u.ManagerId.Value)
-                                    && u.UserTypeId == (int)UserTypesEnum.Student)
+                                    && u.UserTypeId == (int)UserTypesEnum.Student
+                                    && u.BranchId.HasValue
+                                    && branchIds.Contains(u.BranchId.Value))
                         .AsNoTracking()
                         .Select(u => new
                         {
