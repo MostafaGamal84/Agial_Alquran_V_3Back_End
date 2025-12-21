@@ -437,9 +437,17 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 foreach (var bl in paged.Items)
                 {
-                    bl.Managers = (bl.BranchId.HasValue && managersByBranch.TryGetValue(bl.BranchId.Value, out var mgrs))
+                    var branchManagers = (bl.BranchId.HasValue && managersByBranch.TryGetValue(bl.BranchId.Value, out var mgrs))
                         ? mgrs
                         : new List<UserLockUpDto>();
+
+                    bl.Managers = branchManagers;
+                    bl.Teachers = branchManagers
+                        .SelectMany(m => m.Teachers ?? new List<UserLockUpDto>())
+                        .ToList();
+                    bl.Students = branchManagers
+                        .SelectMany(m => m.Students ?? new List<UserLockUpDto>())
+                        .ToList();
                 }
             }
             else if (targetIsBranchLeader && paged.Items?.Any() == true)
@@ -447,6 +455,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 foreach (var bl in paged.Items)
                 {
                     bl.Managers = new List<UserLockUpDto>();
+                    bl.Teachers = new List<UserLockUpDto>();
+                    bl.Students = new List<UserLockUpDto>();
                 }
             }
 
