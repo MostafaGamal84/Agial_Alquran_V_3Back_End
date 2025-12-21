@@ -293,13 +293,13 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 var managerIds = managerRecords.Select(m => m.Id).ToList();
 
-                // Teachers for these managers
-                var teachersByManager = (managerIds.Count == 0)
-                    ? new Dictionary<int, List<UserLockUpDto>>()
+                // Teachers for these managers (and any unassigned teachers in the same branch)
+                var branchTeachers = (branchIds.Count == 0)
+                    ? new List<dynamic>()
                     : _UserRepo
-                        .Where(u => u.ManagerId.HasValue
-                                    && managerIds.Contains(u.ManagerId.Value)
-                                    && u.UserTypeId == (int)UserTypesEnum.Teacher)
+                        .Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher
+                                    && u.BranchId.HasValue
+                                    && branchIds.Contains(u.BranchId.Value))
                         .AsNoTracking()
                         .Select(u => new
                         {
@@ -317,26 +317,51 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                             u.BranchId,
                             u.ManagerId
                         })
-                        .ToList()
-                        .GroupBy(u => u.ManagerId!.Value)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.Select(u => new UserLockUpDto
-                            {
-                                Id = u.Id,
-                                FullName = u.FullName,
-                                Email = u.Email,
-                                Mobile = u.Mobile,
-                                SecondMobile = u.SecondMobile,
-                                Nationality = u.Nationality,
-                                NationalityId = u.NationalityId,
-                                Resident = u.Resident,
-                                ResidentId = u.ResidentId,
-                                Governorate = u.Governorate,
-                                GovernorateId = u.GovernorateId,
-                                BranchId = u.BranchId
-                            }).ToList()
-                        );
+                        .ToList<dynamic>();
+
+                var teachersByManager = branchTeachers
+                    .Where(u => u.ManagerId != null && managerIds.Contains((int)u.ManagerId))
+                    .GroupBy(u => (int)u.ManagerId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(u => new UserLockUpDto
+                        {
+                            Id = u.Id,
+                            FullName = u.FullName,
+                            Email = u.Email,
+                            Mobile = u.Mobile,
+                            SecondMobile = u.SecondMobile,
+                            Nationality = u.Nationality,
+                            NationalityId = u.NationalityId,
+                            Resident = u.Resident,
+                            ResidentId = u.ResidentId,
+                            Governorate = u.Governorate,
+                            GovernorateId = u.GovernorateId,
+                            BranchId = u.BranchId
+                        }).ToList()
+                    );
+
+                var teachersWithoutManagerByBranch = branchTeachers
+                    .Where(u => u.ManagerId == null)
+                    .GroupBy(u => (int)u.BranchId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(u => new UserLockUpDto
+                        {
+                            Id = u.Id,
+                            FullName = u.FullName,
+                            Email = u.Email,
+                            Mobile = u.Mobile,
+                            SecondMobile = u.SecondMobile,
+                            Nationality = u.Nationality,
+                            NationalityId = u.NationalityId,
+                            Resident = u.Resident,
+                            ResidentId = u.ResidentId,
+                            Governorate = u.Governorate,
+                            GovernorateId = u.GovernorateId,
+                            BranchId = u.BranchId
+                        }).ToList()
+                    );
 
                 // Students for these managers
                 var studentsByManager = (managerIds.Count == 0)
@@ -344,7 +369,9 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     : _UserRepo
                         .Where(u => u.ManagerId.HasValue
                                     && managerIds.Contains(u.ManagerId.Value)
-                                    && u.UserTypeId == (int)UserTypesEnum.Student)
+                                    && u.UserTypeId == (int)UserTypesEnum.Student
+                                    && u.BranchId.HasValue
+                                    && branchIds.Contains(u.BranchId.Value))
                         .AsNoTracking()
                         .Select(u => new
                         {
@@ -433,9 +460,22 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 foreach (var bl in paged.Items)
                 {
-                    bl.Managers = (bl.BranchId.HasValue && managersByBranch.TryGetValue(bl.BranchId.Value, out var mgrs))
+                    var branchManagers = (bl.BranchId.HasValue && managersByBranch.TryGetValue(bl.BranchId.Value, out var mgrs))
                         ? mgrs
                         : new List<UserLockUpDto>();
+
+                    bl.Managers = branchManagers;
+                    var branchTeachersWithoutManager = (bl.BranchId.HasValue && teachersWithoutManagerByBranch.TryGetValue(bl.BranchId.Value, out var tm))
+                        ? tm
+                        : new List<UserLockUpDto>();
+
+                    bl.Teachers = branchManagers
+                        .SelectMany(m => m.Teachers ?? new List<UserLockUpDto>())
+                        .Concat(branchTeachersWithoutManager)
+                        .ToList();
+                    bl.Students = branchManagers
+                        .SelectMany(m => m.Students ?? new List<UserLockUpDto>())
+                        .ToList();
                 }
             }
             else if (targetIsBranchLeader && paged.Items?.Any() == true)
@@ -443,6 +483,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 foreach (var bl in paged.Items)
                 {
                     bl.Managers = new List<UserLockUpDto>();
+                    bl.Teachers = new List<UserLockUpDto>();
+                    bl.Students = new List<UserLockUpDto>();
                 }
             }
 
