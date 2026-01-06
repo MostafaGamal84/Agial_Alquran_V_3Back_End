@@ -14,8 +14,8 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
     public interface IAuthBLL
     {
         //Task<IResponse<ProfileDto>> GetProfile(int userId);
-        Task<IResponse<VerifyLoginCodeDto>> Login(LoginDto model);
-        Task<IResponse<LoginResultDto>> VerifyCode(VerifyLoginCodeDto model);
+        Task<IResponse<LoginResultDto>> Login(LoginDto model);
+        //Task<IResponse<LoginResultDto>> VerifyCode(VerifyLoginCodeDto model);
         //Task<IResponse<bool>> UpdateProfile(UpdateAccountDto updateUserDto, int userId);
         //Task<IResponse<bool>> UpdateProfilePicture(IFormFile file, int userId);
         //Task<IResponse<bool>> ActiveUser(ActivateUserDto dto);

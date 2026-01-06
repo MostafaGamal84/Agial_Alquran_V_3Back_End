@@ -73,9 +73,9 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             _memoryCache = memoryCache;
         }
 
-        public async Task<IResponse<VerifyLoginCodeDto>> Login(LoginDto model)
+        public async Task<IResponse<LoginResultDto>> Login(LoginDto model)
         {
-            Response<VerifyLoginCodeDto> output = new Response<VerifyLoginCodeDto>();
+            Response<LoginResultDto> output = new Response<LoginResultDto>();
             LoginValidation validation = new LoginValidation();
             ValidationResult validationResult = validation.Validate(model);
             if (!validationResult.IsValid)
@@ -103,63 +103,6 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             //// If the password is correct, reset failed login attempts
             //ResetFailedLoginAttempts(model.Email);
 
-            VerifyLoginCodeDto codeDto = new VerifyLoginCodeDto();
-            string code = new Random().Next(1000, 9999).ToString();
-
-            if (_amanaSetting.CanSendToFront)
-            {
-                var body = GetOTPBodyFromHTMLFile(user.Email, code);
-                var message = await _mailService.SendEmail(new EmailMessage
-                {
-                    To = model.Email,
-                    Subject = "OTP",
-                    Body = body,
-                });
-                if (message != null && !message.IsSuccess)
-                {
-                    return output.CreateResponse(MessageCodes.CouldnotSendEmail);
-                }
-            }
-            else
-            {
-                codeDto.Code = code;
-            }
-            codeDto.PasswordIsCorrect = true;
-            codeDto.Email = model.Email;
-            user.Code = code.Trim();
-            user.CodeExpirationTime = DateTime.Now;
-            _userRepository.Update(user);
-            await _unitOfWork.CommitAsync();
-            return output.CreateResponse(codeDto);
-        }
-        public async Task<IResponse<LoginResultDto>> VerifyCode(VerifyLoginCodeDto model)
-        {
-            Response<LoginResultDto> output = new Response<LoginResultDto>();
-
-            VerifyLoginCodeValidation validation = new VerifyLoginCodeValidation();
-            ValidationResult validationResult = validation.Validate(model);
-            if (!validationResult.IsValid)
-                return output.AppendErrors(validationResult.Errors);
-            User user = await _userRepository.GetAsync(x => x.Email.Trim().ToLower() == model.Email.Trim().ToLower());
-            if (user == null)
-                return output.CreateResponse(MessageCodes.FailedToLogin);
-
-            // Check if the rate limit has been exceeded
-            if (user.CodeExpirationTime > DateTime.Now.AddMinutes(2) || RateLimitReachedForFailedVerifyCode(model.Email))
-            {
-                return output.CreateResponse(MessageCodes.CodeNotValidAnyMore);
-            }
-
-            if (user.Code.Trim() != model.Code)
-            {
-                // Log failed attempt and respond
-                VerifyCodeFailedAttempt(model.Email);
-                return output.CreateResponse(MessageCodes.InvalidCode);
-            }
-            // If the Code is correct, reset failed Verify Code attempts
-            ResetFailedVerifyCodeAttempts(model.Email);
-
-            //return model if success
             LoginResultDto loginResult = new LoginResultDto();
             //check if any refresh token not active in RefreshToken Table 
             JwtSecurityToken generatedToken = this.GenerateToken(user, DateTime.Now.AddDays(Convert.ToDouble(_authSetting.ExpiryInDays)));
@@ -188,12 +131,9 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             loginResult.BranchId = user.BranchId;
             loginResult.UserId = user.Id;
             loginResult.FullName = user.FullName;
-            user.Code = null;
-            user.CodeExpirationTime = null;
-            _userRepository.Update(user);
-            await _unitOfWork.CommitAsync();
             return output.CreateResponse(loginResult);
         }
+       
         //public async Task<IResponse<LoginResultDto>> RefreshToken(RequestForRefreshTokenDto model)
         //{
         //    Response<LoginResultDto> output = new Response<LoginResultDto>();

@@ -15,7 +15,6 @@ namespace Orbits.GeneralProject.DTO.LoginDtos
         public int? BranchId { get; set; }
         public int? UserId { get; set; }
         public string? FullName { get; set; }
-        //public int? UserTypeId { get; set; }
 
     }
 }

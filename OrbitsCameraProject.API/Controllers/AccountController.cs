@@ -19,13 +19,13 @@ namespace OrbitsProject.API.Controllers
             _authBLL = authBLL;
         }
 
-        [HttpPost("Login"), ProducesResponseType(typeof(IResponse<VerifyLoginCodeDto>), 200)]
+        [HttpPost("Login"), ProducesResponseType(typeof(IResponse<LoginResultDto>), 200)]
         public async Task<IActionResult> Login(LoginDto model)
      => Ok(await _authBLL.Login(model));
 
-        [HttpPost("VerifyCode"), ProducesResponseType(typeof(IResponse<LoginResultDto>), 200)]
-        public async Task<IActionResult> VerifyCode(VerifyLoginCodeDto model)
-            => Ok(await _authBLL.VerifyCode(model));
+        //[HttpPost("VerifyCode"), ProducesResponseType(typeof(IResponse<LoginResultDto>), 200)]
+        //public async Task<IActionResult> VerifyCode(VerifyLoginCodeDto model)
+        //    => Ok(await _authBLL.VerifyCode(model));
 
         [HttpPost("ForgetPassword"), ProducesResponseType(typeof(IResponse<string>), 200)]
         public async Task<IActionResult> ForgetPassword(ForgetPasswordDto model)
