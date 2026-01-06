@@ -51,6 +51,17 @@ namespace Orbits.GeneralProject.BLL.CircleService
             { (int)DaysEnum.Thursday, DayOfWeek.Thursday },
             { (int)DaysEnum.Friday, DayOfWeek.Friday }
         };
+
+        private static readonly IReadOnlyDictionary<int, string> ArabicDayNameLookup = new Dictionary<int, string>
+        {
+            { (int)DaysEnum.Saturday, "السبت" },
+            { (int)DaysEnum.Sunday, "الأحد" },
+            { (int)DaysEnum.Monday, "الاثنين" },
+            { (int)DaysEnum.Tuesday, "الثلاثاء" },
+            { (int)DaysEnum.Wednesday, "الأربعاء" },
+            { (int)DaysEnum.Thursday, "الخميس" },
+            { (int)DaysEnum.Friday, "الجمعة" }
+        };
         public CircleBLL(IMapper mapper, IRepository<Circle> circleRepository,
              IUnitOfWork unitOfWork,
              IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<CircleDay> circleDayRepository, IRepository<Day> dayRepository) : base(mapper)
@@ -386,7 +397,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 Id = circle.Id,
                 Name = circle.Name,
                 NextDayId = nextDayId,
-                NextDayName = ResolveDayName(nextDayId, dayNameLookup),
+                NextDayName = ResolveArabicDayName(nextDayId, dayNameLookup),
                 DayIds = dayIds,
                 DayNames = ResolveDayNames(dayIds, dayNameLookup),
                 NextOccurrenceDate = nextOccurrence,
@@ -499,6 +510,19 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 return ((DaysEnum)dayId.Value).ToString();
 
             return null;
+        }
+
+        private static string? ResolveArabicDayName(int? dayId, IReadOnlyDictionary<int, string?>? dayNameLookup = null)
+        {
+            if (!dayId.HasValue)
+                return null;
+
+            if (ArabicDayNameLookup.TryGetValue(dayId.Value, out var arabicName))
+            {
+                return arabicName;
+            }
+
+            return ResolveDayName(dayId, dayNameLookup);
         }
 
         private static ICollection<string> ResolveDayNames(IEnumerable<int> dayIds, IReadOnlyDictionary<int, string?>? dayNameLookup = null)
