@@ -121,13 +121,13 @@ namespace Orbits.GeneralProject.BLL.LookUpService
                 var student = _UserRepo.GetById(studentId.Value);
                 if (student != null)
                 {
-                    Nationality? nationality = student.Nationality;
-                    if (nationality == null && student.NationalityId.HasValue)
+                    Nationality? resident = student.Resident;
+                    if (resident == null && student.ResidentId.HasValue)
                     {
-                        nationality = _nationalityRepo.GetById(student.NationalityId.Value);
+                        resident = _nationalityRepo.GetById(student.ResidentId.Value);
                     }
 
-                    var subscribeFor = NationalityClassificationHelper.ResolveSubscribeFor(nationality);
+                    var subscribeFor = NationalityClassificationHelper.ResolveSubscribeFor(resident);
                     if (subscribeFor.HasValue)
                     {
                         SubscribeTypeCategory? targetCategory = subscribeFor.Value switch

@@ -8,27 +8,18 @@ namespace Orbits.GeneralProject.BLL.Helpers
 {
     public static class NationalityClassificationHelper
     {
-        private static readonly HashSet<int> GulfDialCodes = new(new[] { 971, 966, 965, 974, 973, 968 });
-        private static readonly HashSet<int> NonGulfArabDialCodes = new(new[]
+        private static readonly string[] EgyptianKeywordsEnglish =
         {
-            20,   // Egypt
-            212,  // Morocco
-            213,  // Algeria
-            216,  // Tunisia
-            218,  // Libya
-            249,  // Sudan
-            962,  // Jordan
-            961,  // Lebanon
-            963,  // Syria
-            964,  // Iraq
-            970,  // Palestine
-            967,  // Yemen
-            222,  // Mauritania
-            252,  // Somalia
-            253,  // Djibouti
-            269   // Comoros
-        });
-        private static readonly HashSet<int> AllArabDialCodes = new(GulfDialCodes.Concat(NonGulfArabDialCodes));
+            "egypt",
+            "egyptian"
+        };
+
+        private static readonly string[] EgyptianKeywordsArabic =
+        {
+            "مصر",
+            "مصري",
+            "مصرى"
+        };
 
         private static readonly string[] GulfKeywordsEnglish =
         {
@@ -58,20 +49,15 @@ namespace Orbits.GeneralProject.BLL.Helpers
             if (nationality == null)
                 return false;
 
-            if (nationality.TelCode.HasValue && nationality.TelCode.Value == 20)
-                return true;
-
             if (string.IsNullOrWhiteSpace(nationality.Name))
                 return false;
 
             var normalizedLower = nationality.Name.Trim().ToLowerInvariant();
 
-            if (normalizedLower.Contains("egypt"))
+            if (EgyptianKeywordsEnglish.Any(keyword => normalizedLower.Contains(keyword)))
                 return true;
 
-            return normalizedLower.Contains("مصر")
-                || normalizedLower.Contains("مصري")
-                || normalizedLower.Contains("مصرى");
+            return EgyptianKeywordsArabic.Any(keyword => normalizedLower.Contains(keyword));
         }
 
         private static readonly string[] GeneralArabKeywordsEnglish =
@@ -115,13 +101,83 @@ namespace Orbits.GeneralProject.BLL.Helpers
             "قمر"
         };
 
+        private static readonly string[] ForeignKeywordsEnglish =
+        {
+            "usa",
+            "united states",
+            "american",
+            "canada",
+            "canadian",
+            "uk",
+            "united kingdom",
+            "british",
+            "england",
+            "france",
+            "french",
+            "germany",
+            "german",
+            "italy",
+            "italian",
+            "spain",
+            "spanish",
+            "australia",
+            "australian",
+            "india",
+            "indian",
+            "pakistan",
+            "pakistani",
+            "bangladesh",
+            "china",
+            "chinese",
+            "japan",
+            "japanese",
+            "philippines",
+            "filipino",
+            "indonesia",
+            "indonesian",
+            "malaysia",
+            "malaysian",
+            "russia",
+            "russian",
+            "turkey",
+            "turkish",
+            "iran",
+            "iranian",
+            "ethiopia",
+            "ethiopian"
+        };
+
+        private static readonly string[] ForeignKeywordsArabic =
+        {
+            "أمريكا",
+            "أمريكي",
+            "كندا",
+            "كندي",
+            "بريط",
+            "إنجل",
+            "فرن",
+            "ألمان",
+            "إيطال",
+            "إسبان",
+            "أسترال",
+            "هند",
+            "باكستان",
+            "بنغل",
+            "صين",
+            "يابان",
+            "فلبين",
+            "إندونيس",
+            "ماليز",
+            "روس",
+            "تركي",
+            "إيران",
+            "أثيوب"
+        };
+
         public static bool IsGulf(Nationality? nationality)
         {
             if (nationality == null)
                 return false;
-
-            if (nationality.TelCode.HasValue && GulfDialCodes.Contains(nationality.TelCode.Value))
-                return true;
 
             if (string.IsNullOrWhiteSpace(nationality.Name))
                 return false;
@@ -142,9 +198,6 @@ namespace Orbits.GeneralProject.BLL.Helpers
             if (IsEgyptian(nationality) || IsGulf(nationality))
                 return true;
 
-            if (nationality.TelCode.HasValue && AllArabDialCodes.Contains(nationality.TelCode.Value))
-                return true;
-
             if (string.IsNullOrWhiteSpace(nationality.Name))
                 return false;
 
@@ -154,6 +207,22 @@ namespace Orbits.GeneralProject.BLL.Helpers
                 return true;
 
             return GeneralArabKeywordsArabic.Any(keyword => normalizedLower.Contains(keyword));
+        }
+
+        public static bool IsForeign(Nationality? nationality)
+        {
+            if (nationality == null)
+                return false;
+
+            if (string.IsNullOrWhiteSpace(nationality.Name))
+                return false;
+
+            var normalizedLower = nationality.Name.Trim().ToLowerInvariant();
+
+            if (ForeignKeywordsEnglish.Any(keyword => normalizedLower.Contains(keyword)))
+                return true;
+
+            return ForeignKeywordsArabic.Any(keyword => normalizedLower.Contains(keyword));
         }
 
         public static SubscribeForEnum? ResolveSubscribeFor(Nationality? nationality)
@@ -166,6 +235,9 @@ namespace Orbits.GeneralProject.BLL.Helpers
 
             if (IsGulf(nationality))
                 return SubscribeForEnum.Gulf;
+
+            if (IsForeign(nationality))
+                return SubscribeForEnum.NonArab;
 
             return SubscribeForEnum.NonArab;
         }
@@ -181,8 +253,10 @@ namespace Orbits.GeneralProject.BLL.Helpers
             if (IsArabNationality(nationality))
                 return ResidentGroup.Arab;
 
+            if (IsForeign(nationality))
+                return ResidentGroup.Foreign;
+
             return ResidentGroup.Foreign;
         }
     }
 }
-

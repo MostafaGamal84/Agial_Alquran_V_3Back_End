@@ -55,7 +55,7 @@ namespace Orbits.GeneralProject.BLL.UserService
             if (string.IsNullOrEmpty(createUserDto.PasswordHash))
                 return output.CreateResponse(MessageCodes.PasswordIsRequired);
 
-            var (governorateValid, governorateError) = await ValidateGovernorateRequirementAsync(createUserDto.NationalityId, createUserDto.GovernorateId);
+            var (governorateValid, governorateError) = await ValidateGovernorateRequirementAsync(createUserDto.ResidentId, createUserDto.GovernorateId);
             if (!governorateValid)
                 return output.AppendError(MessageCodes.InputValidationError, nameof(DTO.UserDto.CreateUserDto.GovernorateId), governorateError ?? string.Empty);
 
@@ -98,9 +98,9 @@ namespace Orbits.GeneralProject.BLL.UserService
             if (existedUser == null)
                 return output.CreateResponse(MessageCodes.NotFound);
 
-            var targetNationalityId = updateUserDto.NationalityId ?? existedUser.NationalityId;
+            var targetResidentId = updateUserDto.ResidentId ?? existedUser.ResidentId;
             var targetGovernorateId = updateUserDto.GovernorateId ?? existedUser.GovernorateId;
-            var (isGovernorateValid, governorateValidationError) = await ValidateGovernorateRequirementAsync(targetNationalityId, targetGovernorateId);
+            var (isGovernorateValid, governorateValidationError) = await ValidateGovernorateRequirementAsync(targetResidentId, targetGovernorateId);
             if (!isGovernorateValid)
                 return output.AppendError(MessageCodes.InputValidationError, nameof(UpdateUserDto.GovernorateId), governorateValidationError ?? string.Empty);
 
@@ -364,9 +364,9 @@ namespace Orbits.GeneralProject.BLL.UserService
                     ? null
                     : updateProfileDto.FullName.Trim();
 
-            var targetNationalityId = updateProfileDto.NationalityId ?? user.NationalityId;
+            var targetResidentId = updateProfileDto.ResidentId ?? user.ResidentId;
             var targetGovernorateId = updateProfileDto.GovernorateId ?? user.GovernorateId;
-            var (profileGovernorateValid, profileGovernorateError) = await ValidateGovernorateRequirementAsync(targetNationalityId, targetGovernorateId);
+            var (profileGovernorateValid, profileGovernorateError) = await ValidateGovernorateRequirementAsync(targetResidentId, targetGovernorateId);
             if (!profileGovernorateValid)
                 return output.AppendError(MessageCodes.InputValidationError, nameof(UpdateProfileDto.GovernorateId), profileGovernorateError ?? string.Empty);
 
@@ -374,6 +374,9 @@ namespace Orbits.GeneralProject.BLL.UserService
                 user.SecondMobile = string.IsNullOrWhiteSpace(updateProfileDto.SecondMobile)
                     ? null
                     : updateProfileDto.SecondMobile.Trim();
+
+            if (updateProfileDto.ResidentId.HasValue)
+                user.ResidentId = updateProfileDto.ResidentId;
 
             if (updateProfileDto.NationalityId.HasValue)
                 user.NationalityId = updateProfileDto.NationalityId;
@@ -427,13 +430,13 @@ namespace Orbits.GeneralProject.BLL.UserService
             return hashedPassword;
         }
 
-        private async Task<(bool IsValid, string? ErrorMessage)> ValidateGovernorateRequirementAsync(int? nationalityId, int? governorateId)
+        private async Task<(bool IsValid, string? ErrorMessage)> ValidateGovernorateRequirementAsync(int? residentId, int? governorateId)
         {
-            if (!nationalityId.HasValue)
+            if (!residentId.HasValue)
                 return (true, null);
 
-            var nationality = await _nationalityRepository.GetByIdAsync(nationalityId.Value);
-            if (!IsEgyptianNationality(nationality))
+            var resident = await _nationalityRepository.GetByIdAsync(residentId.Value);
+            if (!IsEgyptianNationality(resident))
                 return (true, null);
 
             if (governorateId.HasValue && governorateId.Value > 0)

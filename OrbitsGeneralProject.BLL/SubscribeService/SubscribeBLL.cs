@@ -59,25 +59,29 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
 
             var filters = TryDeserializeFilters(pagedDto.Filter);
             int? studentIdFromFilters = ExtractIntFilterValue(filters, "StudentId", "studentId");
+            int? residentIdFromFilters = ExtractIntFilterValue(filters, "ResidentId", "residentId");
             int? nationalityIdFromFilters = ExtractIntFilterValue(filters, "NationalityId", "nationalityId");
 
             int? studentId = pagedDto.StudentId ?? studentIdFromFilters;
-            int? nationalityId = pagedDto.NationalityId ?? nationalityIdFromFilters;
+            int? residentId = pagedDto.ResidentId ?? residentIdFromFilters;
+            residentId ??= nationalityIdFromFilters;
 
             if (filters != null)
                 pagedDto.Filter = filters.Count > 0 ? JsonConvert.SerializeObject(filters) : null;
 
-            if (!nationalityId.HasValue && studentId.HasValue && studentId.Value > 0)
+            if (!residentId.HasValue && studentId.HasValue && studentId.Value > 0)
             {
                 var student = _UserRepository.GetById(studentId.Value);
-                if (student?.NationalityId != null && student.NationalityId.Value > 0)
-                    nationalityId = student.NationalityId.Value;
+                if (student?.ResidentId != null && student.ResidentId.Value > 0)
+                    residentId = student.ResidentId.Value;
+                else if (student?.NationalityId != null && student.NationalityId.Value > 0)
+                    residentId = student.NationalityId.Value;
             }
 
-            if (nationalityId.HasValue && nationalityId.Value > 0)
+            if (residentId.HasValue && residentId.Value > 0)
             {
-                var nationality = _NationalityRepository.GetById(nationalityId.Value);
-                requiredCategory = ResolveSubscribeTypeCategory(nationality);
+                var resident = _NationalityRepository.GetById(residentId.Value);
+                requiredCategory = ResolveSubscribeTypeCategory(resident);
             }
 
             int? requiredGroupValue = requiredCategory.HasValue ? (int?)requiredCategory.Value : null;
