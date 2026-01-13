@@ -71,7 +71,7 @@ namespace Orbits.GeneralProject.BLL.Mapping
                 // RemainingMinutes of the latest subscription (by CreatedAt)
                 .ForMember(d => d.RemainingMinutes, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().RemainingMinutes!))
                             .ForMember(d => d.StartDate, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().CreatedAt!))
-                            .ForMember(d => d.Plan, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentSubscribeType.Name!))
+                            .ForMember(d => d.Plan, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentSubscribeType.Name! + " ( " + c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentSubscribeNavigation.Name! + " ) ")) 
                             .ForMember(d => d.PayStatus, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().PayStatus!))
                             .ForMember(d => d.StudentPaymentId, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentPaymentId!));
             CreateMap<StudentPayment, StudentPaymentReDto>()

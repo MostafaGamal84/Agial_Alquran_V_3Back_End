@@ -30,6 +30,22 @@ namespace Orbits.GeneralProject.BLL.Helpers
             "uae",
             "bahrain",
             "oman",
+            "morocco",
+            "algeria",
+            "tunisia",
+            "libya",
+            "sudan",
+            "jordan",
+            "palestine",
+            "gaza",
+            "syria",
+            "lebanon",
+            "iraq",
+            "yemen",
+            "mauritania",
+            "somalia",
+            "djibouti",
+            "comoros",
             "qatar"
         };
 
@@ -41,7 +57,25 @@ namespace Orbits.GeneralProject.BLL.Helpers
             "الإمارات",
             "بحرين",
             "قطر",
-            "عمان"
+            //"ردن",
+            "عمان",
+            "مغرب",
+            "جزائ",
+            "تونس",
+            "ليبيا",
+            "سودان",
+            "ردن",
+            "فلسط",
+            "غزه",
+            "سوري",
+            "لبنان",
+            "عراق",
+            "يمن",
+            "موريت",
+            "صومال",
+            "جيبوت",
+            "جزر القمر",
+            "قمر"
         };
 
         public static bool IsEgyptian(Nationality? nationality)
@@ -87,7 +121,7 @@ namespace Orbits.GeneralProject.BLL.Helpers
             "تونس",
             "ليبيا",
             "سودان",
-            "أردن",
+            "ردن",
             "فلسط",
             "غزه",
             "سوري",
