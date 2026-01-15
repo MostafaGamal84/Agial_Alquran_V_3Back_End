@@ -857,6 +857,9 @@ namespace Orbits.GeneralProject.BLL.CircleService
             if (!validationResult.IsValid)
                 return output.AppendErrors(validationResult.Errors);
 
+            var currentUser = await _userRepository.GetByIdAsync(userId);
+            if (currentUser == null) return output.AppendError(MessageCodes.NotFound);
+
             // 2) Name unique?
             if (await _circleRepository.AnyAsync(x => x.Name!.Trim().ToLower() == model.Name!.Trim().ToLower()))
                 return output.CreateResponse(MessageCodes.NameAlreadyExists);
@@ -880,11 +883,14 @@ namespace Orbits.GeneralProject.BLL.CircleService
             entity.CreatedBy = userId;
             entity.CreatedAt = DateTime.UtcNow;
             entity.IsDeleted = false;
+            if (currentUser.BranchId.HasValue)
+            {
+                entity.BranchId = currentUser.BranchId;
+            }
 
 
             // 4a) Save circle to get the generated Id
             var created = await _circleRepository.AddAsync(entity);
-            var currentUser = await _userRepository.GetByIdAsync(userId);
             await _unitOfWork.CommitAsync(); // after this, created.Id is available
             if (currentUser.UserTypeId == (int)UserTypesEnum.Manager)
             {
@@ -961,6 +967,12 @@ namespace Orbits.GeneralProject.BLL.CircleService
             var entity = _circleRepository.GetById(dto.Id);
             if (entity == null) return output.AppendError(MessageCodes.NotFound);
             var User = await _userRepository.GetByIdAsync(userId);
+            if (User == null) return output.AppendError(MessageCodes.NotFound);
+
+            if (User.BranchId.HasValue)
+            {
+                entity.BranchId = User.BranchId;
+            }
 
             if (dto.Days != null)
             {
