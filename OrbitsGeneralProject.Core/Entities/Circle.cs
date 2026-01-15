@@ -21,6 +21,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public string? Name { get; set; }
         public bool? IsDeleted { get; set; }
         public int? TeacherId { get; set; }
+        public int? BranchId { get; set; }
 
         public virtual User? Teacher { get; set; }
         public virtual ICollection<CircleDay> CircleDays { get; set; }
