@@ -100,6 +100,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             bool applyDefaultManager = (userType == UserTypesEnum.Manager) && !mId.HasValue;
             bool applyDefaultTeacher = (userType == UserTypesEnum.Teacher) && !tId.HasValue;
             bool applyStudentRestriction = (userType == UserTypesEnum.Student);
+            bool applyBranchRestriction = me.BranchId.HasValue;
 
             // Predicate
             Expression<Func<Circle, bool>> combinedExpr = c =>
@@ -107,6 +108,8 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 (searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)))
                 &&
                 // role restrictions
+                (!applyBranchRestriction || (c.BranchId.HasValue && c.BranchId == me.BranchId))
+                &&
                 (!applyStudentRestriction || (me.CircleId != null && c.Id == me.CircleId.Value))
                 &&
                 (!applyDefaultManager || c.ManagerCircles.Any(mc => mc.ManagerId == userId))
@@ -198,6 +201,11 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 .Include(c => c.Users)
                 .Where(c => c.IsDeleted != true);
 
+            if (currentUser.BranchId.HasValue)
+            {
+                query = query.Where(c => c.BranchId.HasValue && c.BranchId == currentUser.BranchId);
+            }
+
             switch (userType)
             {
                 case UserTypesEnum.Manager:
@@ -268,7 +276,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 .Include(c => c.CircleDays)
                 .Where(c => c.IsDeleted != true);
 
-            query = ApplyUpcomingCircleFilters(query, userType, userId, explicitManagerId, explicitTeacherId);
+            query = ApplyUpcomingCircleFilters(query, userType, userId, currentUser.BranchId, explicitManagerId, explicitTeacherId);
 
             var circles = await query.ToListAsync();
 
@@ -325,11 +333,17 @@ namespace Orbits.GeneralProject.BLL.CircleService
             IQueryable<Circle> query,
             UserTypesEnum userType,
             int userId,
+            int? branchId,
             int? explicitManagerId,
             int? explicitTeacherId)
         {
             if (query == null)
                 return query;
+
+            if (branchId.HasValue)
+            {
+                query = query.Where(c => c.BranchId.HasValue && c.BranchId == branchId.Value);
+            }
 
             if (explicitManagerId.HasValue)
             {

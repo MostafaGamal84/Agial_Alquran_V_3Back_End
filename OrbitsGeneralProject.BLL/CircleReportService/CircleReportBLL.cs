@@ -63,6 +63,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             bool isBranchLeader = userType == UserTypesEnum.BranchLeader;
             bool isManager = userType == UserTypesEnum.Manager;
             bool isTeacher = userType == UserTypesEnum.Teacher;
+            bool applyBranchRestriction = me.BranchId.HasValue;
             var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
@@ -95,6 +96,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 )
 
                 // -------- ????? ??????? ----------
+                && (!applyBranchRestriction || (r.Circle != null && r.Circle.BranchId.HasValue && r.Circle.BranchId == me.BranchId))
                 && (!circleId.HasValue || r.CircleId == circleId.Value)
                 && (!studentId.HasValue || r.StudentId == studentId.Value)
                 && (!nationalityId.HasValue || (r.Student != null && r.Student.NationalityId == nationalityId.Value))
