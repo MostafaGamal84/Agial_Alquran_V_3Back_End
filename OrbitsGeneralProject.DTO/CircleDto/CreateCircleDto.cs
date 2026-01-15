@@ -15,5 +15,7 @@ namespace Orbits.GeneralProject.DTO.CircleDto
         public List<int>? Managers { get; set; } = new List<int>();
 
         public List<int>? StudentsIds { get; set; } = new List<int>();
+
+        public int? BranchId { get; set; }
     }
 }

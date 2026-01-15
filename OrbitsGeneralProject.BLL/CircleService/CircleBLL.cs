@@ -883,9 +883,10 @@ namespace Orbits.GeneralProject.BLL.CircleService
             entity.CreatedBy = userId;
             entity.CreatedAt = DateTime.UtcNow;
             entity.IsDeleted = false;
-            if (currentUser.BranchId.HasValue)
+            var branchId = model.BranchId ?? currentUser.BranchId;
+            if (branchId.HasValue)
             {
-                entity.BranchId = currentUser.BranchId;
+                entity.BranchId = branchId;
             }
 
 
@@ -968,11 +969,6 @@ namespace Orbits.GeneralProject.BLL.CircleService
             if (entity == null) return output.AppendError(MessageCodes.NotFound);
             var User = await _userRepository.GetByIdAsync(userId);
             if (User == null) return output.AppendError(MessageCodes.NotFound);
-
-            if (User.BranchId.HasValue)
-            {
-                entity.BranchId = User.BranchId;
-            }
 
             if (dto.Days != null)
             {
@@ -1061,6 +1057,11 @@ namespace Orbits.GeneralProject.BLL.CircleService
             entity.ModefiedAt = DateTime.UtcNow;
             entity.ModefiedBy = userId;
             _mapper.Map(dto, entity);
+            var branchId = dto.BranchId ?? User.BranchId;
+            if (branchId.HasValue)
+            {
+                entity.BranchId = branchId;
+            }
 
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(data: true);
