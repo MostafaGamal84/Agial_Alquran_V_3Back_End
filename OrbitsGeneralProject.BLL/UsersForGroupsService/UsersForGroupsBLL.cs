@@ -411,10 +411,13 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         );
 
                 // Manager circles
+                var circlesQuery = _circleRepo
+                    .Where(c => !myBranchId.HasValue || (c.BranchId.HasValue && c.BranchId == myBranchId.Value))
+                    .AsNoTracking();
                 var circlesByManager = (managerIds.Count == 0)
                     ? new Dictionary<int, List<ManagerCirclesDto>>()
                     : (from mc in _managerCircleRepo.Where(mc => mc.ManagerId.HasValue && managerIds.Contains(mc.ManagerId.Value)).AsNoTracking()
-                       join c in _circleRepo.Where(c => true).AsNoTracking() on mc.CircleId equals c.Id
+                       join c in circlesQuery on mc.CircleId equals c.Id
                        select new
                        {
                            mc.ManagerId,
@@ -570,7 +573,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     .Where(mc => mc.ManagerId.HasValue && managerIds.Contains(mc.ManagerId.Value))
                     .AsNoTracking();
                 var cQ = _circleRepo
-                    .Where(c => true)
+                    .Where(c => !myBranchId.HasValue || (c.BranchId.HasValue && c.BranchId == myBranchId.Value))
                     .AsNoTracking();
 
                 var circlesFlat = (from mc in mcQ
