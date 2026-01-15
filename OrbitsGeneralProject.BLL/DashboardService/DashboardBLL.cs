@@ -949,9 +949,9 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             return role switch
             {
                 UserTypesEnum.BranchLeader => new DashboardScope { BranchId = branchId },
-                UserTypesEnum.Manager => new DashboardScope { ManagerId = userId },
-                UserTypesEnum.Teacher => new DashboardScope { TeacherId = userId },
-                _ => new DashboardScope()
+                UserTypesEnum.Manager => new DashboardScope { ManagerId = userId, BranchId = branchId },
+                UserTypesEnum.Teacher => new DashboardScope { TeacherId = userId, BranchId = branchId },
+                _ => new DashboardScope { BranchId = branchId }
             };
         }
 
@@ -1184,8 +1184,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             {
                 int branchId = scope.BranchId.Value;
                 query = query.Where(r =>
-                    (r.Teacher != null && r.Teacher.BranchId == branchId) ||
-                    (r.Student != null && r.Student.BranchId == branchId));
+                    r.Circle != null && r.Circle.BranchId.HasValue && r.Circle.BranchId == branchId);
             }
 
             if (scope.ManagerId.HasValue)
@@ -1213,7 +1212,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             if (scope.BranchId.HasValue)
             {
                 int branchId = scope.BranchId.Value;
-                query = query.Where(c => c.Teacher != null && c.Teacher.BranchId == branchId);
+                query = query.Where(c => c.BranchId.HasValue && c.BranchId == branchId);
             }
 
             if (scope.ManagerId.HasValue)
