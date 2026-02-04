@@ -22,6 +22,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
         Task<IResponse<bool>> AddAsync(CircleReportAddDto model, int userId);
         Task<IResponse<bool>> Update(CircleReportAddDto model, int userId);
+        Task<IResponse<bool>> DeleteAsync(int id, int userId);
 
 
     }

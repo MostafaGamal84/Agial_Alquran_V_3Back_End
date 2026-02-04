@@ -41,6 +41,10 @@ namespace OrbitsProject.API.Controllers
         [HttpPost("Update"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Update(CircleReportAddDto model)
            => Ok(await _circleReportBLL.Update(model, UserId));
+
+        [HttpPost("Delete"), ProducesResponseType(typeof(IResponse<bool>), 200)]
+        public async Task<IActionResult> Delete(int id)
+           => Ok(await _circleReportBLL.DeleteAsync(id, UserId));
     }
 
 }

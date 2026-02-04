@@ -307,6 +307,55 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             return output.CreateResponse(true);
         }
 
+        public async Task<IResponse<bool>> DeleteAsync(int id, int userId)
+        {
+            var output = new Response<bool>();
+
+            var report = await _circleReportRepository.GetByIdAsync(id);
+            if (report == null || report.IsDeleted)
+            {
+                return output.AppendError(MessageCodes.NotFound);
+            }
+
+            var student = _userRepository.GetById(report.StudentId ?? 0);
+            if (student == null)
+            {
+                return output.CreateResponse(MessageCodes.StudentNotFound);
+            }
+
+            var studentSubscribe = student.StudentSubscribes.LastOrDefault();
+            if (studentSubscribe == null)
+            {
+                return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
+            }
+
+            if (CountsForBilling(report.AttendStatueId) && report.Minutes.HasValue)
+            {
+                studentSubscribe.RemainingMinutes += (int)report.Minutes.Value;
+                studentSubscribe.ModefiedAt = DateTime.UtcNow;
+                studentSubscribe.ModefiedBy = userId;
+            }
+
+            report.IsDeleted = true;
+            report.ModifiedBy = userId;
+            report.ModifiedAt = DateTime.UtcNow;
+
+            var teacherReport = _teacherReportRecordRepository
+                .Where(x => x.CircleReportId == id && x.IsDeleted != true)
+                .FirstOrDefault();
+
+            if (teacherReport != null)
+            {
+                teacherReport.IsDeleted = true;
+                teacherReport.ModefiedAt = DateTime.UtcNow;
+                teacherReport.ModefiedBy = userId;
+            }
+
+            await _unitOfWork.CommitAsync();
+
+            return output.CreateResponse(true);
+        }
+
         private int CalculateTeacherSalary(decimal hourlyRate, double? minutes)
         {
             if (minutes == null)
