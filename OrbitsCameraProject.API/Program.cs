@@ -158,6 +158,8 @@ app.UseAuthorization();
 
 // ----- Map controllers
 app.MapControllers();
+//app.MapFallbackToFile("index.html");
+
 
 // ----- Run
 app.Run();

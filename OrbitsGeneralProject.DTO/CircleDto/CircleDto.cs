@@ -11,6 +11,7 @@ namespace Orbits.GeneralProject.DTO.CircleDto
         public int Id { get; set; }
         public string? Name { get; set; }
         public int? TeacherId { get; set; }
+        public int? BranchId { get; set; }
         public UserLockUpDto? Teacher { get; set; }
 
 

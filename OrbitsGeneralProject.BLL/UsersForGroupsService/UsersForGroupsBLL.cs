@@ -45,7 +45,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
      bool includeRelations = false,
      int? targetUserId = null
  )
-        {
+      {
             var output = new Response<PagedResultDto<UserLockUpDto>>();
             var searchWord = pagedDto.SearchTerm?.Trim();
             // --- NEW: read Filter without adding any helper method ---
@@ -72,6 +72,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 if (fl.Contains("lookuponly=true") || fl.Contains("lookup=true") || fl.Contains("idsonly=true"))
                 {
                     lookupOnly = true;
+                    pagedDto.MaxResultCount = 3000000;
                     includeManagerRelations = false; // skip heavy joins for lookup-only mode
                     includeTeacherAndStudentRelations = false;
                 }

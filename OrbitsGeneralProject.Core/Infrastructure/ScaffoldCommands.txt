@@ -4,6 +4,6 @@ Scaffold-DbContext "Data Source=Mostafa-Gamal;Initial Catalog=agial_alquran_V_3_
 
 // scaffold from server:
 
-Scaffold-DbContext "workstation id=agial_alquran_V_3_Final_DB.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=agial_alquran_V_3_Final_DB.mssql.somee.com;persist security info=False;initial catalog=agial_alquran_V_3_Final_DB;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Context OrbitsContext -OutputDir Entities -Force
+Scaffold-DbContext "workstation id=ajyalDBcopy.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=ajyalDBcopy.mssql.somee.com;persist security info=False;initial catalog=ajyalDBcopy;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Context OrbitsContext -OutputDir Entities -Force
 
 

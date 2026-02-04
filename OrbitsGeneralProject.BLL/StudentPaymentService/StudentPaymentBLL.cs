@@ -323,6 +323,14 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 _StudentSubscribeRepo.Delete(studentSubscribe);
             }
 
+            if (dto.PayStatue == false && dto.IsCancelled == false)
+            {
+                entity.IsCancelled = false;
+                entity.PayStatue = false;
+                entity.ModefiedBy = userId;
+                entity.ModefiedAt = DateTime.Now;
+            }
+
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(true);
         }

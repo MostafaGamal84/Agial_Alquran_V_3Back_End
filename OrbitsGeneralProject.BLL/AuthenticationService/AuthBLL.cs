@@ -86,22 +86,22 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             if (user.Inactive || user.IsDeleted)
                 return output.AppendError(MessageCodes.NotActive);
 
-            //if (string.IsNullOrEmpty(user.PasswordHash))
-            //    return output.CreateResponse(MessageCodes.PasswordIsNullInThisUser);
+            if (string.IsNullOrEmpty(user.PasswordHash))
+                return output.CreateResponse(MessageCodes.PasswordIsNullInThisUser);
 
-            //// Check if the rate limit has been exceeded
-            //if (RateLimitReachedForFailedLogin(model.Email))
-            //    return output.CreateResponse(MessageCodes.ReachedForFailedAttempts);
-            //PasswordHasher<User> passwordHasher = new PasswordHasher<User>();
-            //PasswordVerificationResult passwordCheck = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.Password);
-            //if (passwordCheck == PasswordVerificationResult.Failed)
-            //{
-            //    // Log failed attempt and respond
-            //    LoginFailedAttempt(model.Email);
-            //    return output.CreateResponse(MessageCodes.FailedToLogin);
-            //}
-            //// If the password is correct, reset failed login attempts
-            //ResetFailedLoginAttempts(model.Email);
+            // Check if the rate limit has been exceeded
+            if (RateLimitReachedForFailedLogin(model.Email))
+                return output.CreateResponse(MessageCodes.ReachedForFailedAttempts);
+            PasswordHasher<User> passwordHasher = new PasswordHasher<User>();
+            PasswordVerificationResult passwordCheck = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.Password);
+            if (passwordCheck == PasswordVerificationResult.Failed)
+            {
+                // Log failed attempt and respond
+                LoginFailedAttempt(model.Email);
+                return output.CreateResponse(MessageCodes.FailedToLogin);
+            }
+            // If the password is correct, reset failed login attempts
+            ResetFailedLoginAttempts(model.Email);
 
             LoginResultDto loginResult = new LoginResultDto();
             //check if any refresh token not active in RefreshToken Table 

@@ -1,4 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
@@ -39,5 +41,10 @@
     <ProjectReference Include="..\OrbitsGeneralProject.DTO\Orbits.GeneralProject.DTO.csproj" />
     <ProjectReference Include="..\OrbitsGeneralProject.Repositroy\Orbits.GeneralProject.Repositroy.csproj" />
   </ItemGroup>
+	<ItemGroup>
+		<Content Include="wwwroot\**">
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
 
 </Project>
