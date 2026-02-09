@@ -12,6 +12,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ModefiedAt { get; set; }
         public int? ManagerId { get; set; }
         public int? TeacherId { get; set; }
+        public bool? IsDeleted { get; set; }
 
         public virtual User? Manager { get; set; }
         public virtual User? Teacher { get; set; }

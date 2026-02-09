@@ -35,7 +35,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<TeacherSchedule> TeacherSchedules { get; set; } = null!;
         public virtual DbSet<User> Users { get; set; } = null!;
         public virtual DbSet<UserType> UserTypes { get; set; } = null!;
-        public virtual DbSet<VCircleTeacherInfo> VCircleTeacherInfoes { get; set; } = null!;
 
  public OrbitsContext()
         {
@@ -509,13 +508,6 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.IsDeleted).HasDefaultValueSql("((0))");
 
                 entity.Property(e => e.UserTypeName).HasMaxLength(50);
-            });
-
-            modelBuilder.Entity<VCircleTeacherInfo>(entity =>
-            {
-                entity.HasNoKey();
-
-                entity.ToView("V_CircleTeacherInfo");
             });
 
             OnModelCreatingPartial(modelBuilder);

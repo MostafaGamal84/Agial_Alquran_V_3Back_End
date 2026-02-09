@@ -154,6 +154,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             modelBuilder.Entity<StudentPayment>().Ignore(f => f.IsDeleted);
             modelBuilder.Entity<TeacherSallary>().Ignore(f => f.IsDeleted);
             modelBuilder.Entity<ManagerSallary>().Ignore(f => f.IsDeleted);
+            modelBuilder.Entity<ManagerTeacher>().Ignore(f => f.IsDeleted);
 
 
 
