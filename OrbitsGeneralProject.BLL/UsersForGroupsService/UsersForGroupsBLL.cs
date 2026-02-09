@@ -188,6 +188,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             if (lookupOnly)
             {
                 var lookupQuery = _UserRepo
+                    .DisableFilter()
                     .Where(predicate)
                     .AsNoTracking();
 
@@ -217,6 +218,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             if (!includeManagerRelations && !includeTeacherAndStudentRelations)
             {
                 var baseQuery = _UserRepo
+                    .DisableFilter()
                     .Where(predicate)
                     .AsNoTracking();
 
