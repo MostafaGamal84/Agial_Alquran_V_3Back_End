@@ -20,19 +20,23 @@ namespace Orbits.GeneralProject.BLL.UserService
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<Circle> _circleRepository;
         private readonly IRepository<ManagerCircle> _managerCircleRepository;
+        private readonly IRepository<ManagerTeacher> _managerTeacherRepository;
+        private readonly IRepository<ManagerStudent> _managerStudentRepository;
         private readonly IRepository<Nationality> _nationalityRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public UserBLL(IMapper mapper, IRepository<User> userrepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<Nationality> nationalityRepository, IRepository<ManagerCircle> managerCircleRepository, IRepository<Circle> circleRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<Nationality> nationalityRepository, IRepository<ManagerCircle> managerCircleRepository, IRepository<Circle> circleRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
         {
             _userRepository = userrepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _managerCircleRepository = managerCircleRepository;
             _circleRepository = circleRepository;
+            _managerTeacherRepository = managerTeacherRepository;
+            _managerStudentRepository = managerStudentRepository;
             _nationalityRepository = nationalityRepository;
         }
 
@@ -131,46 +135,51 @@ namespace Orbits.GeneralProject.BLL.UserService
                 // IMPORTANT: ?????? Query() ?? ?????? ?? _dbContext.Users.AsQueryable()
                 var usersQuery = _userRepository.GetAll();
 
-                // ===== TEACHERS =====
-                // ???????? ????????? ???? ??????
-                var currentTeachers =  usersQuery
-                    .Where(u => u.ManagerId == existedUser.Id
-                                && u.UserTypeId == (int)UserTypesEnum.Teacher).ToList();
-
-                // ????????? ??????? ????? (????? ?? ?????)
-                var teachersToAssign = teacherIds.Count == 0
-                    ? new List<User>()
-                    :  usersQuery
+                // ===== TEACHERS (ManagerTeacher M:N) =====
+                var teacherUserIds = teacherIds.Count == 0
+                    ? new HashSet<int>()
+                    : usersQuery
                         .Where(u => teacherIds.Contains(u.Id)
                                     && u.UserTypeId == (int)UserTypesEnum.Teacher)
-                        .ToList();
+                        .Select(u => u.Id)
+                        .ToHashSet();
 
-                // ???? ?? ???? ?? ??????
-                foreach (var t in teachersToAssign)
+                var currentTeacherLinks = _managerTeacherRepository.GetAll()
+                    .Where(mt => mt.ManagerId == existedUser.Id && mt.TeacherId.HasValue)
+                    .ToList();
+
+                var currentTeacherIds = currentTeacherLinks
+                    .Where(mt => mt.TeacherId.HasValue)
+                    .Select(mt => mt.TeacherId!.Value)
+                    .ToHashSet();
+
+                var linksToDelete = currentTeacherLinks
+                    .Where(mt => !teacherUserIds.Contains(mt.TeacherId!.Value))
+                    .ToList();
+
+                foreach (var link in linksToDelete)
+                    _managerTeacherRepository.Delete(link);
+
+                var teacherIdsToAdd = teacherUserIds.Where(id => !currentTeacherIds.Contains(id));
+                foreach (var teacherId in teacherIdsToAdd)
                 {
-                    if (t.ManagerId != existedUser.Id)
+                    _managerTeacherRepository.Add(new ManagerTeacher
                     {
-                        t.ManagerId = existedUser.Id;
-                        t.ModefiedAt = DateTime.Now;
-                        t.ModefiedBy = userid;
-                        _userRepository.Update(t);
-                    }
-                }
-
-                // ???? ?? ?? ??? ????? ??? ????? ?? ?????? ???????
-                var teachersToDetach = currentTeachers.Where(t => !teacherIds.Contains(t.Id)).ToList();
-                foreach (var t in teachersToDetach)
-                {
-                    t.ManagerId = null;
-                    t.ModefiedAt = DateTime.Now;
-                    t.ModefiedBy = userid;
-                    _userRepository.Update(t);
+                        ManagerId = existedUser.Id,
+                        TeacherId = teacherId,
+                        CreatedBy = userid,
+                        CreatedAt = DateTime.Now,
+                        ModefiedBy = userid,
+                        ModefiedAt = DateTime.Now
+                    });
                 }
 
                 // ===== STUDENTS =====
-                var currentStudents =  usersQuery
-                    .Where(u => u.ManagerId == existedUser.Id
-                                && u.UserTypeId == (int)UserTypesEnum.Student)
+                var currentStudents = (from ms in _managerStudentRepository.GetAll()
+                                      join u in usersQuery on ms.StudentId equals u.Id
+                                      where ms.ManagerId == existedUser.Id
+                                            && u.UserTypeId == (int)UserTypesEnum.Student
+                                      select u)
                     .ToList();
 
                 var studentsToAssign = studentIds.Count == 0
@@ -182,9 +191,17 @@ namespace Orbits.GeneralProject.BLL.UserService
 
                 foreach (var s in studentsToAssign)
                 {
-                    if (s.ManagerId != existedUser.Id)
+                    if (!_managerStudentRepository.GetAll().Any(ms => ms.ManagerId == existedUser.Id && ms.StudentId == s.Id))
                     {
-                        s.ManagerId = existedUser.Id;
+                        _managerStudentRepository.Add(new ManagerStudent
+                        {
+                            ManagerId = existedUser.Id,
+                            StudentId = s.Id,
+                            CreatedBy = userid,
+                            CreatedAt = DateTime.Now,
+                            ModefiedAt = DateTime.Now,
+                            ModefiedBy = userid
+                        });
                         s.ModefiedAt = DateTime.Now;
                         s.ModefiedBy = userid;
                         _userRepository.Update(s);
@@ -194,7 +211,11 @@ namespace Orbits.GeneralProject.BLL.UserService
                 var studentsToDetach = currentStudents.Where(s => !studentIds.Contains(s.Id)).ToList();
                 foreach (var s in studentsToDetach)
                 {
-                    s.ManagerId = null;
+                    var links = _managerStudentRepository.GetAll()
+                        .Where(ms => ms.ManagerId == existedUser.Id && ms.StudentId == s.Id)
+                        .ToList();
+                    foreach (var link in links)
+                        _managerStudentRepository.Delete(link);
                     s.ModefiedAt = DateTime.Now;
                     s.ModefiedBy = userid;
                     _userRepository.Update(s);

@@ -22,12 +22,13 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         private readonly IRepository<SubscribeType> _subscribeTypeRepository;
         private readonly IRepository<Nationality> _nationalityRepository;
         private readonly IRepository<User> _userRepository;
+        private readonly IRepository<ManagerStudent> _managerStudentRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository) : base(mapper)
+             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
@@ -37,6 +38,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _studentSubscribeRecordRepository = studentSubscribeRecordRepository;
             _subscribeTypeRepository = subscribeTypeRepository;
             _nationalityRepository = nationalityRepository;
+            _managerStudentRepository = managerStudentRepository;
         }
 
 
@@ -67,6 +69,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
+            var managerStudentsQuery = _managerStudentRepository.GetAll();
 
             // ?????? ??????: ??????? + ????? ????? + ???
             Expression<Func<CircleReport, bool>> predicate = r =>
@@ -83,7 +86,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
                     // Manager: ?????? ????? ?????? ??? ???????
                     || (isManager &&
-                        (r.Student != null && r.Student.ManagerId == me.Id)
+                        (r.Student != null && managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == r.StudentId))
                        )
 
                     // Teacher: ?????? ????? ?? ????? ??????? ?????? ??????

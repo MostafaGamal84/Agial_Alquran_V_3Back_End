@@ -30,6 +30,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         private readonly IRepository<ManagerSallary> _managerSalaryRepository;
         private readonly IRepository<Subscribe> _subscribeRepository;
         private readonly IRepository<SubscribeType> _subscribeTypeRepository;
+        private readonly IRepository<ManagerStudent> _managerStudentRepository;
+        private readonly IRepository<ManagerTeacher> _managerTeacherRepository;
 
         public DashboardBLL(
             IMapper mapper,
@@ -40,7 +42,9 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             IRepository<TeacherSallary> teacherSalaryRepository,
             IRepository<ManagerSallary> managerSalaryRepository,
             IRepository<Subscribe> subscribeRepository,
-            IRepository<SubscribeType> subscribeTypeRepository) : base(mapper)
+            IRepository<SubscribeType> subscribeTypeRepository,
+            IRepository<ManagerStudent> managerStudentRepository,
+            IRepository<ManagerTeacher> managerTeacherRepository) : base(mapper)
         {
             _studentPaymentRepository = studentPaymentRepository;
             _UserRepository = UserRepository;
@@ -50,6 +54,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             _managerSalaryRepository = managerSalaryRepository;
             _subscribeRepository = subscribeRepository;
             _subscribeTypeRepository = subscribeTypeRepository;
+            _managerStudentRepository = managerStudentRepository;
+            _managerTeacherRepository = managerTeacherRepository;
         }
 
         public async Task<IResponse<DashboardSummaryDto>> GetSummaryAsync()
@@ -1054,6 +1060,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
         private IQueryable<User> CreateScopedTeachersQuery(DashboardScope scope)
         {
+            var managerTeachersQuery = _managerTeacherRepository.GetAll();
             var query = _UserRepository.GetAll()
                 .AsNoTracking()
                 .Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher && !u.IsDeleted && !u.Inactive);
@@ -1065,7 +1072,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
             if (scope.ManagerId.HasValue)
             {
-                query = query.Where(u => u.ManagerId == scope.ManagerId.Value);
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(u => managerTeachersQuery.Any(mt => mt.ManagerId == managerId && mt.TeacherId == u.Id));
             }
 
             if (scope.TeacherId.HasValue)
@@ -1078,6 +1086,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
         private IQueryable<User> CreateScopedStudentsQuery(DashboardScope scope)
         {
+            var managerStudentsQuery = _managerStudentRepository.GetAll();
             var query = _UserRepository.GetAll()
                 .AsNoTracking()
                 .Where(u => u.UserTypeId == (int)UserTypesEnum.Student && !u.IsDeleted && !u.Inactive);
@@ -1089,7 +1098,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
             if (scope.ManagerId.HasValue)
             {
-                query = query.Where(u => u.ManagerId == scope.ManagerId.Value);
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(u => managerStudentsQuery.Any(ms => ms.ManagerId == managerId && ms.StudentId == u.Id));
             }
 
             if (scope.TeacherId.HasValue)
@@ -1100,8 +1110,9 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             return query;
         }
 
-        private static IQueryable<StudentPayment> ApplyPaymentScope(IQueryable<StudentPayment> query, DashboardScope scope)
+        private IQueryable<StudentPayment> ApplyPaymentScope(IQueryable<StudentPayment> query, DashboardScope scope)
         {
+            var managerStudentsQuery = _managerStudentRepository.GetAll();
             query = query
                 .Where(p => p.Amount.HasValue)
                 .Where(p => p.PayStatue == true)
@@ -1117,7 +1128,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             if (scope.ManagerId.HasValue)
             {
                 int managerId = scope.ManagerId.Value;
-                query = query.Where(p => p.Student!.ManagerId == managerId);
+                query = query.Where(p => managerStudentsQuery.Any(ms => ms.ManagerId == managerId && ms.StudentId == p.StudentId));
             }
 
             if (scope.TeacherId.HasValue)
@@ -1129,8 +1140,9 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             return query;
         }
 
-        private static IQueryable<TeacherSallary> ApplyTeacherSalaryScope(IQueryable<TeacherSallary> query, DashboardScope scope)
+        private IQueryable<TeacherSallary> ApplyTeacherSalaryScope(IQueryable<TeacherSallary> query, DashboardScope scope)
         {
+            var managerTeachersQuery = _managerTeacherRepository.GetAll();
             query = query.Where(s => s.Sallary.HasValue)
                          .Where(s => s.IsPayed == true)
                          .Where(s => s.IsDeleted == null || !s.IsDeleted.Value);
@@ -1144,7 +1156,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             if (scope.ManagerId.HasValue)
             {
                 int managerId = scope.ManagerId.Value;
-                query = query.Where(s => s.Teacher != null && s.Teacher.ManagerId == managerId);
+                query = query.Where(s => managerTeachersQuery.Any(mt => mt.ManagerId == managerId && mt.TeacherId == s.TeacherId));
             }
 
             if (scope.TeacherId.HasValue)
@@ -1176,8 +1188,10 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             return query;
         }
 
-        private static IQueryable<CircleReport> ApplyCircleReportScope(IQueryable<CircleReport> query, DashboardScope scope)
+        private IQueryable<CircleReport> ApplyCircleReportScope(IQueryable<CircleReport> query, DashboardScope scope)
         {
+            var managerStudentsQuery = _managerStudentRepository.GetAll();
+            var managerTeachersQuery = _managerTeacherRepository.GetAll();
             query = query.Where(r => !r.IsDeleted && !r.IsPermanentlyDeleted);
 
             if (scope.BranchId.HasValue)
@@ -1191,8 +1205,8 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             {
                 int managerId = scope.ManagerId.Value;
                 query = query.Where(r =>
-                    (r.Student != null && r.Student.ManagerId == managerId) ||
-                    (r.Teacher != null && r.Teacher.ManagerId == managerId) ||
+                    (r.StudentId.HasValue && managerStudentsQuery.Any(ms => ms.ManagerId == managerId && ms.StudentId == r.StudentId.Value)) ||
+                    (r.TeacherId.HasValue && managerTeachersQuery.Any(mt => mt.ManagerId == managerId && mt.TeacherId == r.TeacherId.Value)) ||
                     (r.Circle != null && r.Circle.ManagerCircles.Any(mc => mc.ManagerId == managerId)));
             }
 
