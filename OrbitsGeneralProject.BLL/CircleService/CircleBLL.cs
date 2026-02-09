@@ -152,7 +152,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                         var effectiveManagerId = mId ?? userId; // use query managerId if given, else current user
                         foreach (var c in page.Items)
                             if (c.Students != null)
-                                c.Students = c.Students.Where(s => s.Managers != null && s.Managers.Any(m => m.ManagerId == effectiveManagerId)).ToList();
+                                c.Students = c.Students.Where(s => s.ManagerId == effectiveManagerId).ToList();
                         break;
                     }
                 case UserTypesEnum.Teacher:
@@ -229,7 +229,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             {
                 case UserTypesEnum.Manager:
                     if (dto.Students != null)
-                        dto.Students = dto.Students.Where(s => s.Managers != null && s.Managers.Any(m => m.ManagerId == userId)).ToList();
+                        dto.Students = dto.Students.Where(s => s.ManagerId == userId).ToList();
                     break;
                 case UserTypesEnum.Teacher:
                     if (dto.Students != null)
