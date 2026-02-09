@@ -31,6 +31,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
         private readonly IRepository<Circle> _circleRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<ManagerCircle> _managerCircleRepository;
+        private readonly IRepository<ManagerStudent> _managerStudentRepository;
         private readonly IRepository<CircleDay> _circleDayRepository;
         private readonly IRepository<Day> _dayRepository;
 
@@ -64,13 +65,14 @@ namespace Orbits.GeneralProject.BLL.CircleService
         };
         public CircleBLL(IMapper mapper, IRepository<Circle> circleRepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<CircleDay> circleDayRepository, IRepository<Day> dayRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<ManagerCircle> managerCircleRepository, IRepository<User> userRepository, IRepository<ManagerStudent> managerStudentRepository, IRepository<CircleDay> circleDayRepository, IRepository<Day> dayRepository) : base(mapper)
         {
             _circleRepository = circleRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _managerCircleRepository = managerCircleRepository;
             _userRepository = userRepository;
+            _managerStudentRepository = managerStudentRepository;
             _circleDayRepository = circleDayRepository;
             _dayRepository = dayRepository;
         }
@@ -149,11 +151,17 @@ namespace Orbits.GeneralProject.BLL.CircleService
             {
                 case UserTypesEnum.Manager:
                     {
-                        var effectiveManagerId = userId; // manager requester should only see his own students
+                        var managedStudentIds = _managerStudentRepository
+                            .GetAll()
+                            .Where(ms => ms.ManagerId == userId && ms.StudentId.HasValue)
+                            .Select(ms => ms.StudentId!.Value)
+                            .Distinct()
+                            .ToHashSet();
+
                         foreach (var c in page.Items)
                             if (c.Students != null)
                                 c.Students = c.Students
-                                    .Where(s => s.ManagerId == effectiveManagerId && s.CircleId == c.Id)
+                                    .Where(s => managedStudentIds.Contains(s.Id) && s.CircleId == c.Id)
                                     .ToList();
                         break;
                     }
@@ -231,9 +239,18 @@ namespace Orbits.GeneralProject.BLL.CircleService
             {
                 case UserTypesEnum.Manager:
                     if (dto.Students != null)
+                    {
+                        var managedStudentIds = _managerStudentRepository
+                            .GetAll()
+                            .Where(ms => ms.ManagerId == userId && ms.StudentId.HasValue)
+                            .Select(ms => ms.StudentId!.Value)
+                            .Distinct()
+                            .ToHashSet();
+
                         dto.Students = dto.Students
-                            .Where(s => s.ManagerId == userId && s.CircleId == dto.Id)
+                            .Where(s => managedStudentIds.Contains(s.Id) && s.CircleId == dto.Id)
                             .ToList();
+                    }
                     break;
                 case UserTypesEnum.Teacher:
                     if (dto.Students != null)
