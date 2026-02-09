@@ -18,6 +18,7 @@ namespace Orbits.GeneralProject.DTO.UserDtos
         public int? GovernorateId { get; set; }
         public int? BranchId { get; set; }
         public int? ManagerId { get; set; }
+        public List<int>? ManagerIds { get; set; }
         public int? TeacherId { get; set; }
         public int? CircleId { get; set; }
         public List<int>? TeacherIds { get; set; }
