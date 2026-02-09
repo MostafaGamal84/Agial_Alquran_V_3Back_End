@@ -225,7 +225,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
         private static (int Amount, int Currency) ResolvePaymentDetails(Subscribe subscribe, SubscribeTypeCategory group)
         {
-            decimal price = subscribe.Price ?? 0;
+            decimal price = subscribe.Price;
             int currencyId = group switch
             {
                 SubscribeTypeCategory.Egyptian => (int)CurrencyEnum.EGP,
