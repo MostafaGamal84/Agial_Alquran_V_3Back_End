@@ -21,6 +21,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<ManagerReportType> ManagerReportTypes { get; set; } = null!;
         public virtual DbSet<ManagerSallary> ManagerSallaries { get; set; } = null!;
         public virtual DbSet<ManagerStudent> ManagerStudents { get; set; } = null!;
+        public virtual DbSet<ManagerTeacher> ManagerTeachers { get; set; } = null!;
         public virtual DbSet<Nationality> Nationalities { get; set; } = null!;
         public virtual DbSet<Permission> Permissions { get; set; } = null!;
         public virtual DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
@@ -34,6 +35,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<TeacherSchedule> TeacherSchedules { get; set; } = null!;
         public virtual DbSet<User> Users { get; set; } = null!;
         public virtual DbSet<UserType> UserTypes { get; set; } = null!;
+        public virtual DbSet<VCircleTeacherInfo> VCircleTeacherInfoes { get; set; } = null!;
 
  public OrbitsContext()
         {
@@ -252,6 +254,25 @@ namespace Orbits.GeneralProject.Core.Entities
                     .HasConstraintName("FK_ManagerStudent_Student");
             });
 
+            modelBuilder.Entity<ManagerTeacher>(entity =>
+            {
+                entity.ToTable("ManagerTeacher");
+
+                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Manager)
+                    .WithMany(p => p.ManagerTeacherManagers)
+                    .HasForeignKey(d => d.ManagerId)
+                    .HasConstraintName("FK_ManagerTeacher_Manager");
+
+                entity.HasOne(d => d.Teacher)
+                    .WithMany(p => p.ManagerTeacherTeachers)
+                    .HasForeignKey(d => d.TeacherId)
+                    .HasConstraintName("FK_ManagerTeacher_Teacher");
+            });
+
             modelBuilder.Entity<Nationality>(entity =>
             {
                 entity.ToTable("Nationality");
@@ -356,7 +377,7 @@ namespace Orbits.GeneralProject.Core.Entities
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
 
-                entity.Property(e => e.Price).HasColumnType("decimal(5, 2)");
+                entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
 
                 entity.HasOne(d => d.SubscribeType)
                     .WithMany(p => p.Subscribes)
@@ -465,11 +486,6 @@ namespace Orbits.GeneralProject.Core.Entities
                     .HasForeignKey(d => d.GovernorateId)
                     .HasConstraintName("FK_User_Governorate");
 
-                entity.HasOne(d => d.Manager)
-                    .WithMany(p => p.InverseManager)
-                    .HasForeignKey(d => d.ManagerId)
-                    .HasConstraintName("FK_User_Manager");
-
                 entity.HasOne(d => d.Nationality)
                     .WithMany(p => p.UserNationalities)
                     .HasForeignKey(d => d.NationalityId)
@@ -493,6 +509,13 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.IsDeleted).HasDefaultValueSql("((0))");
 
                 entity.Property(e => e.UserTypeName).HasMaxLength(50);
+            });
+
+            modelBuilder.Entity<VCircleTeacherInfo>(entity =>
+            {
+                entity.HasNoKey();
+
+                entity.ToView("V_CircleTeacherInfo");
             });
 
             OnModelCreatingPartial(modelBuilder);

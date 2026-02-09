@@ -145,6 +145,8 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseRouting();            // ✅ أضف دي
+
 // ----- CORS
 app.UseCors("CorsPolicy");
 

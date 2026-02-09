@@ -8,7 +8,6 @@ namespace Orbits.GeneralProject.BLL.StaticEnums
 {
     public enum CurrencyEnum
     {
-        LE = 1,
         EGP = 1,
         SAR = 2,
         USD = 3,

@@ -226,7 +226,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             decimal price = subscribe.Price ?? 0;
             int currencyId = group switch
             {
-                SubscribeTypeCategory.Egyptian => (int)CurrencyEnum.LE,
+                SubscribeTypeCategory.Egyptian => (int)CurrencyEnum.EGP,
                 SubscribeTypeCategory.Arab => (int)CurrencyEnum.SAR,
                 SubscribeTypeCategory.Foreign => (int)CurrencyEnum.USD,
                 _ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unsupported subscription group")

@@ -11,7 +11,6 @@ namespace Orbits.GeneralProject.Core.Entities
             CircleReportStudents = new HashSet<CircleReport>();
             CircleReportTeachers = new HashSet<CircleReport>();
             Circles = new HashSet<Circle>();
-            InverseManager = new HashSet<User>();
             InverseTeacher = new HashSet<User>();
             ManagerCircles = new HashSet<ManagerCircle>();
             ManagerReportManagers = new HashSet<ManagerReport>();
@@ -19,6 +18,8 @@ namespace Orbits.GeneralProject.Core.Entities
             ManagerSallaries = new HashSet<ManagerSallary>();
             ManagerStudentManagers = new HashSet<ManagerStudent>();
             ManagerStudentStudents = new HashSet<ManagerStudent>();
+            ManagerTeacherManagers = new HashSet<ManagerTeacher>();
+            ManagerTeacherTeachers = new HashSet<ManagerTeacher>();
             RefreshTokens = new HashSet<RefreshToken>();
             StudentPayments = new HashSet<StudentPayment>();
             StudentSubscribes = new HashSet<StudentSubscribe>();
@@ -49,11 +50,9 @@ namespace Orbits.GeneralProject.Core.Entities
         public string? Code { get; set; }
         public int? CircleId { get; set; }
         public int? TeacherId { get; set; }
-        public int? ManagerId { get; set; }
 
         public virtual Circle? Circle { get; set; }
         public virtual Governorate? Governorate { get; set; }
-        public virtual User? Manager { get; set; }
         public virtual Nationality? Nationality { get; set; }
         public virtual Nationality? Resident { get; set; }
         public virtual User? Teacher { get; set; }
@@ -61,7 +60,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual ICollection<CircleReport> CircleReportStudents { get; set; }
         public virtual ICollection<CircleReport> CircleReportTeachers { get; set; }
         public virtual ICollection<Circle> Circles { get; set; }
-        public virtual ICollection<User> InverseManager { get; set; }
         public virtual ICollection<User> InverseTeacher { get; set; }
         public virtual ICollection<ManagerCircle> ManagerCircles { get; set; }
         public virtual ICollection<ManagerReport> ManagerReportManagers { get; set; }
@@ -69,6 +67,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual ICollection<ManagerSallary> ManagerSallaries { get; set; }
         public virtual ICollection<ManagerStudent> ManagerStudentManagers { get; set; }
         public virtual ICollection<ManagerStudent> ManagerStudentStudents { get; set; }
+        public virtual ICollection<ManagerTeacher> ManagerTeacherManagers { get; set; }
+        public virtual ICollection<ManagerTeacher> ManagerTeacherTeachers { get; set; }
         public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
         public virtual ICollection<StudentPayment> StudentPayments { get; set; }
         public virtual ICollection<StudentSubscribe> StudentSubscribes { get; set; }

@@ -324,7 +324,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 decimal previousNetIncomeRaw = Round(previousEarningsRaw - previousOutgoing);
 
                 decimal incomingEgpRaw = await paymentsRangeQuery
-                    .Where(p => p.CurrencyId == (int)CurrencyEnum.LE || p.CurrencyId == null)
+                    .Where(p => p.CurrencyId == (int)CurrencyEnum.EGP || p.CurrencyId == null)
                     .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
                 decimal incomingSarRaw = await paymentsRangeQuery
                     .Where(p => p.CurrencyId == (int)CurrencyEnum.SAR)
@@ -338,7 +338,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 metrics.CurrencyCode = DefaultCurrencyCode;
 
                 metrics.Earnings = Round(earningsRaw);
-                metrics.EarningsCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.LE);
+                metrics.EarningsCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.EGP);
                 metrics.EarningsPercentChange = CalculatePercentageChange(metrics.Earnings, previousEarningsRaw);
 
                 metrics.NetIncome = netIncomeRaw;
@@ -349,7 +349,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 metrics.OutgoingCurrencyCode = DefaultCurrencyCode;
 
                 metrics.IncomingEgp = Round(incomingEgpRaw);
-                metrics.IncomingEgpCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.LE);
+                metrics.IncomingEgpCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.EGP);
 
                 metrics.IncomingSar = Round(incomingSarRaw);
                 metrics.IncomingSarCurrencyCode = ResolveCurrencyCode((int)CurrencyEnum.SAR);
@@ -1344,7 +1344,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                 {
                     Id = entry.Id,
                     Amount = Round(entry.Amount ?? 0m),
-                    Currency = ResolveCurrencyCode(entry.CurrencyId ?? (int)CurrencyEnum.LE),
+                    Currency = ResolveCurrencyCode(entry.CurrencyId ?? (int)CurrencyEnum.EGP),
                     Date = FormatDate((entry.PaymentDate ?? entry.CreatedAt) ?? DateTime.UtcNow),
                     Status = entry.IsCancelled == true
                         ? "failed"

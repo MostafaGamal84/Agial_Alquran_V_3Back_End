@@ -17,7 +17,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? ModefiedBy { get; set; }
         public DateTime? ModefiedAt { get; set; }
         public string? Name { get; set; }
-        public decimal? Price { get; set; }
+        public decimal Price { get; set; }
         public int? Minutes { get; set; }
         public int? SubscribeTypeId { get; set; }
         public bool? IsDeleted { get; set; }
