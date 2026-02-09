@@ -47,6 +47,8 @@ namespace Orbits.GeneralProject.BLL.LookUpService
             if (me == null) return output.AppendError(MessageCodes.NotFound);
 
             var sw = searchWord?.ToLower();
+            var managerStudentsQuery = _managerStudentRepo.GetAll();
+            var managerTeachersQuery = _managerTeacherRepo.GetAll();
 
             // Build ONE predicate that includes:
             // - target user type (userTypeId)
@@ -56,7 +58,7 @@ namespace Orbits.GeneralProject.BLL.LookUpService
                 x.UserTypeId == userTypeId
                 // role-based restriction (applies only when the logged-in role matches)
                 && (!(me.UserTypeId == (int)UserTypesEnum.BranchLeader) || x.BranchId == me.BranchId)
-                && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id) || _managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id))
+                && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id) || managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id))
                 && (!(me.UserTypeId == (int)UserTypesEnum.Teacher) || x.TeacherId == me.Id)
                 // optional search (grouped to avoid &&/|| precedence issues)
                 && (

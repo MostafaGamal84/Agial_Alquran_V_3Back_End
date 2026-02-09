@@ -122,6 +122,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 return output.AppendError(MessageCodes.FailedToFetchData);
 
             string? sw = searchWord?.ToLower();
+            var managerTeachersQuery = _managerTeacherRepo.GetAll();
+            var managerStudentsQuery = _managerStudentRepo.GetAll();
 
             // ---------- Security + search predicate ----------
             Expression<Func<User, bool>> predicate;
@@ -133,10 +135,10 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!targetUserId.HasValue || x.Id == targetUserId.Value)
                     // Admin optional narrowing:
                     && (!targetIsManager || !safeBranchId.HasValue || x.BranchId == safeBranchId.Value)
-                    && (!targetIsTeacher || !safeManagerId.HasValue || (_managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
+                    && (!targetIsTeacher || !safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
                     && (!targetIsStudent ||
                         (!safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value) &&
-                        (!safeManagerId.HasValue || (_managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id))) &&
+                        (!safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id))) &&
                         (!safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value) &&
                         (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))) &&
                         (!Inactive.HasValue || x.Inactive == Inactive.Value)
@@ -161,16 +163,16 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!isBranchLeader || !myBranchId.HasValue || x.BranchId == myBranchId.Value)
                     && (!targetIsManager || !isManager || !myBranchId.HasValue || x.BranchId == myBranchId.Value)
                     // Managers see only what they own
-                    && (!targetIsTeacher || !isManager || (_managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id)))
-                    && (!targetIsStudent || !isManager || (_managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id)))
+                    && (!targetIsTeacher || !isManager || (managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id)))
+                    && (!targetIsStudent || !isManager || (managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id)))
                     // Teachers see their students
                     && (!targetIsStudent || !isTeacher || x.TeacherId == me.Id)
                     // Explicit filters if provided
-                    && (!targetIsStudent || !safeManagerId.HasValue || (_managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
+                    && (!targetIsStudent || !safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
                     && (!targetIsStudent || !safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value)
                     && (!targetIsStudent || !safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value)
                     && (!targetIsStudent || !applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))
-                    && (!targetIsTeacher || !safeManagerId.HasValue || (_managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
+                    && (!targetIsTeacher || !safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
                     // Search
                     && (
                         string.IsNullOrEmpty(sw) ||
@@ -238,7 +240,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         GovernorateId = x.GovernorateId,
                         BranchId = x.BranchId,
                         TeacherId = x.TeacherId,
-                        ManagerId = _managerStudentRepo.GetAll().Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
+                        ManagerId = managerStudentsQuery.Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
                         Inactive = x.Inactive
                     })
                     .ToList();
@@ -320,7 +322,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                             Governorate = u.Governorate != null ? u.Governorate.Name : null,
                             u.GovernorateId,
                             u.BranchId,
-                            ManagerId = _managerTeacherRepo.GetAll().Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault()
+                            ManagerId = managerTeachersQuery.Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault()
                         })
                         .ToList<dynamic>();
 
@@ -347,7 +349,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     );
 
                 var teachersWithoutManagerByBranch = branchTeachers
-                    .Where(u => !_managerStudentRepo.GetAll().Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue))
+                    .Where(u => !managerStudentsQuery.Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue))
                     .GroupBy(u => (int)u.BranchId)
                     .ToDictionary(
                         g => g.Key,
@@ -372,7 +374,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 var studentsByManager = (managerIds.Count == 0)
                     ? new Dictionary<int, List<UserLockUpDto>>()
                     : _UserRepo
-                        .Where(u => _managerStudentRepo.GetAll().Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue
+                        .Where(u => managerStudentsQuery.Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue
                                     && managerIds.Contains(ms.ManagerId.Value))
                                     && u.UserTypeId == (int)UserTypesEnum.Student
                                     && u.BranchId.HasValue
@@ -392,10 +394,10 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                             Governorate = u.Governorate != null ? u.Governorate.Name : null,
                             u.GovernorateId,
                             u.BranchId,
-                            ManagerId = _managerTeacherRepo.GetAll().Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault()
+                            ManagerId = managerTeachersQuery.Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault()
                         })
                         .ToList()
-                        .GroupBy(u => _managerStudentRepo.GetAll().Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
+                        .GroupBy(u => managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
                         .ToDictionary(
                             g => g.Key,
                             g => g.Select(u => new UserLockUpDto
@@ -435,7 +437,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                            g => g.Key,
                            g => g.Select(x => new ManagerCirclesDto
                            {
-                               ManagerId = _managerStudentRepo.GetAll().Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
+                               ManagerId = managerStudentsQuery.Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
                                CircleId = x.CircleId,
                                Circle = x.CircleName
                            }).ToList()
@@ -524,14 +526,14 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         Governorate = u.Governorate != null ? u.Governorate.Name : null,
                         u.GovernorateId,
                         u.BranchId,
-                        ManagerId = _managerStudentRepo.GetAll().Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
+                        ManagerId = managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
                         u.UserTypeId
                     })
                     .ToList();
 
                 var teachersByManager = relatedUsers
                     .Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher)
-                    .GroupBy(u => _managerStudentRepo.GetAll().Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
+                    .GroupBy(u => managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
                     .ToDictionary(
                         g => g.Key,
                         g => g.Select(u => new UserLockUpDto
@@ -553,7 +555,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 var studentsByManager = relatedUsers
                     .Where(u => u.UserTypeId == (int)UserTypesEnum.Student)
-                    .GroupBy(u => _managerStudentRepo.GetAll().Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
+                    .GroupBy(u => managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
                     .ToDictionary(
                         g => g.Key,
                         g => g.Select(u => new UserLockUpDto
@@ -689,7 +691,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 var teacherManagerPairs = _UserRepo
                     .Where(u => teacherIds.Contains(u.Id))
                     .AsNoTracking()
-                    .Select(u => new { u.Id, ManagerId = _managerTeacherRepo.GetAll().Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault() })
+                    .Select(u => new { u.Id, ManagerId = managerTeachersQuery.Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault() })
                     .ToList()
                     .ToDictionary(x => x.Id, x => x.ManagerId);
 
@@ -744,7 +746,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         u.TeacherId
                     })
                     .ToList()
-                    .ToDictionary(x => x.Id, x => new { x.TeacherId, ManagerId = _managerStudentRepo.GetAll().Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault() });
+                    .ToDictionary(x => x.Id, x => new { x.TeacherId, ManagerId = managerStudentsQuery.Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault() });
 
                 var teacherIds = studentLinks.Values
                     .Where(v => v.TeacherId.HasValue && v.TeacherId.Value > 0)

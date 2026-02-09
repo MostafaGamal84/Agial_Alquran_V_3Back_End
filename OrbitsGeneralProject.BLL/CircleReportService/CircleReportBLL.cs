@@ -69,6 +69,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
+            var managerStudentsQuery = _managerStudentRepository.GetAll();
 
             // ?????? ??????: ??????? + ????? ????? + ???
             Expression<Func<CircleReport, bool>> predicate = r =>
@@ -85,7 +86,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
                     // Manager: ?????? ????? ?????? ??? ???????
                     || (isManager &&
-                        (r.Student != null && _managerStudentRepository.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == r.StudentId))
+                        (r.Student != null && managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == r.StudentId))
                        )
 
                     // Teacher: ?????? ????? ?? ????? ??????? ?????? ??????
