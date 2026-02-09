@@ -528,14 +528,17 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         Governorate = u.Governorate != null ? u.Governorate.Name : null,
                         u.GovernorateId,
                         u.BranchId,
-                        ManagerId = managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
+                        ManagerId = u.UserTypeId == (int)UserTypesEnum.Teacher
+                            ? managerTeachersQuery.Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault()
+                            : managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
                         u.UserTypeId
                     })
                     .ToList();
 
                 var teachersByManager = relatedUsers
                     .Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher)
-                    .GroupBy(u => managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
+                    .Where(u => u.ManagerId.HasValue)
+                    .GroupBy(u => u.ManagerId!.Value)
                     .ToDictionary(
                         g => g.Key,
                         g => g.Select(u => new UserLockUpDto
@@ -557,7 +560,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 var studentsByManager = relatedUsers
                     .Where(u => u.UserTypeId == (int)UserTypesEnum.Student)
-                    .GroupBy(u => managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId!.Value).FirstOrDefault())
+                    .Where(u => u.ManagerId.HasValue)
+                    .GroupBy(u => u.ManagerId!.Value)
                     .ToDictionary(
                         g => g.Key,
                         g => g.Select(u => new UserLockUpDto
