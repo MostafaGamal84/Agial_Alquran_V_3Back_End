@@ -302,29 +302,29 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 // Teachers for these managers (and any unassigned teachers in the same branch)
                 var branchTeachers = (branchIds.Count == 0)
-                    ? new List<dynamic>()
+                    ? new List<UserLockUpDto>()
                     : _UserRepo
                         .Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher
                                     && u.BranchId.HasValue
                                     && branchIds.Contains(u.BranchId.Value))
                         .AsNoTracking()
-                        .Select(u => new
+                        .Select(u => new UserLockUpDto
                         {
-                            u.Id,
-                            u.FullName,
-                            u.Email,
-                            u.Mobile,
-                            u.SecondMobile,
+                            Id = u.Id,
+                            FullName = u.FullName,
+                            Email = u.Email,
+                            Mobile = u.Mobile,
+                            SecondMobile = u.SecondMobile,
                             Nationality = u.Nationality != null ? u.Nationality.Name : null,
-                            u.NationalityId,
+                            NationalityId = u.NationalityId,
                             Resident = u.Resident != null ? u.Resident.Name : null,
-                            u.ResidentId,
+                            ResidentId = u.ResidentId,
                             Governorate = u.Governorate != null ? u.Governorate.Name : null,
-                            u.GovernorateId,
-                            u.BranchId,
+                            GovernorateId = u.GovernorateId,
+                            BranchId = u.BranchId,
                             ManagerId = managerTeachersQuery.Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault()
                         })
-                        .ToList<dynamic>();
+                        .ToList();
 
                 var teachersByManager = branchTeachers
                     .Where(u => u.ManagerId != null && managerIds.Contains((int)u.ManagerId))
@@ -349,7 +349,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     );
 
                 var teachersWithoutManagerByBranch = branchTeachers
-                    .Where(u => !managerStudentsQuery.Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue))
+                    .Where(u => !managerTeachersQuery.Any(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue))
                     .GroupBy(u => (int)u.BranchId)
                     .ToDictionary(
                         g => g.Key,
@@ -437,7 +437,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                            g => g.Key,
                            g => g.Select(x => new ManagerCirclesDto
                            {
-                               ManagerId = managerStudentsQuery.Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
+                               ManagerId = x.ManagerId,
                                CircleId = x.CircleId,
                                Circle = x.CircleName
                            }).ToList()
@@ -507,10 +507,10 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 // 1) Teachers & Students (one shot)
                 var relatedUsers = _UserRepo
-                    .Where(u => u.ManagerId.HasValue
-                                && managerIds.Contains(u.ManagerId.Value)
-                                && (u.UserTypeId == (int)UserTypesEnum.Teacher
-                                    || u.UserTypeId == (int)UserTypesEnum.Student))
+                    .Where(u =>
+                        (u.UserTypeId == (int)UserTypesEnum.Teacher && managerTeachersQuery.Any(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue && managerIds.Contains(mt.ManagerId.Value)))
+                        ||
+                        (u.UserTypeId == (int)UserTypesEnum.Student && managerStudentsQuery.Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue && managerIds.Contains(ms.ManagerId.Value))))
                     .AsNoTracking()
                     .Select(u => new
                     {
