@@ -59,6 +59,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
+            var managerStudentsQuery = _managerStudentRepo.GetAll();
 
             // Build ONE predicate that includes:
             // - target user type (userTypeId)
@@ -70,7 +71,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 && (!(studentId.HasValue && studentId.Value > 0) || x.Id == studentId.Value)
                 && (!(nationalityId.HasValue && nationalityId.Value > 0) || x.NationalityId == nationalityId.Value)
                 && (!(me.UserTypeId == (int)UserTypesEnum.BranchLeader) || x.BranchId == me.BranchId)
-                && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id))
+                && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id))
                 && (!(me.UserTypeId == (int)UserTypesEnum.Teacher) || x.TeacherId == me.Id)
                 && (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))
                 // optional search (grouped to avoid &&/|| precedence issues)
@@ -111,6 +112,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
+            var managerStudentsQuery = _managerStudentRepo.GetAll();
 
             // Build ONE predicate that includes:
             // - target user type (userTypeId)

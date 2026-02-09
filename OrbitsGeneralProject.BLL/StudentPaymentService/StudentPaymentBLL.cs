@@ -71,12 +71,13 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
     bool applyResidentFilter = residentIdsFilter != null;
     tab = string.IsNullOrWhiteSpace(tab) ? null : tab.Trim().ToLower();
+    var managerStudentsQuery = _managerStudentRepo.GetAll();
 
     // ONE EF-translatable predicate
     Expression<Func<StudentPayment, bool>> predicate = p =>
         // ----- role-based visibility (on the student)
         (me.UserTypeId != (int)UserTypesEnum.BranchLeader || (p.Student != null && p.Student.BranchId == me.BranchId)) &&
-        (me.UserTypeId != (int)UserTypesEnum.Manager      || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == p.StudentId)) &&
+        (me.UserTypeId != (int)UserTypesEnum.Manager      || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == p.StudentId)) &&
         (me.UserTypeId != (int)UserTypesEnum.Teacher      || (p.Student != null && p.Student.TeacherId == me.Id)) &&
 
         // ----- specific student
