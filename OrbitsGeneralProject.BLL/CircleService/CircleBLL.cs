@@ -149,10 +149,12 @@ namespace Orbits.GeneralProject.BLL.CircleService
             {
                 case UserTypesEnum.Manager:
                     {
-                        var effectiveManagerId = mId ?? userId; // use query managerId if given, else current user
+                        var effectiveManagerId = userId; // manager requester should only see his own students
                         foreach (var c in page.Items)
                             if (c.Students != null)
-                                c.Students = c.Students.Where(s => s.ManagerId == effectiveManagerId).ToList();
+                                c.Students = c.Students
+                                    .Where(s => s.ManagerId == effectiveManagerId && s.CircleId == c.Id)
+                                    .ToList();
                         break;
                     }
                 case UserTypesEnum.Teacher:
@@ -229,7 +231,9 @@ namespace Orbits.GeneralProject.BLL.CircleService
             {
                 case UserTypesEnum.Manager:
                     if (dto.Students != null)
-                        dto.Students = dto.Students.Where(s => s.ManagerId == userId).ToList();
+                        dto.Students = dto.Students
+                            .Where(s => s.ManagerId == userId && s.CircleId == dto.Id)
+                            .ToList();
                     break;
                 case UserTypesEnum.Teacher:
                     if (dto.Students != null)
