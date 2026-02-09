@@ -26,18 +26,20 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
         private readonly IRepository<StudentSubscribe> _StudentSubscribeRepo;
         private readonly IRepository<User> _UserRepo;
         private readonly IRepository<Nationality> _nationalityRepo;
+        private readonly IRepository<ManagerStudent> _managerStudentRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileServiceBLL _fileService;
 
 
 
-        public StudentPaymentBLL(IMapper mapper, IRepository<StudentPayment> studentPaymentRepo, IRepository<User> userRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork, IFileServiceBLL fileService) : base(mapper)
+        public StudentPaymentBLL(IMapper mapper, IRepository<StudentPayment> studentPaymentRepo, IRepository<User> userRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork, IFileServiceBLL fileService, IRepository<ManagerStudent> managerStudentRepo) : base(mapper)
         {
             _mapper = mapper;
             _StudentPaymentRepo = studentPaymentRepo;
             _UserRepo = userRepo;
             _StudentSubscribeRepo = studentSubscribeRepo;
             _nationalityRepo = nationalityRepo;
+            _managerStudentRepo = managerStudentRepo;
             _unitOfWork = unitOfWork;
             _fileService = fileService;
         }
@@ -74,7 +76,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     Expression<Func<StudentPayment, bool>> predicate = p =>
         // ----- role-based visibility (on the student)
         (me.UserTypeId != (int)UserTypesEnum.BranchLeader || (p.Student != null && p.Student.BranchId == me.BranchId)) &&
-        (me.UserTypeId != (int)UserTypesEnum.Manager      || (p.Student != null && p.Student.ManagerId == me.Id)) &&
+        (me.UserTypeId != (int)UserTypesEnum.Manager      || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == p.StudentId)) &&
         (me.UserTypeId != (int)UserTypesEnum.Teacher      || (p.Student != null && p.Student.TeacherId == me.Id)) &&
 
         // ----- specific student

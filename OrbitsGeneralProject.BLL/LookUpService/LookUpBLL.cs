@@ -24,14 +24,18 @@ namespace Orbits.GeneralProject.BLL.LookUpService
         private readonly IRepository<Nationality> _nationalityRepo;
         private readonly IRepository<Governorate> _governorateRepo;
         private readonly IRepository<Subscribe> _SubscribeRepo;
+        private readonly IRepository<ManagerStudent> _managerStudentRepo;
+        private readonly IRepository<ManagerTeacher> _managerTeacherRepo;
 
-        public LookUpBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<Nationality> nationalityRepo, IRepository<Governorate> governorateRepo, IRepository<Subscribe> subscribeRepo) : base(mapper)
+        public LookUpBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<Nationality> nationalityRepo, IRepository<Governorate> governorateRepo, IRepository<Subscribe> subscribeRepo, IRepository<ManagerStudent> managerStudentRepo, IRepository<ManagerTeacher> managerTeacherRepo) : base(mapper)
         {
             _mapper = mapper;
             _UserRepo = UserRepo;
             _nationalityRepo = nationalityRepo;
             _governorateRepo = governorateRepo;
             _SubscribeRepo = subscribeRepo;
+            _managerStudentRepo = managerStudentRepo;
+            _managerTeacherRepo = managerTeacherRepo;
         }
 
         public IResponse<PagedResultDto<UserLockUpDto>> GetUsersByUserType(
@@ -52,7 +56,7 @@ namespace Orbits.GeneralProject.BLL.LookUpService
                 x.UserTypeId == userTypeId
                 // role-based restriction (applies only when the logged-in role matches)
                 && (!(me.UserTypeId == (int)UserTypesEnum.BranchLeader) || x.BranchId == me.BranchId)
-                && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || x.ManagerId == me.Id)
+                && (!(me.UserTypeId == (int)UserTypesEnum.Manager) || _managerStudentRepo.GetAll().Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id) || _managerTeacherRepo.GetAll().Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id))
                 && (!(me.UserTypeId == (int)UserTypesEnum.Teacher) || x.TeacherId == me.Id)
                 // optional search (grouped to avoid &&/|| precedence issues)
                 && (
