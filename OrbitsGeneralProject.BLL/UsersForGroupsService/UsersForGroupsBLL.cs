@@ -135,10 +135,12 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!targetUserId.HasValue || x.Id == targetUserId.Value)
                     // Admin optional narrowing:
                     && (!targetIsManager || !safeBranchId.HasValue || x.BranchId == safeBranchId.Value)
-                    && (!targetIsTeacher || !safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
+                    && (!targetIsTeacher || !safeManagerId.HasValue || managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id))
                     && (!targetIsStudent ||
                         (!safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value) &&
-                        (!safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id))) &&
+                        (!safeManagerId.HasValue ||
+                            managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)
+                            || (x.TeacherId.HasValue && managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.TeacherId.Value))) &&
                         (!safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value) &&
                         (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))) &&
                         (!Inactive.HasValue || x.Inactive == Inactive.Value)
@@ -163,16 +165,20 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!isBranchLeader || !myBranchId.HasValue || x.BranchId == myBranchId.Value)
                     && (!targetIsManager || !isManager || !myBranchId.HasValue || x.BranchId == myBranchId.Value)
                     // Managers see only what they own
-                    && (!targetIsTeacher || !isManager || (managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id)))
-                    && (!targetIsStudent || !isManager || (managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id)))
+                    && (!targetIsTeacher || !isManager || managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.Id))
+                    && (!targetIsStudent || !isManager ||
+                        managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.Id)
+                        || (x.TeacherId.HasValue && managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == x.TeacherId.Value)))
                     // Teachers see their students
                     && (!targetIsStudent || !isTeacher || x.TeacherId == me.Id)
                     // Explicit filters if provided
-                    && (!targetIsStudent || !safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
+                    && (!targetIsStudent || !safeManagerId.HasValue ||
+                        managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)
+                        || (x.TeacherId.HasValue && managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.TeacherId.Value)))
                     && (!targetIsStudent || !safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value)
                     && (!targetIsStudent || !safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value)
                     && (!targetIsStudent || !applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))
-                    && (!targetIsTeacher || !safeManagerId.HasValue || (managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id) || managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)))
+                    && (!targetIsTeacher || !safeManagerId.HasValue || managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id))
                     // Search
                     && (
                         string.IsNullOrEmpty(sw) ||
