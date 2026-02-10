@@ -100,7 +100,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             // Treat 0 as null (no value) for all incoming filters
             int? safeBranchId = (branchId.HasValue && branchId.Value > 0) ? branchId : null;
             int? safeManagerId = (managerId.HasValue && managerId.Value > 0) ? managerId : null;
-            int? safeTeacherId = (teacherId.HasValue && linkedTeacherId.Value > 0) ? teacherId : null;
+            int? safeTeacherId = (teacherId.HasValue && teacherId.Value > 0) ? teacherId : null;
             int? safeNationalityId = (nationalityId.HasValue && nationalityId.Value > 0) ? nationalityId : null;
             int? myBranchId = (me.BranchId.HasValue && me.BranchId.Value > 0) ? me.BranchId : null;
             var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
