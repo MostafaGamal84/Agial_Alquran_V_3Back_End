@@ -124,6 +124,8 @@ namespace Orbits.GeneralProject.BLL.UserService
             existedUser.ModefiedBy = userid;
             var studentIds = (updateUserDto.StudentIds ?? new List<int>())
                                 .Where(id => id > 0).Distinct().ToHashSet();
+            var managerIds = (updateUserDto.ManagerIds ?? new List<int>())
+                                .Where(id => id > 0).Distinct().ToHashSet();
             // 6) ?? ???????? ?? Manager ????? ???/??? ???????? ???????
             var isManager = (UserTypesEnum)(existedUser.UserTypeId ?? 0) == UserTypesEnum.Manager;
             if (isManager)
@@ -274,8 +276,46 @@ namespace Orbits.GeneralProject.BLL.UserService
                     updatedCircle.ModefiedBy = userid;
                     _circleRepository.Update(updatedCircle);
                 }
-             
 
+                // ===== TEACHER MANAGERS (ManagerTeacher M:N) =====
+                var currentManagerLinks = _managerTeacherRepository.GetAll()
+                    .Where(mt => mt.TeacherId == existedUser.Id && mt.ManagerId.HasValue)
+                    .ToList();
+
+                var currentManagerIds = currentManagerLinks
+                    .Where(mt => mt.ManagerId.HasValue)
+                    .Select(mt => mt.ManagerId!.Value)
+                    .ToHashSet();
+
+                var linksToDelete = currentManagerLinks
+                    .Where(mt => !managerIds.Contains(mt.ManagerId!.Value))
+                    .ToList();
+
+                foreach (var link in linksToDelete)
+                    _managerTeacherRepository.Delete(link);
+
+                if (managerIds.Count > 0)
+                {
+                    var managerUserIds = usersQuery
+                        .Where(u => managerIds.Contains(u.Id)
+                                    && u.UserTypeId == (int)UserTypesEnum.Manager)
+                        .Select(u => u.Id)
+                        .ToHashSet();
+
+                    var managerIdsToAdd = managerUserIds.Where(id => !currentManagerIds.Contains(id));
+                    foreach (var managerId in managerIdsToAdd)
+                    {
+                        _managerTeacherRepository.Add(new ManagerTeacher
+                        {
+                            ManagerId = managerId,
+                            TeacherId = existedUser.Id,
+                            CreatedBy = userid,
+                            CreatedAt = DateTime.Now,
+                            ModefiedBy = userid,
+                            ModefiedAt = DateTime.Now
+                        });
+                    }
+                }
             }
 
             // ===== MANAGER CIRCLES (refresh only the provided CircleIds) =====
