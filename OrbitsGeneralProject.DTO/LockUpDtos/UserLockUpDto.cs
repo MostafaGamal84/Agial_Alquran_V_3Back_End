@@ -25,6 +25,8 @@ namespace Orbits.GeneralProject.DTO.LockUpDtos
         public string? TeacherName { get; set; }
         public int? ManagerId { get; set; }
         public string? ManagerName { get; set; }
+        public List<int> ManagerIds { get; set; } = new List<int>();
+        public List<string> ManagerNames { get; set; } = new List<string>();
         public int? CircleId { get; set; }
         public string? CircleName { get; set; }
         public bool? Inactive { get; set; }
