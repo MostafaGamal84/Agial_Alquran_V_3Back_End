@@ -119,6 +119,8 @@ namespace Orbits.GeneralProject.BLL.UserService
             }
 
             // 5) Map basic fields
+            var previousCircleId = existedUser.CircleId;
+
             _mapper.Map(updateUserDto, existedUser);
             existedUser.ModefiedAt = DateTime.Now;
             existedUser.ModefiedBy = userid;
@@ -231,6 +233,38 @@ namespace Orbits.GeneralProject.BLL.UserService
                 // IMPORTANT: ?????? Query() ?? ?????? ?? _dbContext.Users.AsQueryable()
                 var usersQuery = _userRepository.GetAll();
 
+                if (existedUser.CircleId.HasValue)
+                {
+                    var requestedCircleId = existedUser.CircleId.Value;
+
+                    var teachersWithSameCircle = usersQuery
+                        .Where(u => u.Id != existedUser.Id
+                                    && u.UserTypeId == (int)UserTypesEnum.Teacher
+                                    && u.CircleId == requestedCircleId)
+                        .ToList();
+
+                    foreach (var teacherWithSameCircle in teachersWithSameCircle)
+                    {
+                        teacherWithSameCircle.CircleId = null;
+                        teacherWithSameCircle.ModefiedAt = DateTime.Now;
+                        teacherWithSameCircle.ModefiedBy = userid;
+                        _userRepository.Update(teacherWithSameCircle);
+
+                        var linkedStudents = usersQuery
+                            .Where(u => u.UserTypeId == (int)UserTypesEnum.Student
+                                        && u.TeacherId == teacherWithSameCircle.Id)
+                            .ToList();
+
+                        foreach (var linkedStudent in linkedStudents)
+                        {
+                            linkedStudent.CircleId = null;
+                            linkedStudent.ModefiedAt = DateTime.Now;
+                            linkedStudent.ModefiedBy = userid;
+                            _userRepository.Update(linkedStudent);
+                        }
+                    }
+                }
+
                 // ===== TEACHERS =====
                 // ???????? ????????? ???? ??????
                 var currentStudents = usersQuery
@@ -268,13 +302,28 @@ namespace Orbits.GeneralProject.BLL.UserService
                     t.ModefiedBy = userid;
                     _userRepository.Update(t);
                 }
-                if (updateUserDto.CircleId != null )
+                if (previousCircleId.HasValue && previousCircleId != existedUser.CircleId)
+                {
+                    var previousCircle = _circleRepository.GetById(previousCircleId.Value);
+                    if (previousCircle != null && previousCircle.TeacherId == existedUser.Id)
+                    {
+                        previousCircle.TeacherId = null;
+                        previousCircle.ModefiedAt = DateTime.Now;
+                        previousCircle.ModefiedBy = userid;
+                        _circleRepository.Update(previousCircle);
+                    }
+                }
+
+                if (existedUser.CircleId.HasValue)
                 {
                     var updatedCircle = _circleRepository.GetById(existedUser.CircleId.Value);
-                    updatedCircle.TeacherId = existedUser.Id;
-                    updatedCircle.ModefiedAt = DateTime.Now;
-                    updatedCircle.ModefiedBy = userid;
-                    _circleRepository.Update(updatedCircle);
+                    if (updatedCircle != null)
+                    {
+                        updatedCircle.TeacherId = existedUser.Id;
+                        updatedCircle.ModefiedAt = DateTime.Now;
+                        updatedCircle.ModefiedBy = userid;
+                        _circleRepository.Update(updatedCircle);
+                    }
                 }
 
                 // ===== TEACHER MANAGERS (ManagerTeacher M:N) =====
