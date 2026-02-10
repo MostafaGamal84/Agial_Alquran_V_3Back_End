@@ -231,6 +231,45 @@ namespace Orbits.GeneralProject.BLL.UserService
                 // IMPORTANT: ?????? Query() ?? ?????? ?? _dbContext.Users.AsQueryable()
                 var usersQuery = _userRepository.GetAll();
 
+                // ===== MANAGERS (ManagerTeacher M:N) =====
+                var managerUserIds = managerIds.Count == 0
+                    ? new HashSet<int>()
+                    : usersQuery
+                        .Where(u => managerIds.Contains(u.Id)
+                                    && u.UserTypeId == (int)UserTypesEnum.Manager)
+                        .Select(u => u.Id)
+                        .ToHashSet();
+
+                var currentManagerLinks = _managerTeacherRepository.GetAll()
+                    .Where(mt => mt.TeacherId == existedUser.Id && mt.ManagerId.HasValue)
+                    .ToList();
+
+                var currentManagerIds = currentManagerLinks
+                    .Where(mt => mt.ManagerId.HasValue)
+                    .Select(mt => mt.ManagerId!.Value)
+                    .ToHashSet();
+
+                var managerLinksToDelete = currentManagerLinks
+                    .Where(mt => !managerUserIds.Contains(mt.ManagerId!.Value))
+                    .ToList();
+
+                foreach (var link in managerLinksToDelete)
+                    _managerTeacherRepository.Delete(link);
+
+                var managerIdsToAdd = managerUserIds.Where(id => !currentManagerIds.Contains(id));
+                foreach (var managerId in managerIdsToAdd)
+                {
+                    _managerTeacherRepository.Add(new ManagerTeacher
+                    {
+                        ManagerId = managerId,
+                        TeacherId = existedUser.Id,
+                        CreatedBy = userid,
+                        CreatedAt = DateTime.Now,
+                        ModefiedBy = userid,
+                        ModefiedAt = DateTime.Now
+                    });
+                }
+
                 // ===== TEACHERS =====
                 // ???????? ????????? ???? ??????
                 var currentStudents = usersQuery
