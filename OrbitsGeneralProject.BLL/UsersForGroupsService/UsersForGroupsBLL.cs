@@ -853,7 +853,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     s.ManagerIds = new List<int>();
                     s.ManagerNames = new List<string>();
 
-                    if (studentTeacherLinks.TryGetValue(s.Id, out var linkedTeacherId)
+                    int? linkedTeacherId = null;
+                    if (studentTeacherLinks.TryGetValue(s.Id, out linkedTeacherId)
                         && linkedTeacherId.HasValue
                         && linkedTeacherId.Value > 0)
                     {
