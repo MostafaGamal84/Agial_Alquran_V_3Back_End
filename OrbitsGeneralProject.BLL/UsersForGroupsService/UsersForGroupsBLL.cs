@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.Helpers;
@@ -508,32 +508,59 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 var managerIds = paged.Items.Select(m => m.Id).ToList();
 
                 // 1) Teachers & Students (one shot)
-                var relatedUsers = _UserRepo
-                    .Where(u =>
-                        (u.UserTypeId == (int)UserTypesEnum.Teacher && managerTeachersQuery.Any(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue && managerIds.Contains(mt.ManagerId.Value)))
-                        ||
-                        (u.UserTypeId == (int)UserTypesEnum.Student && managerStudentsQuery.Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue && managerIds.Contains(ms.ManagerId.Value))))
-                    .AsNoTracking()
-                    .Select(u => new
-                    {
-                        u.Id,
-                        u.FullName,
-                        u.Email,
-                        u.Mobile,
-                        u.SecondMobile,
-                        Nationality = u.Nationality != null ? u.Nationality.Name : null,
-                        u.NationalityId,
-                        Resident = u.Resident != null ? u.Resident.Name : null,
-                        u.ResidentId,
-                        Governorate = u.Governorate != null ? u.Governorate.Name : null,
-                        u.GovernorateId,
-                        u.BranchId,
-                        ManagerId = u.UserTypeId == (int)UserTypesEnum.Teacher
-                            ? managerTeachersQuery.Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault()
-                            : managerStudentsQuery.Where(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
-                        u.UserTypeId
-                    })
-                    .ToList();
+                var usersQ = _UserRepo.DisableFilter(); // مهم: ده IQueryable<User>
+
+                var teachersRaw = (from mt in managerTeachersQuery
+                                   join u in usersQ on mt.TeacherId equals u.Id
+                                   where mt.ManagerId.HasValue
+                                         && managerIds.Contains(mt.ManagerId.Value)
+                                         && u.UserTypeId == (int)UserTypesEnum.Teacher
+                                   select new
+                                   {
+                                       u.Id,
+                                       u.FullName,
+                                       u.Email,
+                                       u.Mobile,
+                                       u.SecondMobile,
+                                       Nationality = u.Nationality != null ? u.Nationality.Name : null,
+                                       u.NationalityId,
+                                       Resident = u.Resident != null ? u.Resident.Name : null,
+                                       u.ResidentId,
+                                       Governorate = u.Governorate != null ? u.Governorate.Name : null,
+                                       u.GovernorateId,
+                                       u.BranchId,
+                                       ManagerId = mt.ManagerId,
+                                       u.UserTypeId
+                                   })
+                                  .AsNoTracking()
+                                  .ToList();
+
+                var studentsRaw = (from ms in managerStudentsQuery
+                                   join u in usersQ on ms.StudentId equals u.Id
+                                   where ms.ManagerId.HasValue
+                                         && managerIds.Contains(ms.ManagerId.Value)
+                                         && u.UserTypeId == (int)UserTypesEnum.Student
+                                   select new
+                                   {
+                                       u.Id,
+                                       u.FullName,
+                                       u.Email,
+                                       u.Mobile,
+                                       u.SecondMobile,
+                                       Nationality = u.Nationality != null ? u.Nationality.Name : null,
+                                       u.NationalityId,
+                                       Resident = u.Resident != null ? u.Resident.Name : null,
+                                       u.ResidentId,
+                                       Governorate = u.Governorate != null ? u.Governorate.Name : null,
+                                       u.GovernorateId,
+                                       u.BranchId,
+                                       ManagerId = ms.ManagerId,
+                                       u.UserTypeId
+                                   })
+                                  .AsNoTracking()
+                                  .ToList();
+
+                var relatedUsers = teachersRaw.Concat(studentsRaw).ToList();
 
                 var teachersByManager = relatedUsers
                     .Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher)
