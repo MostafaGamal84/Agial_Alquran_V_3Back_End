@@ -720,17 +720,22 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         }).ToList()
                     );
 
-                // (B) Teachers' ManagerId
-                var teacherManagerPairs = _UserRepo
-                    .Where(u => teacherIds.Contains(u.Id))
-                    .AsNoTracking()
-                    .Select(u => new { u.Id, ManagerId = managerTeachersQuery.Where(mt => mt.TeacherId == u.Id && mt.ManagerId.HasValue).Select(mt => mt.ManagerId).FirstOrDefault() })
-                    .ToList()
-                    .ToDictionary(x => x.Id, x => x.ManagerId);
+                // (B) Teachers' Managers (support multi-manager + stable fallback)
+                var teacherManagerPairs = (from mt in managerTeachersQuery
+                                           where mt.TeacherId.HasValue
+                                                 && mt.ManagerId.HasValue
+                                                 && teacherIds.Contains(mt.TeacherId.Value)
+                                           select new
+                                           {
+                                               TeacherId = mt.TeacherId.Value,
+                                               ManagerId = mt.ManagerId.Value,
+                                               mt.Id
+                                           })
+                                          .AsNoTracking()
+                                          .ToList();
 
-                var managerIds = teacherManagerPairs.Values
-                    .Where(mid => mid.HasValue && mid.Value > 0)
-                    .Select(mid => mid!.Value)
+                var managerIds = teacherManagerPairs
+                    .Select(x => x.ManagerId)
                     .Distinct()
                     .ToList();
 
@@ -751,12 +756,25 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         ? list
                         : new List<UserLockUpDto>();
 
-                    int? mid = null;
-                    if (teacherManagerPairs.TryGetValue(t.Id, out var maybeMid))
-                        mid = maybeMid;
+                    var teacherManagers = teacherManagerPairs
+                        .Where(x => x.TeacherId == t.Id)
+                        .OrderByDescending(x => x.Id)
+                        .ToList();
 
-                    t.ManagerId = (mid.HasValue && mid.Value > 0) ? mid : null;
-                    t.ManagerName = (mid.HasValue && managersLite.TryGetValue(mid.Value, out var mname))
+                    t.ManagerIds = teacherManagers
+                        .Select(x => x.ManagerId)
+                        .Distinct()
+                        .ToList();
+
+                    t.ManagerNames = t.ManagerIds
+                        .Where(mid => managersLite.ContainsKey(mid))
+                        .Select(mid => managersLite[mid])
+                        .Distinct()
+                        .ToList();
+
+                    var latestManager = teacherManagers.FirstOrDefault();
+                    t.ManagerId = latestManager?.ManagerId;
+                    t.ManagerName = (latestManager != null && managersLite.TryGetValue(latestManager.ManagerId, out var mname))
                         ? mname
                         : null;
                 }
@@ -769,8 +787,8 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             {
                 var studentIds = paged.Items.Select(s => s.Id).ToList();
 
-                // (A) The student -> TeacherId/ManagerId links
-                var studentLinks = _UserRepo
+                // (A) The student -> TeacherId link + Managers (support multi-manager + stable fallback)
+                var studentTeacherLinks = _UserRepo
                     .Where(u => studentIds.Contains(u.Id))
                     .AsNoTracking()
                     .Select(u => new
@@ -779,17 +797,29 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         u.TeacherId
                     })
                     .ToList()
-                    .ToDictionary(x => x.Id, x => new { x.TeacherId, ManagerId = managerStudentsQuery.Where(ms => ms.StudentId == x.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault() });
+                    .ToDictionary(x => x.Id, x => x.TeacherId);
 
-                var teacherIds = studentLinks.Values
-                    .Where(v => v.TeacherId.HasValue && v.TeacherId.Value > 0)
-                    .Select(v => v.TeacherId!.Value)
+                var studentManagerPairs = (from ms in managerStudentsQuery
+                                           where ms.StudentId.HasValue
+                                                 && ms.ManagerId.HasValue
+                                                 && studentIds.Contains(ms.StudentId.Value)
+                                           select new
+                                           {
+                                               StudentId = ms.StudentId.Value,
+                                               ManagerId = ms.ManagerId.Value,
+                                               ms.Id
+                                           })
+                                          .AsNoTracking()
+                                          .ToList();
+
+                var teacherIds = studentTeacherLinks.Values
+                    .Where(v => v.HasValue && v.Value > 0)
+                    .Select(v => v!.Value)
                     .Distinct()
                     .ToList();
 
-                var managerIds = studentLinks.Values
-                    .Where(v => v.ManagerId.HasValue && v.ManagerId.Value > 0)
-                    .Select(v => v.ManagerId!.Value)
+                var managerIds = studentManagerPairs
+                    .Select(v => v.ManagerId)
                     .Distinct()
                     .ToList();
 
@@ -820,23 +850,39 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     s.TeacherName = null;
                     s.ManagerId = null;
                     s.ManagerName = null;
+                    s.ManagerIds = new List<int>();
+                    s.ManagerNames = new List<string>();
 
-                    if (studentLinks.TryGetValue(s.Id, out var link))
+                    if (studentTeacherLinks.TryGetValue(s.Id, out var teacherId)
+                        && teacherId.HasValue
+                        && teacherId.Value > 0)
                     {
-                        if (link.TeacherId.HasValue && link.TeacherId.Value > 0)
-                        {
-                            s.TeacherId = link.TeacherId.Value;
-                            if (teachersMap.TryGetValue(link.TeacherId.Value, out var tname))
-                                s.TeacherName = tname;
-                        }
-
-                        if (link.ManagerId.HasValue && link.ManagerId.Value > 0)
-                        {
-                            s.ManagerId = link.ManagerId.Value;
-                            if (managersMap.TryGetValue(link.ManagerId.Value, out var mname))
-                                s.ManagerName = mname;
-                        }
+                        s.TeacherId = teacherId.Value;
+                        if (teachersMap.TryGetValue(teacherId.Value, out var tname))
+                            s.TeacherName = tname;
                     }
+
+                    var studentManagers = studentManagerPairs
+                        .Where(x => x.StudentId == s.Id)
+                        .OrderByDescending(x => x.Id)
+                        .ToList();
+
+                    s.ManagerIds = studentManagers
+                        .Select(x => x.ManagerId)
+                        .Distinct()
+                        .ToList();
+
+                    s.ManagerNames = s.ManagerIds
+                        .Where(mid => managersMap.ContainsKey(mid))
+                        .Select(mid => managersMap[mid])
+                        .Distinct()
+                        .ToList();
+
+                    var latestManager = studentManagers.FirstOrDefault();
+                    s.ManagerId = latestManager?.ManagerId;
+                    s.ManagerName = (latestManager != null && managersMap.TryGetValue(latestManager.ManagerId, out var mname))
+                        ? mname
+                        : null;
                 }
             }
 
@@ -858,11 +904,34 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 MaxResultCount = 1
             };
 
+            int? resolvedManagerId = null;
+            var targetType = (UserTypesEnum)(targetUser.UserTypeId ?? 0);
+            if (targetType == UserTypesEnum.Manager)
+            {
+                resolvedManagerId = targetUser.Id;
+            }
+            else if (targetType == UserTypesEnum.Student)
+            {
+                resolvedManagerId = _managerStudentRepo.GetAll()
+                    .Where(ms => ms.StudentId == targetUser.Id && ms.ManagerId.HasValue)
+                    .OrderByDescending(ms => ms.Id)
+                    .Select(ms => ms.ManagerId)
+                    .FirstOrDefault();
+            }
+            else if (targetType == UserTypesEnum.Teacher)
+            {
+                resolvedManagerId = _managerTeacherRepo.GetAll()
+                    .Where(mt => mt.TeacherId == targetUser.Id && mt.ManagerId.HasValue)
+                    .OrderByDescending(mt => mt.Id)
+                    .Select(mt => mt.ManagerId)
+                    .FirstOrDefault();
+            }
+
             var detailsResponse = GetUsersForSelects(
                 pagedDto,
                 targetUser.UserTypeId ?? 0,
                 requesterId,
-                _managerStudentRepo.GetAll().Where(ms => ms.StudentId == targetUser.Id && ms.ManagerId.HasValue).Select(ms => ms.ManagerId).FirstOrDefault(),
+                resolvedManagerId,
                 targetUser.TeacherId,
                 targetUser.BranchId,
                 targetUser.NationalityId,
