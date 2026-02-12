@@ -11,6 +11,7 @@ namespace Orbits.GeneralProject.Core.Entities
             CircleReports = new HashSet<CircleReport>();
             ManagerCircles = new HashSet<ManagerCircle>();
             Users = new HashSet<User>();
+            CircleTimes = new HashSet<CircleTime>();
         }
 
         public int Id { get; set; }
@@ -28,5 +29,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual ICollection<CircleReport> CircleReports { get; set; }
         public virtual ICollection<ManagerCircle> ManagerCircles { get; set; }
         public virtual ICollection<User> Users { get; set; }
+        public virtual ICollection<CircleTime> CircleTimes { get; set; }
     }
 }
