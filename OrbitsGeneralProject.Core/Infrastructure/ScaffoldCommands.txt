@@ -1,9 +1,9 @@
 
 
-Scaffold-DbContext "Data Source=Mostafa-Gamal;Initial Catalog=ajyalDBcopy;Integrated Security=True;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Context OrbitsContext -OutputDir Entities -Force
+Scaffold-DbContext "Data Source=Mostafa-Gamal;Initial Catalog=ajyal_new;Integrated Security=True;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Context OrbitsContext -OutputDir Entities -Force
 
 // scaffold from server:
 
-Scaffold-DbContext "workstation id=ajyalDBcopy.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=ajyalDBcopy.mssql.somee.com;persist security info=False;initial catalog=ajyalDBcopy;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Context OrbitsContext -OutputDir Entities -Force
+Scaffold-DbContext "workstation id=ajyal_new.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=ajyal_new.mssql.somee.com;persist security info=False;initial catalog=ajyal_new;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Context OrbitsContext -OutputDir Entities -Force
 
 
