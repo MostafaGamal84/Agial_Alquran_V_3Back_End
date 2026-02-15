@@ -395,6 +395,36 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             return output.CreateResponse(true);
         }
 
+        public async Task<IResponse<bool>> RestoreAsync(int id, int userId)
+        {
+            var output = new Response<bool>();
+
+            var report = await _circleReportRepository.GetByIdAsync(id);
+            if (report == null)
+                return output.AppendError(MessageCodes.NotFound, nameof(id), "Entity not found");
+
+            if (!report.IsDeleted)
+                return output.CreateResponse(true);
+
+            report.IsDeleted = false;
+            report.ModifiedBy = userId;
+            report.ModifiedAt = DateTime.UtcNow;
+
+            var teacherReport = _teacherReportRecordRepository
+                .Where(x => x.CircleReportId == id)
+                .FirstOrDefault();
+
+            if (teacherReport != null)
+            {
+                teacherReport.IsDeleted = false;
+                teacherReport.ModefiedAt = DateTime.UtcNow;
+                teacherReport.ModefiedBy = userId;
+            }
+
+            await _unitOfWork.CommitAsync();
+            return output.CreateResponse(true);
+        }
+
         private int CalculateTeacherSalary(decimal hourlyRate, double? minutes)
         {
             if (minutes == null)

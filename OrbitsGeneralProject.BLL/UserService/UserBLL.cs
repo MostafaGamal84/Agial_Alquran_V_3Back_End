@@ -507,6 +507,40 @@ namespace Orbits.GeneralProject.BLL.UserService
         }
 
 
+
+        public async Task<IResponse<bool>> Restore(int id, int userId)
+        {
+            Response<bool> output = new Response<bool>();
+
+            User entity = await _userRepository.GetByIdAsync(id);
+            if (entity == null)
+                return output.AppendError(MessageCodes.NotFound, nameof(id), "Entity not found");
+
+            var allowedTypes = new[]
+            {
+                (int)UserTypesEnum.Student,
+                (int)UserTypesEnum.Teacher,
+                (int)UserTypesEnum.Manager,
+                (int)UserTypesEnum.BranchLeader
+            };
+
+            if (!entity.UserTypeId.HasValue || !allowedTypes.Contains(entity.UserTypeId.Value))
+                return output.AppendError(MessageCodes.NotFound, nameof(id), "Entity not found");
+
+            if (!entity.IsDeleted)
+                return output.CreateResponse(true);
+
+            entity.IsDeleted = false;
+            entity.Inactive = false;
+            entity.ModefiedBy = userId;
+            entity.ModefiedAt = DateTime.UtcNow;
+
+            _userRepository.Update(entity);
+            await _unitOfWork.CommitAsync();
+
+            return output.CreateResponse(true);
+        }
+
         public async Task<IResponse<bool>> DisableUser(int id ,bool statue)
         {
             Response<bool> output = new Response<bool>();

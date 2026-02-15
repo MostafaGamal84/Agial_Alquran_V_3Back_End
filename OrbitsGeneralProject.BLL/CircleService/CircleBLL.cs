@@ -1138,6 +1138,27 @@ namespace Orbits.GeneralProject.BLL.CircleService
             return output.CreateResponse(data: true);
 
         }
+
+        public async Task<IResponse<bool>> RestoreAsync(int id, int userId)
+        {
+            Response<bool> output = new Response<bool>();
+
+            Circle entity = await _circleRepository.GetByIdAsync(id);
+            if (entity == null)
+                return output.AppendError(MessageCodes.NotFound, nameof(id), "Entity not found");
+
+            if (entity.IsDeleted != true)
+                return output.CreateResponse(true);
+
+            entity.IsDeleted = false;
+            entity.ModefiedBy = userId;
+            entity.ModefiedAt = DateTime.UtcNow;
+
+            _circleRepository.Update(entity);
+            await _unitOfWork.CommitAsync();
+            return output.CreateResponse(true);
+
+        }
         private List<ManagerCircle> addCirclesManagers(int circleId, List<int>? managerIdS,int userId)
         {
             List<ManagerCircle> ManagerCirclelist = new List<ManagerCircle>();
