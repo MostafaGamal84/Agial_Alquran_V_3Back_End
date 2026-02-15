@@ -893,6 +893,35 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             return output.CreateResponse(paged);
         }
 
+
+        public IResponse<PagedResultDto<UserLockUpDto>> GetDeletedUsersByType(FilteredResultRequestDto pagedDto, int userTypeId)
+        {
+            var output = new Response<PagedResultDto<UserLockUpDto>>();
+            string? sw = pagedDto.SearchTerm?.Trim().ToLower();
+
+            Expression<Func<User, bool>> predicate = x =>
+                x.IsDeleted
+                && x.UserTypeId == userTypeId
+                && (
+                    string.IsNullOrEmpty(sw)
+                    || (x.FullName != null && x.FullName.ToLower().Contains(sw))
+                    || (x.Mobile != null && x.Mobile.ToLower().Contains(sw))
+                    || (x.Email != null && x.Email.ToLower().Contains(sw))
+                );
+
+            var paged = GetPagedList<UserLockUpDto, User, int>(
+                pagedDto,
+                _UserRepo,
+                x => x.Id,
+                searchExpression: predicate,
+                sortDirection: "DESC",
+                disableFilter: true,
+                excluededColumns: null
+            );
+
+            return output.CreateResponse(paged);
+        }
+
         public IResponse<UserLockUpDto> GetUserDetails(int targetUserId, int requesterId)
         {
             var output = new Response<UserLockUpDto>();

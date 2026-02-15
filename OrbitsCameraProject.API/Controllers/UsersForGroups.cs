@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.UserService;
+using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.BLL.UsersForGroupsService;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.DTO;
@@ -34,6 +35,23 @@ namespace OrbitsProject.API.Controllers
             int? nationalityId,
             bool includeRelations = false)
                => Ok(_usersForGroupsBLL.GetUsersForSelects(paginationFilterModel, UserTypeId, UserId, managerId, teacherId, branchId, nationalityId, includeRelations, null));
+
+
+        [HttpGet("DeletedStudents"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
+        public IActionResult GetDeletedStudents([FromQuery] FilteredResultRequestDto paginationFilterModel)
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Student));
+
+        [HttpGet("DeletedTeachers"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
+        public IActionResult GetDeletedTeachers([FromQuery] FilteredResultRequestDto paginationFilterModel)
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Teacher));
+
+        [HttpGet("DeletedManagers"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
+        public IActionResult GetDeletedManagers([FromQuery] FilteredResultRequestDto paginationFilterModel)
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Manager));
+
+        [HttpGet("DeletedBranchLeaders"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
+        public IActionResult GetDeletedBranchLeaders([FromQuery] FilteredResultRequestDto paginationFilterModel)
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.BranchLeader));
 
         [HttpGet("GetUserDetails"), ProducesResponseType(typeof(IResponse<UserLockUpDto>), 200)]
         public async Task<IActionResult> GetUserDetails(int id)

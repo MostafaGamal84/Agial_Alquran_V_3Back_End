@@ -33,6 +33,14 @@ namespace OrbitsProject.API.Controllers
             return Ok(_circleReportBLL.GetPagedList(pagination, UserId, circleId, studentId, nationalityId));
         }
 
+
+        [HttpGet("Deleted")]
+        [ProducesResponseType(typeof(IResponse<PagedResultDto<CircleReportReDto>>), 200)]
+        public IActionResult GetDeleted([FromQuery] FilteredResultRequestDto pagination)
+        {
+            return Ok(_circleReportBLL.GetDeletedPagedList(pagination));
+        }
+
         [HttpPost("Create"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Create(CircleReportAddDto model)
            => Ok(await _circleReportBLL.AddAsync(model, UserId));
