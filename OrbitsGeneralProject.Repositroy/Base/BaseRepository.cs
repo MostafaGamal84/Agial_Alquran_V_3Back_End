@@ -103,9 +103,8 @@ namespace Orbits.GeneralProject.Repositroy.Base
         {
             if (HasProperty(DbSet, nameof(DynamicFilters.IsDeleted)))
             {
-               
                 if (filterName == nameof(DynamicFilters.IsDeleted))
-                    return DisableFilter().Where(x => x.IsDeleted);
+                    return DbSet.IgnoreQueryFilters().Where(x => x.IsDeleted);
                 else
                     return DisableFilter();
             }

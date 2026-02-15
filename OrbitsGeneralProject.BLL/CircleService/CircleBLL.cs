@@ -79,6 +79,40 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
 
 
+
+        public IResponse<PagedResultDto<CircleDto>> GetDeletedPagedList(FilteredResultRequestDto pagedDto)
+        {
+            var output = new Response<PagedResultDto<CircleDto>>();
+            string? searchWordLower = pagedDto.SearchTerm?.Trim()?.ToLower();
+
+            var deletedCirclesQuery = _circleRepository
+                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .Where(c => searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)));
+
+            var totalCount = deletedCirclesQuery.Count();
+            var entities = deletedCirclesQuery
+                .Include(c => c.Teacher)
+                .Include(c => c.ManagerCircles)
+                    .ThenInclude(mc => mc.Manager)
+                .Include(c => c.CircleDays)
+                .Include(c => c.Users)
+                .OrderByDescending(c => c.Id)
+                .Skip(pagedDto.SkipCount)
+                .Take(pagedDto.MaxResultCount)
+                .ToList();
+
+            var items = _mapper.Map<List<CircleDto>>(entities);
+            PopulateCircleDayMetadata(items);
+
+            var result = new PagedResultDto<CircleDto>
+            {
+                Items = items,
+                TotalCount = totalCount
+            };
+
+            return output.CreateResponse(result);
+        }
+
         public IResponse<PagedResultDto<CircleDto>> GetPagedList(
      FilteredResultRequestDto pagedDto,
      int? managerId,
