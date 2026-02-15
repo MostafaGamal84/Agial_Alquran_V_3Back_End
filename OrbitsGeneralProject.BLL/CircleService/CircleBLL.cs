@@ -97,7 +97,12 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 sortDirection: "DESC",
                 disableFilter: true,
                 excluededColumns: null,
-                includeProperties: c => c.ManagerCircles, c => c.CircleDays, c => c.Users
+                includeProperties: new Expression<Func<Circle, object>>[]
+                {
+                    c => c.ManagerCircles,
+                    c => c.CircleDays,
+                    c => c.Users
+                }
             );
 
             PopulateCircleDayMetadata(page?.Items);
