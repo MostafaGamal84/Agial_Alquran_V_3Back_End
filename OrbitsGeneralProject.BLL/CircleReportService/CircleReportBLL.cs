@@ -42,6 +42,35 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         }
 
 
+
+        public IResponse<PagedResultDto<CircleReportReDto>> GetDeletedPagedList(FilteredResultRequestDto pagedDto)
+        {
+            var output = new Response<PagedResultDto<CircleReportReDto>>();
+            string? sw = pagedDto.SearchTerm?.Trim().ToLower();
+
+            Expression<Func<CircleReport, bool>> predicate = r =>
+                r.IsDeleted
+                && (
+                    string.IsNullOrEmpty(sw)
+                    || (r.Student != null && r.Student.FullName != null && r.Student.FullName.ToLower().Contains(sw))
+                    || (r.Teacher != null && r.Teacher.FullName != null && r.Teacher.FullName.ToLower().Contains(sw))
+                    || (r.Circle != null && r.Circle.Name != null && r.Circle.Name.ToLower().Contains(sw))
+                    || (r.Other != null && r.Other.ToLower().Contains(sw))
+                );
+
+            var list = GetPagedList<CircleReportReDto, CircleReport, DateTime>(
+                pagedDto,
+                repository: _circleReportRepository,
+                r => r.CreatedAt ?? r.CreationTime,
+                searchExpression: predicate,
+                sortDirection: "DESC",
+                disableFilter: true,
+                excluededColumns: null
+            );
+
+            return output.CreateResponse(list);
+        }
+
         public IResponse<PagedResultDto<CircleReportReDto>> GetPagedList(
     FilteredResultRequestDto pagedDto,
     int userId,

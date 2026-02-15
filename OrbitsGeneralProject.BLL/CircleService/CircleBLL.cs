@@ -79,6 +79,37 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
 
 
+
+        public IResponse<PagedResultDto<CircleDto>> GetDeletedPagedList(FilteredResultRequestDto pagedDto)
+        {
+            var output = new Response<PagedResultDto<CircleDto>>();
+            string? searchWordLower = pagedDto.SearchTerm?.Trim()?.ToLower();
+
+            Expression<Func<Circle, bool>> predicate = c =>
+                c.IsDeleted == true
+                && (searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)));
+
+            var page = GetPagedList<CircleDto, Circle, int>(
+                pagedDto,
+                repository: _circleRepository,
+                orderExpression: x => x.Id,
+                searchExpression: predicate,
+                sortDirection: "DESC",
+                disableFilter: true,
+                excluededColumns: null,
+                includeProperties: new Expression<Func<Circle, object>>[]
+                {
+                    c => c.ManagerCircles,
+                    c => c.CircleDays,
+                    c => c.Users
+                }
+            );
+
+            PopulateCircleDayMetadata(page?.Items);
+
+            return output.CreateResponse(page);
+        }
+
         public IResponse<PagedResultDto<CircleDto>> GetPagedList(
      FilteredResultRequestDto pagedDto,
      int? managerId,
