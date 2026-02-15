@@ -85,29 +85,31 @@ namespace Orbits.GeneralProject.BLL.CircleService
             var output = new Response<PagedResultDto<CircleDto>>();
             string? searchWordLower = pagedDto.SearchTerm?.Trim()?.ToLower();
 
-            Expression<Func<Circle, bool>> predicate = c =>
-                c.IsDeleted == true
-                && (searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)));
+            var deletedCirclesQuery = _circleRepository
+                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .Where(c => searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)))
+                .AsNoTracking();
 
-            var page = GetPagedList<CircleDto, Circle, int>(
-                pagedDto,
-                repository: _circleRepository,
-                orderExpression: x => x.Id,
-                searchExpression: predicate,
-                sortDirection: "DESC",
-                disableFilter: true,
-                excluededColumns: null,
-                includeProperties: new Expression<Func<Circle, object>>[]
-                {
-                    c => c.ManagerCircles,
-                    c => c.CircleDays,
-                    c => c.Users
-                }
-            );
+            var totalCount = deletedCirclesQuery.Count();
+            var entities = deletedCirclesQuery
+                .Include(c => c.ManagerCircles)
+                .Include(c => c.CircleDays)
+                .Include(c => c.Users)
+                .OrderByDescending(c => c.Id)
+                .Skip(pagedDto.SkipCount)
+                .Take(pagedDto.MaxResultCount)
+                .ToList();
 
-            PopulateCircleDayMetadata(page?.Items);
+            var items = _mapper.Map<List<CircleDto>>(entities);
+            PopulateCircleDayMetadata(items);
 
-            return output.CreateResponse(page);
+            var result = new PagedResultDto<CircleDto>
+            {
+                Items = items,
+                TotalCount = totalCount
+            };
+
+            return output.CreateResponse(result);
         }
 
         public IResponse<PagedResultDto<CircleDto>> GetPagedList(
