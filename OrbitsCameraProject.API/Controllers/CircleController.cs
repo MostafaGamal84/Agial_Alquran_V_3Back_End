@@ -29,6 +29,11 @@ namespace OrbitsProject.API.Controllers
         public async Task<IActionResult> GetResultsByFilter([FromQuery] FilteredResultRequestDto paginationFilterModel ,int? managerId, int? teacherId)
            => Ok(_circleBLL.GetPagedList(paginationFilterModel, managerId, teacherId, UserId));
 
+
+        [HttpGet("Deleted"), ProducesResponseType(typeof(IResponse<PagedResultDto<CircleDto>>), 200)]
+        public IActionResult GetDeleted([FromQuery] FilteredResultRequestDto paginationFilterModel)
+           => Ok(_circleBLL.GetDeletedPagedList(paginationFilterModel));
+
         [HttpGet("Upcoming"), ProducesResponseType(typeof(IResponse<IEnumerable<UpcomingCircleDto>>), 200)]
         public async Task<IActionResult> GetUpcoming([FromQuery] int? managerId = null, [FromQuery] int? teacherId = null, [FromQuery] int take = 4)
            => Ok(await _circleBLL.GetUpcomingAsync(UserId, managerId, teacherId, take));

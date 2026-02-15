@@ -893,6 +893,56 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             return output.CreateResponse(paged);
         }
 
+
+        public IResponse<PagedResultDto<UserLockUpDto>> GetDeletedUsersByType(FilteredResultRequestDto pagedDto, int userTypeId)
+        {
+            var output = new Response<PagedResultDto<UserLockUpDto>>();
+            string? sw = pagedDto.SearchTerm?.Trim().ToLower();
+
+            var deletedUsersQuery = _UserRepo
+                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .Where(x => x.UserTypeId == userTypeId
+                    && (
+                        string.IsNullOrEmpty(sw)
+                        || (x.FullName != null && x.FullName.ToLower().Contains(sw))
+                        || (x.Mobile != null && x.Mobile.ToLower().Contains(sw))
+                        || (x.Email != null && x.Email.ToLower().Contains(sw))
+                    ))
+                .AsNoTracking();
+
+            var totalCount = deletedUsersQuery.Count();
+            var items = deletedUsersQuery
+                .OrderByDescending(x => x.Id)
+                .Skip(pagedDto.SkipCount)
+                .Take(pagedDto.MaxResultCount)
+                .Select(x => new UserLockUpDto
+                {
+                    Id = x.Id,
+                    FullName = x.FullName,
+                    Email = x.Email,
+                    Mobile = x.Mobile,
+                    SecondMobile = x.SecondMobile,
+                    Nationality = x.Nationality != null ? x.Nationality.Name : null,
+                    NationalityId = x.NationalityId,
+                    Resident = x.Resident != null ? x.Resident.Name : null,
+                    ResidentId = x.ResidentId,
+                    Governorate = x.Governorate != null ? x.Governorate.Name : null,
+                    GovernorateId = x.GovernorateId,
+                    BranchId = x.BranchId,
+                    TeacherId = x.TeacherId,
+                    Inactive = x.Inactive
+                })
+                .ToList();
+
+            var result = new PagedResultDto<UserLockUpDto>
+            {
+                Items = items,
+                TotalCount = totalCount
+            };
+
+            return output.CreateResponse(result);
+        }
+
         public IResponse<UserLockUpDto> GetUserDetails(int targetUserId, int requesterId)
         {
             var output = new Response<UserLockUpDto>();

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
@@ -41,6 +42,38 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _managerStudentRepository = managerStudentRepository;
         }
 
+
+
+        public IResponse<PagedResultDto<CircleReportReDto>> GetDeletedPagedList(FilteredResultRequestDto pagedDto)
+        {
+            var output = new Response<PagedResultDto<CircleReportReDto>>();
+            string? sw = pagedDto.SearchTerm?.Trim().ToLower();
+
+            var deletedReportsQuery = _circleReportRepository
+                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .Where(r =>
+                    string.IsNullOrEmpty(sw)
+                    || (r.Student != null && r.Student.FullName != null && r.Student.FullName.ToLower().Contains(sw))
+                    || (r.Teacher != null && r.Teacher.FullName != null && r.Teacher.FullName.ToLower().Contains(sw))
+                    || (r.Circle != null && r.Circle.Name != null && r.Circle.Name.ToLower().Contains(sw))
+                    || (r.Other != null && r.Other.ToLower().Contains(sw)))
+                .AsNoTracking();
+
+            var totalCount = deletedReportsQuery.Count();
+            var entities = deletedReportsQuery
+                .OrderByDescending(r => r.CreatedAt ?? r.CreationTime)
+                .Skip(pagedDto.SkipCount)
+                .Take(pagedDto.MaxResultCount)
+                .ToList();
+
+            var result = new PagedResultDto<CircleReportReDto>
+            {
+                Items = _mapper.Map<List<CircleReportReDto>>(entities),
+                TotalCount = totalCount
+            };
+
+            return output.CreateResponse(result);
+        }
 
         public IResponse<PagedResultDto<CircleReportReDto>> GetPagedList(
     FilteredResultRequestDto pagedDto,
