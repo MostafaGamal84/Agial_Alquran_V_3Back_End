@@ -37,6 +37,10 @@ namespace OrbitsProject.API.Controllers
 
         [HttpGet("DisableUser"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> DisableUser(int id, bool statue) => Ok(await _userBLL.DisableUser(id, statue));
+
+        [HttpPost("Restore"), ProducesResponseType(typeof(IResponse<bool>), 200)]
+        public async Task<IActionResult> Restore(int id) => Ok(await _userBLL.Restore(id, UserId));
+
         //[HttpGet("GetById"), ProducesResponseType(typeof(IResponse<UserDetailsDto>), 200)]
         //public async Task<IActionResult> GetById(int id) => Ok(await _userBLL.GetById(id, UserId));
     }

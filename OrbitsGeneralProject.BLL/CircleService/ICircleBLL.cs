@@ -26,6 +26,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         Task<IResponse<bool>> Update(UpdateCircleDto dto, int userId);
         Task<IResponse<bool>> DeleteAsync(int id, int userId);
+        Task<IResponse<bool>> RestoreAsync(int id, int userId);
 
 
     }
