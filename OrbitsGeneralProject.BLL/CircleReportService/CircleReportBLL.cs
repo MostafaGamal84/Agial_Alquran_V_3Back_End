@@ -399,7 +399,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         {
             var output = new Response<bool>();
 
-            var report = await _circleReportRepository.GetByIdAsync(id);
+            var report = await _circleReportRepository.DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .FirstOrDefaultAsync(x => x.Id == id);
             if (report == null)
                 return output.AppendError(MessageCodes.NotFound, nameof(id), "Entity not found");
 

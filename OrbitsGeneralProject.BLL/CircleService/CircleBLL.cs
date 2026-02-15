@@ -1144,7 +1144,8 @@ namespace Orbits.GeneralProject.BLL.CircleService
         {
             Response<bool> output = new Response<bool>();
 
-            Circle entity = await _circleRepository.GetByIdAsync(id);
+            Circle entity = await _circleRepository.DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .FirstOrDefaultAsync(x => x.Id == id);
             if (entity == null)
                 return output.AppendError(MessageCodes.NotFound, nameof(id), "Entity not found");
 
