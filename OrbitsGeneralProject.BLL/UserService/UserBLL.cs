@@ -12,6 +12,8 @@ using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.UserDto;
 using Orbits.GeneralProject.DTO.UserDtos;
 using Orbits.GeneralProject.Repositroy.Base;
+using Orbits.GeneralProject.Repositroy.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace Orbits.GeneralProject.BLL.UserService
 {
@@ -512,7 +514,9 @@ namespace Orbits.GeneralProject.BLL.UserService
         {
             Response<bool> output = new Response<bool>();
 
-            User entity = await _userRepository.GetByIdAsync(id);
+            User entity = await _userRepository
+                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .FirstOrDefaultAsync(x => x.Id == id);
             if (entity == null)
                 return output.AppendError(MessageCodes.NotFound, nameof(id), "Entity not found");
 
