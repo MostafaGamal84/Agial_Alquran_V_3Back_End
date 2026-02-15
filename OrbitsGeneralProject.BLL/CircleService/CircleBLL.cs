@@ -87,12 +87,13 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             var deletedCirclesQuery = _circleRepository
                 .DisableFilter(nameof(DynamicFilters.IsDeleted))
-                .Where(c => searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)))
-                .AsNoTracking();
+                .Where(c => searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)));
 
             var totalCount = deletedCirclesQuery.Count();
             var entities = deletedCirclesQuery
+                .Include(c => c.Teacher)
                 .Include(c => c.ManagerCircles)
+                    .ThenInclude(mc => mc.Manager)
                 .Include(c => c.CircleDays)
                 .Include(c => c.Users)
                 .OrderByDescending(c => c.Id)

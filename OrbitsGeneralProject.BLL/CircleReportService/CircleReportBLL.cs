@@ -56,11 +56,13 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                     || (r.Student != null && r.Student.FullName != null && r.Student.FullName.ToLower().Contains(sw))
                     || (r.Teacher != null && r.Teacher.FullName != null && r.Teacher.FullName.ToLower().Contains(sw))
                     || (r.Circle != null && r.Circle.Name != null && r.Circle.Name.ToLower().Contains(sw))
-                    || (r.Other != null && r.Other.ToLower().Contains(sw)))
-                .AsNoTracking();
+                    || (r.Other != null && r.Other.ToLower().Contains(sw)));
 
             var totalCount = deletedReportsQuery.Count();
             var entities = deletedReportsQuery
+                .Include(r => r.Teacher)
+                .Include(r => r.Student)
+                .Include(r => r.Circle)
                 .OrderByDescending(r => r.CreatedAt ?? r.CreationTime)
                 .Skip(pagedDto.SkipCount)
                 .Take(pagedDto.MaxResultCount)
