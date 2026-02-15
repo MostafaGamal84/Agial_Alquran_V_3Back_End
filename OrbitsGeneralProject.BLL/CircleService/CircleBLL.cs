@@ -86,7 +86,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             string? searchWordLower = pagedDto.SearchTerm?.Trim()?.ToLower();
 
             var deletedCirclesQuery = _circleRepository
-                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .DisableFilter(nameof(Repositroy.Enums.DynamicFilters.IsDeleted))
                 .Where(c => searchWordLower == null || (c.Name != null && c.Name.ToLower().Contains(searchWordLower)))
                 .AsNoTracking();
 

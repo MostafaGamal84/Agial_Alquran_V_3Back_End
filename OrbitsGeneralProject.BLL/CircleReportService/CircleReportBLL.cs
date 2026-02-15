@@ -12,6 +12,7 @@ using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.Repositroy.Base;
 using System;
 using System.Linq.Expressions;
+using Orbits.GeneralProject.Repositroy.Enums;
 
 namespace Orbits.GeneralProject.BLL.CircleReportService
 {

@@ -900,7 +900,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             string? sw = pagedDto.SearchTerm?.Trim().ToLower();
 
             var deletedUsersQuery = _UserRepo
-                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .DisableFilter(nameof(Repositroy.Enums.DynamicFilters.IsDeleted))
                 .Where(x => x.UserTypeId == userTypeId
                     && (
                         string.IsNullOrEmpty(sw)
