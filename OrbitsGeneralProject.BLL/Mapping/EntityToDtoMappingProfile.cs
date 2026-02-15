@@ -26,8 +26,8 @@ namespace Orbits.GeneralProject.BLL.Mapping
             CreateMap<User, ManagerDto>()
             .ForMember(x => x.UserTypeId, xx => xx.MapFrom(c => ((UserTypesEnum)c.UserTypeId).ToString()));
             CreateMap<Circle, CircleDto>()
-                .ForMember(d => d.Managers, o => o.MapFrom(s => s.ManagerCircles))
-                .ForMember(d => d.Students, o => o.MapFrom(s => s.Users.Where(X => X.UserTypeId == (int)UserTypesEnum.Student)))
+                .ForMember(d => d.Managers, o => o.MapFrom(s => s.ManagerCircles.Where(mc => mc.Manager != null && mc.Manager.IsDeleted != true)))
+                .ForMember(d => d.Students, o => o.MapFrom(s => s.Users.Where(X => X.UserTypeId == (int)UserTypesEnum.Student && X.IsDeleted != true)))
                 .ForMember(d => d.Days, o => o.MapFrom(s => s.CircleDays));
             CreateMap<CircleDay, CircleDayDto>()
                 .ForMember(d => d.DayId, o => o.MapFrom(s => s.DayId.HasValue ? s.DayId.Value : 0))
