@@ -16,6 +16,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
     public interface ICircleBLL
     {
         public IResponse<PagedResultDto<CircleDto>> GetPagedList(FilteredResultRequestDto pagedDto, int? managerId, int? teacherId, int userId);
+        IResponse<PagedResultDto<CircleDto>> GetDeletedPagedList(FilteredResultRequestDto pagedDto);
 
         Task<IResponse<CircleDto>> GetByIdAsync(int id, int userId);
 
