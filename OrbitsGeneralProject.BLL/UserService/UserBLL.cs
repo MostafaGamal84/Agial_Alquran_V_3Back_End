@@ -510,7 +510,7 @@ namespace Orbits.GeneralProject.BLL.UserService
         public async Task<IResponse<bool>> DisableUser(int id ,bool statue)
         {
             Response<bool> output = new Response<bool>();
-            User entity = await _userRepository.GetByIdAsync(id);
+            User entity =  _userRepository.GetById(id);
             if (entity == null)
                 return output.CreateResponse(MessageCodes.NotFound);
             if (statue)

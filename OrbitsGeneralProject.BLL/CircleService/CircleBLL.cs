@@ -18,6 +18,7 @@ using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.DTO.UserDto;
 using Orbits.GeneralProject.DTO.UserDtos;
 using Orbits.GeneralProject.Repositroy.Base;
+using Orbits.GeneralProject.Repositroy.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
