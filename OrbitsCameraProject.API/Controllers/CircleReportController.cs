@@ -53,6 +53,10 @@ namespace OrbitsProject.API.Controllers
         [HttpPost("Delete"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Delete(int id)
            => Ok(await _circleReportBLL.DeleteAsync(id, UserId));
+
+        [HttpPost("Restore"), ProducesResponseType(typeof(IResponse<bool>), 200)]
+        public async Task<IActionResult> Restore(int id)
+           => Ok(await _circleReportBLL.RestoreAsync(id, UserId));
     }
 
 }
