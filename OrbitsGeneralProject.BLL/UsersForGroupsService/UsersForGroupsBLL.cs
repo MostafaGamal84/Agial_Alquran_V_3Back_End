@@ -894,10 +894,17 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
         }
 
 
-        public IResponse<PagedResultDto<UserLockUpDto>> GetDeletedUsersByType(FilteredResultRequestDto pagedDto, int userTypeId)
+        public IResponse<PagedResultDto<UserLockUpDto>> GetDeletedUsersByType(FilteredResultRequestDto pagedDto, int userTypeId, int requesterId)
         {
             var output = new Response<PagedResultDto<UserLockUpDto>>();
             string? sw = pagedDto.SearchTerm?.Trim().ToLower();
+
+            var requester = _UserRepo.GetById(requesterId);
+            if (requester == null)
+                return output.AppendError(MessageCodes.NotFound);
+
+            var requesterType = (UserTypesEnum)(requester.UserTypeId ?? 0);
+            var requesterBranchId = requester.BranchId;
 
             var deletedUsersQuery = _UserRepo
                 .DisableFilter(nameof(Repositroy.Enums.DynamicFilters.IsDeleted))
@@ -907,8 +914,21 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         || (x.FullName != null && x.FullName.ToLower().Contains(sw))
                         || (x.Mobile != null && x.Mobile.ToLower().Contains(sw))
                         || (x.Email != null && x.Email.ToLower().Contains(sw))
-                    ))
-                .AsNoTracking();
+                    ));
+
+            if (requesterType == UserTypesEnum.BranchLeader)
+            {
+                if (!requesterBranchId.HasValue)
+                    return output.CreateResponse(new PagedResultDto<UserLockUpDto>
+                    {
+                        Items = new List<UserLockUpDto>(),
+                        TotalCount = 0
+                    });
+
+                deletedUsersQuery = deletedUsersQuery.Where(x => x.BranchId == requesterBranchId.Value);
+            }
+
+            deletedUsersQuery = deletedUsersQuery.AsNoTracking();
 
             var totalCount = deletedUsersQuery.Count();
             var items = deletedUsersQuery
