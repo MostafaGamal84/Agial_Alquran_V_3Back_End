@@ -39,19 +39,19 @@ namespace OrbitsProject.API.Controllers
 
         [HttpGet("DeletedStudents"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
         public IActionResult GetDeletedStudents([FromQuery] FilteredResultRequestDto paginationFilterModel)
-            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Student));
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Student, UserId));
 
         [HttpGet("DeletedTeachers"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
         public IActionResult GetDeletedTeachers([FromQuery] FilteredResultRequestDto paginationFilterModel)
-            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Teacher));
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Teacher, UserId));
 
         [HttpGet("DeletedManagers"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
         public IActionResult GetDeletedManagers([FromQuery] FilteredResultRequestDto paginationFilterModel)
-            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Manager));
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.Manager, UserId));
 
         [HttpGet("DeletedBranchLeaders"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
         public IActionResult GetDeletedBranchLeaders([FromQuery] FilteredResultRequestDto paginationFilterModel)
-            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.BranchLeader));
+            => Ok(_usersForGroupsBLL.GetDeletedUsersByType(paginationFilterModel, (int)UserTypesEnum.BranchLeader, UserId));
 
         [HttpGet("GetUserDetails"), ProducesResponseType(typeof(IResponse<UserLockUpDto>), 200)]
         public async Task<IActionResult> GetUserDetails(int id)
