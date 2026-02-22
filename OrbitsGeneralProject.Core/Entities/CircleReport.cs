@@ -16,13 +16,10 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? NewId { get; set; }
         public string? NewFrom { get; set; }
         public string? NewTo { get; set; }
-        public string? NewRate { get; set; }
         public string? RecentPast { get; set; }
-        public string? RecentPastRate { get; set; }
         public string? DistantPast { get; set; }
-        public string? DistantPastRate { get; set; }
         public string? FarthestPast { get; set; }
-        public string? FarthestPastRate { get; set; }
+        public string? GeneralRate { get; set; }
         public string? TheWordsQuranStranger { get; set; }
         public string? Intonation { get; set; }
         public string? Other { get; set; }
@@ -37,6 +34,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? CreatedBy { get; set; }
         public DateTime? ModifiedAt { get; set; }
         public int? ModifiedBy { get; set; }
+        public bool? IsVisual { get; set; }
+        public string? NextCircleOrder { get; set; }
 
         public virtual Circle? Circle { get; set; }
         public virtual User? Student { get; set; }
