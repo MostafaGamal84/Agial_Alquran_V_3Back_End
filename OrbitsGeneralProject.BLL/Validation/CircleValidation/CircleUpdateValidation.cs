@@ -18,17 +18,17 @@ public class CircleUpdateValidation : AbstractValidator<UpdateCircleDto>
         RuleFor(l => l.Name).Matches(new Regex(@"^(?!.*\d_)(?!.*_\d)[a-zA-Z0-9ء-ي ]+$"))
 .WithMessage(CircleValidationResponseConstants.ValidName);
 
-        RuleFor(l => l.Days)
-            .Cascade(CascadeMode.Stop)
-            .NotNull().WithMessage(CircleValidationResponseConstants.DaysRequired)
-            .Must(days => days != null && days.Count > 0)
-            .WithMessage(CircleValidationResponseConstants.DaysMustBeMoreThanZero)
-            .Must(days => days != null && days.All(day => day.DayId > 0))
-            .WithMessage(CircleValidationResponseConstants.DayRequired)
-            .Must(days => days != null && days.All(day => day.Time.HasValue))
-            .WithMessage(CircleValidationResponseConstants.StartTimeRequired)
-            .Must(days => days != null && days.All(day => IsValidTime(day.Time)))
-            .WithMessage(CircleValidationResponseConstants.StartTimeInvalid);
+        //RuleFor(l => l.Days)
+        //    .Cascade(CascadeMode.Stop)
+        //    .NotNull().WithMessage(CircleValidationResponseConstants.DaysRequired)
+        //    .Must(days => days != null && days.Count > 0)
+        //    .WithMessage(CircleValidationResponseConstants.DaysMustBeMoreThanZero)
+        //    .Must(days => days != null && days.All(day => day.DayId > 0))
+        //    .WithMessage(CircleValidationResponseConstants.DayRequired)
+        //    .Must(days => days != null && days.All(day => day.Time.HasValue))
+        //    .WithMessage(CircleValidationResponseConstants.StartTimeRequired)
+        //    .Must(days => days != null && days.All(day => IsValidTime(day.Time)))
+        //    .WithMessage(CircleValidationResponseConstants.StartTimeInvalid);
 
     }
 

@@ -185,7 +185,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             if (teacher == null) return output.CreateResponse(MessageCodes.TeacherNotFound);
             var studentSubscribe = student.StudentSubscribes.LastOrDefault();
             if (studentSubscribe == null) return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
-            if (studentSubscribe.RemainingMinutes < model.Minutes) return output.CreateResponse(MessageCodes.StudentMinutesNotFound);
+            //if (studentSubscribe.RemainingMinutes < model.Minutes) return output.CreateResponse(MessageCodes.StudentMinutesNotFound);
 
             // 4) Map & create the circle
             var entity = _mapper.Map<CircleReportAddDto, CircleReport>(model);
