@@ -309,6 +309,11 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.Amount = dto.Amount;
                 entity.ReceiptPath = dto.ReceiptPath!=null ? _fileService.CreateFileAsync(dto.ReceiptPath,"StudentInvoices/").Result.Data.FilePath : null;
                 entity.PaymentDate = DateTime.Now;
+                // ✅ يحدث فقط لو فيها قيمة
+                if (dto.CurrencyId.HasValue)
+                {
+                    entity.CurrencyId = dto.CurrencyId.Value;
+                }
                 entity.ModefiedBy = userId;
                 entity.ModefiedAt = DateTime.Now;
                 entity.PayStatue = dto.PayStatue;

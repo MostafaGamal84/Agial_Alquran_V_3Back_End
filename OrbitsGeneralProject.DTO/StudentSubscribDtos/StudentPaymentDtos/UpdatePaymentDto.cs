@@ -15,5 +15,8 @@ namespace Orbits.GeneralProject.DTO.StudentPaymentDtos
         public IFormFile? ReceiptPath { get; set; }
         public bool? PayStatue { get; set; }
         public bool? IsCancelled { get; set; }
+        public int? CurrencyId { get; set; }
+
+        
     }
 }
