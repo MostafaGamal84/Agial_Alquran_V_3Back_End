@@ -174,11 +174,15 @@ app.UseAuthorization();
 app.MapControllers();
 //app.MapFallbackToFile("index.html");
 
-RecurringJob.AddOrUpdate<IStudentSubscriptionRenewalJob>(
-    "student-subscription-renewal-monthly",
-    job => job.RenewSubscriptionsAsync(),
-    Cron.Monthly(1, 0),
-    TimeZoneInfo.Local);
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    recurringJobManager.AddOrUpdate<IStudentSubscriptionRenewalJob>(
+        "student-subscription-renewal-monthly",
+        job => job.RenewSubscriptionsAsync(),
+        Cron.Monthly(1, 0),
+        TimeZoneInfo.Local);
+}
 
 
 // ----- Run
