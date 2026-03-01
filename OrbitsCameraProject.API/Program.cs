@@ -1,10 +1,12 @@
-﻿using Orbits.GeneralProject.BLL;
+﻿using Hangfire;
+using Orbits.GeneralProject.BLL;
 using Orbits.GeneralProject.BLL.Mapping;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.Setting.Authentication;
 using Orbits.GeneralProject.DTO.Setting.Files;
 using Orbits.GeneralProject.Repositroy.Base;
+using OrbitsProject.API.BackgroundJobs;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.IdentityModel.Tokens;
@@ -36,6 +38,14 @@ builder.Configuration
 
 // ----- Controllers
 builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+
+// ----- Hangfire
+builder.Services.AddHangfire(config => config
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHangfireServer();
 
 // ----- Options (Config sections)
 builder.Services.Configure<FileStorageSetting>(builder.Configuration.GetSection(AppsettingsEnum.FileStorageSetting.ToString()));
@@ -88,6 +98,8 @@ foreach (var implementationType in typeof(BaseBLL).Assembly.GetTypes()
         builder.Services.AddScoped(interfaceType, implementationType);
     }
 }
+
+builder.Services.AddScoped<IStudentSubscriptionRenewalJob, StudentSubscriptionRenewalJob>();
 
 // ----- Repository
 builder.Services.AddScoped<IDbFactory, DbFactory>(s =>
@@ -161,6 +173,16 @@ app.UseAuthorization();
 // ----- Map controllers
 app.MapControllers();
 //app.MapFallbackToFile("index.html");
+
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    recurringJobManager.AddOrUpdate<IStudentSubscriptionRenewalJob>(
+        "student-subscription-renewal-monthly",
+        job => job.RenewSubscriptionsAsync(),
+        Cron.Monthly(1, 0),
+        TimeZoneInfo.Local);
+}
 
 
 // ----- Run
