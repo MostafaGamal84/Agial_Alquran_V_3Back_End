@@ -321,7 +321,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     })
                     .ToList();
 
-                var managerIds = managerRecords.Select(m => m.Id).ToList();
+                var branchManagerIds = managerRecords.Select(m => m.Id).ToList();
 
                 // Teachers for these managers (and any unassigned teachers in the same branch)
                 var branchTeachers = (branchIds.Count == 0)
@@ -350,7 +350,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         .ToList();
 
                 var teachersByManager = branchTeachers
-                    .Where(u => u.ManagerId != null && managerIds.Contains((int)u.ManagerId))
+                    .Where(u => u.ManagerId != null && branchManagerIds.Contains((int)u.ManagerId))
                     .GroupBy(u => (int)u.ManagerId)
                     .ToDictionary(
                         g => g.Key,
@@ -394,11 +394,11 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     );
 
                 // Students for these managers
-                var studentsByManager = (managerIds.Count == 0)
+                var studentsByManager = (branchManagerIds.Count == 0)
                     ? new Dictionary<int, List<UserLockUpDto>>()
                     : _UserRepo
                         .Where(u => managerStudentsQuery.Any(ms => ms.StudentId == u.Id && ms.ManagerId.HasValue
-                                    && managerIds.Contains(ms.ManagerId.Value))
+                                    && branchManagerIds.Contains(ms.ManagerId.Value))
                                     && u.UserTypeId == (int)UserTypesEnum.Student
                                     && u.BranchId.HasValue
                                     && branchIds.Contains(u.BranchId.Value))
@@ -444,9 +444,9 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 var circlesQuery = _circleRepo
                     .Where(c => !myBranchId.HasValue || (c.BranchId.HasValue && c.BranchId == myBranchId.Value))
                     .AsNoTracking();
-                var circlesByManager = (managerIds.Count == 0)
+                var circlesByManager = (branchManagerIds.Count == 0)
                     ? new Dictionary<int, List<ManagerCirclesDto>>()
-                    : (from mc in _managerCircleRepo.Where(mc => mc.ManagerId.HasValue && managerIds.Contains(mc.ManagerId.Value)).AsNoTracking()
+                    : (from mc in _managerCircleRepo.Where(mc => mc.ManagerId.HasValue && branchManagerIds.Contains(mc.ManagerId.Value)).AsNoTracking()
                        join c in circlesQuery on mc.CircleId equals c.Id
                        select new
                        {
@@ -526,7 +526,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             // ============================================
             if (targetIsManager && includeManagerRelations && paged.Items?.Any() == true)
             {
-                var managerIds = paged.Items.Select(m => m.Id).ToList();
+                var pagedManagerIds = paged.Items.Select(m => m.Id).ToList();
 
                 // 1) Teachers & Students (one shot)
                 var usersQ = _UserRepo.DisableFilter(); // مهم: ده IQueryable<User>
@@ -534,7 +534,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 var teachersRaw = (from mt in managerTeachersQuery
                                    join u in usersQ on mt.TeacherId equals u.Id
                                    where mt.ManagerId.HasValue
-                                         && managerIds.Contains(mt.ManagerId.Value)
+                                         && pagedManagerIds.Contains(mt.ManagerId.Value)
                                          && u.UserTypeId == (int)UserTypesEnum.Teacher
                                    select new
                                    {
@@ -559,7 +559,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 var studentsRaw = (from ms in managerStudentsQuery
                                    join u in usersQ on ms.StudentId equals u.Id
                                    where ms.ManagerId.HasValue
-                                         && managerIds.Contains(ms.ManagerId.Value)
+                                         && pagedManagerIds.Contains(ms.ManagerId.Value)
                                          && u.UserTypeId == (int)UserTypesEnum.Student
                                    select new
                                    {
@@ -631,7 +631,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
                 // 2) ManagerCircles (many-to-many)
                 var mcQ = _managerCircleRepo
-                    .Where(mc => mc.ManagerId.HasValue && managerIds.Contains(mc.ManagerId.Value))
+                    .Where(mc => mc.ManagerId.HasValue && pagedManagerIds.Contains(mc.ManagerId.Value))
                     .AsNoTracking();
                 var cQ = _circleRepo
                     .Where(c => !myBranchId.HasValue || (c.BranchId.HasValue && c.BranchId == myBranchId.Value))
@@ -755,16 +755,16 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                                           .AsNoTracking()
                                           .ToList();
 
-                var managerIds = teacherManagerPairs
+                var teacherManagerIds = teacherManagerPairs
                     .Select(x => x.ManagerId)
                     .Distinct()
                     .ToList();
 
                 // (C) Manager names
-                var managersLite = (managerIds.Count == 0)
+                var managersLite = (teacherManagerIds.Count == 0)
                     ? new Dictionary<int, string>()
                     : _UserRepo
-                        .Where(u => managerIds.Contains(u.Id))
+                        .Where(u => teacherManagerIds.Contains(u.Id))
                         .AsNoTracking()
                         .Select(u => new { u.Id, u.FullName })
                         .ToList()
@@ -839,7 +839,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     .Distinct()
                     .ToList();
 
-                var managerIds = studentManagerPairs
+                var studentManagerIds = studentManagerPairs
                     .Select(v => v.ManagerId)
                     .Distinct()
                     .ToList();
@@ -855,10 +855,10 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                         .ToDictionary(t => t.Id, t => t.FullName);
 
                 // (C) Manager names in one shot
-                var managersMap = (managerIds.Count == 0)
+                var managersMap = (studentManagerIds.Count == 0)
                     ? new Dictionary<int, string>()
                     : _UserRepo
-                        .Where(u => managerIds.Contains(u.Id))
+                        .Where(u => studentManagerIds.Contains(u.Id))
                         .AsNoTracking()
                         .Select(u => new { u.Id, u.FullName })
                         .ToList()
