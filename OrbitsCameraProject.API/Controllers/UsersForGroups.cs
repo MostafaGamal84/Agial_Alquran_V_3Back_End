@@ -11,6 +11,8 @@ using Orbits.GeneralProject.DTO.LockUpDtos;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.DTO.UserDto;
 using Orbits.GeneralProject.DTO.UserDtos;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace OrbitsProject.API.Controllers
 {
@@ -33,8 +35,40 @@ namespace OrbitsProject.API.Controllers
             int teacherId,
             int branchId,
             int? nationalityId,
+            [FromQuery(Name = "managerIds")] string? managerIds,
+            [FromQuery(Name = "managerIds[]")] int[]? managerIdsArray,
             bool includeRelations = false)
-               => Ok(_usersForGroupsBLL.GetUsersForSelects(paginationFilterModel, UserTypeId, UserId, managerId, teacherId, branchId, nationalityId, includeRelations, null));
+        {
+            var parsedManagerIds = new List<int>();
+
+            if (!string.IsNullOrWhiteSpace(managerIds))
+            {
+                var managerIdsFromCsv = managerIds
+                    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .Select(id => int.TryParse(id, out var parsedId) ? parsedId : (int?)null)
+                    .Where(id => id.HasValue && id.Value > 0)
+                    .Select(id => id!.Value);
+
+                parsedManagerIds.AddRange(managerIdsFromCsv);
+            }
+
+            if (managerIdsArray != null && managerIdsArray.Length > 0)
+            {
+                parsedManagerIds.AddRange(managerIdsArray.Where(id => id > 0));
+            }
+
+            return Ok(_usersForGroupsBLL.GetUsersForSelects(
+                paginationFilterModel,
+                UserTypeId,
+                UserId,
+                managerId,
+                parsedManagerIds,
+                teacherId,
+                branchId,
+                nationalityId,
+                includeRelations,
+                null));
+        }
 
 
         [HttpGet("DeletedStudents"), ProducesResponseType(typeof(IResponse<PagedResultDto<UserLockUpDto>>), 200)]
