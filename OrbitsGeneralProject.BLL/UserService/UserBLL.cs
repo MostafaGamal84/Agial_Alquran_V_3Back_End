@@ -369,6 +369,49 @@ namespace Orbits.GeneralProject.BLL.UserService
                 }
             }
 
+            var isStudent = (UserTypesEnum)(existedUser.UserTypeId ?? 0) == UserTypesEnum.Student;
+            if (isStudent)
+            {
+                var usersQuery = _userRepository.GetAll();
+
+                var currentManagerLinks = _managerStudentRepository.GetAll()
+                    .Where(ms => ms.StudentId == existedUser.Id && ms.ManagerId.HasValue)
+                    .ToList();
+
+                var currentManagerIds = currentManagerLinks
+                    .Select(ms => ms.ManagerId!.Value)
+                    .ToHashSet();
+
+                var linksToDelete = currentManagerLinks
+                    .Where(ms => !managerIds.Contains(ms.ManagerId!.Value))
+                    .ToList();
+
+                foreach (var link in linksToDelete)
+                    _managerStudentRepository.Delete(link);
+
+                if (managerIds.Count > 0)
+                {
+                    var validManagerIds = usersQuery
+                        .Where(u => managerIds.Contains(u.Id) && u.UserTypeId == (int)UserTypesEnum.Manager)
+                        .Select(u => u.Id)
+                        .ToHashSet();
+
+                    var managerIdsToAdd = validManagerIds.Where(id => !currentManagerIds.Contains(id));
+                    foreach (var managerId in managerIdsToAdd)
+                    {
+                        _managerStudentRepository.Add(new ManagerStudent
+                        {
+                            ManagerId = managerId,
+                            StudentId = existedUser.Id,
+                            CreatedBy = userid,
+                            CreatedAt = DateTime.Now,
+                            ModefiedBy = userid,
+                            ModefiedAt = DateTime.Now
+                        });
+                    }
+                }
+            }
+
             // ===== MANAGER CIRCLES (refresh only the provided CircleIds) =====
             if (existedUser.UserTypeId == (int)UserTypesEnum.Manager)
             {
