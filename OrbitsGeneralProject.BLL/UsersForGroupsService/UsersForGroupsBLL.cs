@@ -43,6 +43,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
      int userTypeId,
      int userId,
      int? managerId,
+     IEnumerable<int>? managerIds,
      int? teacherId,
      int? branchId = null,
      int? nationalityId = null,
@@ -99,7 +100,14 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
 
             // Treat 0 as null (no value) for all incoming filters
             int? safeBranchId = (branchId.HasValue && branchId.Value > 0) ? branchId : null;
+            var safeManagerIds = (managerIds ?? Enumerable.Empty<int>())
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+            bool hasIntersectionManagersFilter = safeManagerIds.Count >= 2;
+            bool hasManagersFilter = safeManagerIds.Count > 0;
             int? safeManagerId = (managerId.HasValue && managerId.Value > 0) ? managerId : null;
+            int? effectiveSingleManagerId = hasManagersFilter ? safeManagerIds[0] : safeManagerId;
             int? safeTeacherId = (teacherId.HasValue && teacherId.Value > 0) ? teacherId : null;
             int? safeNationalityId = (nationalityId.HasValue && nationalityId.Value > 0) ? nationalityId : null;
             int? myBranchId = (me.BranchId.HasValue && me.BranchId.Value > 0) ? me.BranchId : null;
@@ -125,6 +133,14 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
             var managerTeachersQuery = _managerTeacherRepo.GetAll();
             var managerStudentsQuery = _managerStudentRepo.GetAll();
 
+            var teacherIdsCommon = managerTeachersQuery
+                .Where(mt => mt.ManagerId.HasValue
+                             && safeManagerIds.Contains(mt.ManagerId.Value)
+                             && mt.TeacherId.HasValue)
+                .GroupBy(mt => mt.TeacherId.Value)
+                .Where(g => g.Select(x => x.ManagerId!.Value).Distinct().Count() == safeManagerIds.Count)
+                .Select(g => g.Key);
+
             // ---------- Security + search predicate ----------
             Expression<Func<User, bool>> predicate;
 
@@ -135,11 +151,12 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     && (!targetUserId.HasValue || x.Id == targetUserId.Value)
                     // Admin optional narrowing:
                     && (!targetIsManager || !safeBranchId.HasValue || x.BranchId == safeBranchId.Value)
-                    && (!targetIsTeacher || !safeManagerId.HasValue || managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id))
+                    && (!targetIsTeacher || !hasIntersectionManagersFilter || teacherIdsCommon.Contains(x.Id))
+                    && (!targetIsTeacher || hasIntersectionManagersFilter || !effectiveSingleManagerId.HasValue || managerTeachersQuery.Any(mt => mt.ManagerId == effectiveSingleManagerId.Value && mt.TeacherId == x.Id))
                     && (!targetIsStudent ||
                         (!safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value) &&
-                        (!safeManagerId.HasValue ||
-                            managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id)) &&
+                        (!effectiveSingleManagerId.HasValue ||
+                            managerStudentsQuery.Any(ms => ms.ManagerId == effectiveSingleManagerId.Value && ms.StudentId == x.Id)) &&
                         (!safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value) &&
                         (!applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))) &&
                         (!Inactive.HasValue || x.Inactive == Inactive.Value)
@@ -170,12 +187,13 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                     // Teachers see their students
                     && (!targetIsStudent || !isTeacher || x.TeacherId == me.Id)
                     // Explicit filters if provided
-                    && (!targetIsStudent || !safeManagerId.HasValue ||
-                        managerStudentsQuery.Any(ms => ms.ManagerId == safeManagerId.Value && ms.StudentId == x.Id))
+                    && (!targetIsStudent || !effectiveSingleManagerId.HasValue ||
+                        managerStudentsQuery.Any(ms => ms.ManagerId == effectiveSingleManagerId.Value && ms.StudentId == x.Id))
                     && (!targetIsStudent || !safeTeacherId.HasValue || x.TeacherId == safeTeacherId.Value)
                     && (!targetIsStudent || !safeNationalityId.HasValue || x.NationalityId == safeNationalityId.Value)
                     && (!targetIsStudent || !applyResidentFilter || (x.ResidentId.HasValue && residentIdsFilter!.Contains(x.ResidentId.Value)))
-                    && (!targetIsTeacher || !safeManagerId.HasValue || managerTeachersQuery.Any(mt => mt.ManagerId == safeManagerId.Value && mt.TeacherId == x.Id))
+                    && (!targetIsTeacher || !hasIntersectionManagersFilter || teacherIdsCommon.Contains(x.Id))
+                    && (!targetIsTeacher || hasIntersectionManagersFilter || !effectiveSingleManagerId.HasValue || managerTeachersQuery.Any(mt => mt.ManagerId == effectiveSingleManagerId.Value && mt.TeacherId == x.Id))
                     // Search
                     && (
                         string.IsNullOrEmpty(sw) ||
@@ -1006,6 +1024,7 @@ namespace Orbits.GeneralProject.BLL.UsersForGroupsService
                 targetUser.UserTypeId ?? 0,
                 requesterId,
                 resolvedManagerId,
+                null,
                 targetUser.TeacherId,
                 targetUser.BranchId,
                 targetUser.NationalityId,
