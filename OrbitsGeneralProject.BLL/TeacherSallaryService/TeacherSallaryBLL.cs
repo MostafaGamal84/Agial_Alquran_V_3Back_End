@@ -23,6 +23,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         private readonly IRepository<TeacherReportRecord> _teacherReportRepository;
         private readonly IRepository<TeacherSallary> _teacherSallaryRepository;
         private readonly IRepository<User> _userRepository;
+        private readonly IRepository<ManagerTeacher> _managerTeacherRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileServiceBLL _fileService;
 
@@ -31,12 +32,14 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             IRepository<TeacherReportRecord> teacherReportRepository,
             IRepository<TeacherSallary> teacherSallaryRepository,
             IRepository<User> userRepository,
+            IRepository<ManagerTeacher> managerTeacherRepository,
             IUnitOfWork unitOfWork,
             IFileServiceBLL fileService) : base(mapper)
         {
             _teacherReportRepository = teacherReportRepository;
             _teacherSallaryRepository = teacherSallaryRepository;
             _userRepository = userRepository;
+            _managerTeacherRepository = managerTeacherRepository;
             _unitOfWork = unitOfWork;
             _fileService = fileService;
         }
