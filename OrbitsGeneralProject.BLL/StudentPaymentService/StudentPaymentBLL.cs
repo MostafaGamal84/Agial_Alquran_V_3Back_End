@@ -75,6 +75,9 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
 
     // ONE EF-translatable predicate
     Expression<Func<StudentPayment, bool>> predicate = p =>
+        // ----- skip payments linked to soft-deleted students
+        (p.Student != null && p.Student.IsDeleted == false) &&
+
         // ----- role-based visibility (on the student)
         (me.UserTypeId != (int)UserTypesEnum.BranchLeader || (p.Student != null && p.Student.BranchId == me.BranchId)) &&
         (me.UserTypeId != (int)UserTypesEnum.Manager      || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == p.StudentId)) &&
