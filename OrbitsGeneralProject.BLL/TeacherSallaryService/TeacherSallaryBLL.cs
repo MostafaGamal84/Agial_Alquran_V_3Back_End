@@ -282,7 +282,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     return response.AppendErrors(scopeForAllResponse.Errors);
                 }
 
-                var activeTeacherIds = await ApplyTeachersScope(_userRepository, scopeForAllResponse.Data)
+                var activeTeacherIds = await ApplyTeachersScope(_userRepository.GetAll(), scopeForAllResponse.Data)
                     .Select(user => user.Id)
                     .ToListAsync();
 
