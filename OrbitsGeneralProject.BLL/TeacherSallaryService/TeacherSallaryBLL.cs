@@ -736,10 +736,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             else if (scope.Mode == SalaryAccessMode.ManagerTeachers && scope.ManagerId.HasValue)
             {
                 int managerId = scope.ManagerId.Value;
-                query = query.Where(u => _managerTeacherRepository
-                    .Where(mt => mt.ManagerId == managerId)
-                    .Select(mt => mt.TeacherId)
-                    .Contains(u.Id));
+                query = query.Where(u => u.ManagerTeacherTeachers.Any(mt => mt.ManagerId == managerId));
             }
 
             return query;
@@ -755,10 +752,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             else if (scope.Mode == SalaryAccessMode.ManagerTeachers && scope.ManagerId.HasValue)
             {
                 int managerId = scope.ManagerId.Value;
-                query = query.Where(invoice => _managerTeacherRepository
-                    .Where(mt => mt.ManagerId == managerId)
-                    .Select(mt => mt.TeacherId)
-                    .Contains(invoice.TeacherId));
+                query = query.Where(invoice =>
+                    invoice.Teacher != null &&
+                    invoice.Teacher.ManagerTeacherTeachers.Any(mt => mt.ManagerId == managerId));
             }
 
             return query;
