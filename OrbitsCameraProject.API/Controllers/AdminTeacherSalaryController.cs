@@ -36,7 +36,7 @@ namespace OrbitsProject.API.Controllers
         [ProducesResponseType(typeof(IResponse<IEnumerable<TeacherInvoiceDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetInvoices([FromQuery] DateTime? month = null, [FromQuery] int? teacherId = null)
         {
-            var response = await _teacherSallaryBll.GetInvoicesAsync(month, teacherId);
+            var response = await _teacherSallaryBll.GetInvoicesAsync(UserId, month, teacherId);
             return Ok(response);
         }
 
@@ -48,7 +48,7 @@ namespace OrbitsProject.API.Controllers
         [ProducesResponseType(typeof(IResponse<TeacherSallaryDetailsDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetInvoiceDetails(int invoiceId)
         {
-            var response = await _teacherSallaryBll.GetInvoiceDetailsAsync(invoiceId);
+            var response = await _teacherSallaryBll.GetInvoiceDetailsAsync(UserId, invoiceId);
             return Ok(response);
         }
 
@@ -105,7 +105,7 @@ namespace OrbitsProject.API.Controllers
                 return Ok(failureResponse.CreateResponse(MessageCodes.Failed, "Unable to update the invoice payment."));
             }
 
-            var invoiceResponse = await _teacherSallaryBll.GetInvoiceByIdAsync(invoiceId);
+            var invoiceResponse = await _teacherSallaryBll.GetInvoiceByIdAsync(UserId, invoiceId);
             return Ok(invoiceResponse);
         }
 
@@ -118,7 +118,7 @@ namespace OrbitsProject.API.Controllers
         [ProducesResponseType(typeof(IResponse<IEnumerable<TeacherMonthlySummaryDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMonthlySummary([FromQuery] int? teacherId = null, [FromQuery] DateTime? month = null)
         {
-            var response = await _teacherSallaryBll.GetMonthlySummaryAsync(teacherId, month);
+            var response = await _teacherSallaryBll.GetMonthlySummaryAsync(UserId, teacherId, month);
             return Ok(response);
         }
 

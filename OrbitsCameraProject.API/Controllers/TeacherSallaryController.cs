@@ -46,7 +46,7 @@ namespace OrbitsProject.API.Controllers
         [ProducesResponseType(typeof(IResponse<IEnumerable<TeacherInvoiceDto>>), 200)]
         public async Task<IActionResult> GetInvoices([FromQuery] DateTime? month = null, [FromQuery] int? teacherId = null)
         {
-            var result = await _teacherSallaryBll.GetInvoicesAsync(month, teacherId);
+            var result = await _teacherSallaryBll.GetInvoicesAsync(UserId, month, teacherId);
             return Ok(result);
         }
 
@@ -59,7 +59,7 @@ namespace OrbitsProject.API.Controllers
         [ProducesResponseType(typeof(IResponse<IEnumerable<TeacherMonthlySummaryDto>>), 200)]
         public async Task<IActionResult> GetMonthlySummary([FromQuery] int? teacherId = null, [FromQuery] DateTime? month = null)
         {
-            var result = await _teacherSallaryBll.GetMonthlySummaryAsync(teacherId, month);
+            var result = await _teacherSallaryBll.GetMonthlySummaryAsync(UserId, teacherId, month);
             return Ok(result);
         }
 
@@ -71,7 +71,7 @@ namespace OrbitsProject.API.Controllers
         [ProducesResponseType(typeof(IResponse<TeacherInvoiceDto>), 200)]
         public async Task<IActionResult> GetInvoice(int invoiceId)
         {
-            var result = await _teacherSallaryBll.GetInvoiceByIdAsync(invoiceId);
+            var result = await _teacherSallaryBll.GetInvoiceByIdAsync(UserId, invoiceId);
             return Ok(result);
         }
 
@@ -83,7 +83,7 @@ namespace OrbitsProject.API.Controllers
         [ProducesResponseType(typeof(IResponse<TeacherSallaryDetailsDto>), 200)]
         public async Task<IActionResult> GetInvoiceDetails(int invoiceId)
         {
-            var result = await _teacherSallaryBll.GetInvoiceDetailsAsync(invoiceId);
+            var result = await _teacherSallaryBll.GetInvoiceDetailsAsync(UserId, invoiceId);
             return Ok(result);
         }
 
@@ -107,7 +107,7 @@ namespace OrbitsProject.API.Controllers
         [HttpGet("GetPaymentReceipt")]
         public async Task<IActionResult> GetPaymentReceipt([FromQuery] int invoiceId)
         {
-            var receiptResponse = await _teacherSallaryBll.GetPaymentReceiptPathAsync(invoiceId);
+            var receiptResponse = await _teacherSallaryBll.GetPaymentReceiptPathAsync(UserId, invoiceId);
 
             if (!receiptResponse.IsSuccess)
             {

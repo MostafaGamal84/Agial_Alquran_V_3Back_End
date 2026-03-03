@@ -183,14 +183,20 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        public async Task<IResponse<IEnumerable<TeacherInvoiceDto>>> GetInvoicesAsync(DateTime? month = null, int? teacherId = null)
+        public async Task<IResponse<IEnumerable<TeacherInvoiceDto>>> GetInvoicesAsync(int requesterUserId, DateTime? month = null, int? teacherId = null)
         {
             var response = new Response<IEnumerable<TeacherInvoiceDto>>();
 
             try
             {
-                var query = _teacherSallaryRepository
-                    .Where(x=>x.TeacherId != null);
+                var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+                if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
+                {
+                    return response.AppendErrors(scopeResponse.Errors);
+                }
+
+                var query = ApplyInvoiceScope(_teacherSallaryRepository
+                    .Where(x => x.TeacherId != null), scopeResponse.Data);
 
                 if (teacherId.HasValue)
                 {
@@ -221,7 +227,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        public async Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int? teacherId = null, DateTime? month = null)
+        public async Task<IResponse<TeacherMonthlySummaryDto>> GetMonthlySummaryAsync(int requesterUserId, int? teacherId = null, DateTime? month = null)
         {
             var response = new Response<TeacherMonthlySummaryDto>();
 
@@ -248,12 +254,32 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                         return response.CreateResponse(MessageCodes.TeacherNotFound);
                     }
 
-                    var summary = await BuildMonthlySummaryAsync(teacher.Id, teacher.FullName, monthStart);
+                    var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+                    if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
+                    {
+                        return response.AppendErrors(scopeResponse.Errors);
+                    }
+
+                    var scopedTeacher = await ApplyTeachersScope(_userRepository.Where(u => u.Id == teacher.Id), scopeResponse.Data)
+                        .Select(u => u.Id)
+                        .FirstOrDefaultAsync();
+
+                    if (scopedTeacher == 0)
+                    {
+                        return response.CreateResponse(MessageCodes.UnAuthorizedAccess);
+                    }
+
+                    var summary = await BuildMonthlySummaryAsync(teacher.Id, teacher.FullName, monthStart, requesterUserId);
                     return response.CreateResponse(summary);
                 }
 
-                var activeTeacherIds = await _userRepository
-                    .Where(user => !user.IsDeleted && user.UserTypeId == (int)UserTypesEnum.Teacher)
+                var scopeForAllResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+                if (!scopeForAllResponse.IsSuccess || scopeForAllResponse.Data == null)
+                {
+                    return response.AppendErrors(scopeForAllResponse.Errors);
+                }
+
+                var activeTeacherIds = await ApplyTeachersScope(_userRepository.GetAll(), scopeForAllResponse.Data)
                     .Select(user => user.Id)
                     .ToListAsync();
 
@@ -316,14 +342,20 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        public async Task<IResponse<TeacherSallaryDetailsDto>> GetInvoiceDetailsAsync(int invoiceId)
+        public async Task<IResponse<TeacherSallaryDetailsDto>> GetInvoiceDetailsAsync(int requesterUserId, int invoiceId)
         {
             var response = new Response<TeacherSallaryDetailsDto>();
 
             try
             {
-                var invoiceData = await _teacherSallaryRepository
-                    .Where(invoice => invoice.Id == invoiceId)
+                var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+                if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
+                {
+                    return response.AppendErrors(scopeResponse.Errors);
+                }
+
+                var invoiceData = await ApplyInvoiceScope(_teacherSallaryRepository
+                    .Where(invoice => invoice.Id == invoiceId), scopeResponse.Data)
 
                     .Select(invoice => new
                     {
@@ -366,7 +398,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     }
 
                     var monthStart = new DateTime(invoiceDto.Month.Value.Year, invoiceDto.Month.Value.Month, 1);
-                    summary = await BuildMonthlySummaryAsync(invoiceDto.TeacherId.Value, teacherName, monthStart);
+                    summary = await BuildMonthlySummaryAsync(invoiceDto.TeacherId.Value, teacherName, monthStart, requesterUserId);
 
                     if (summary != null && summary.Invoice == null)
                     {
@@ -495,13 +527,20 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        public async Task<IResponse<string?>> GetPaymentReceiptPathAsync(int invoiceId)
+        public async Task<IResponse<string?>> GetPaymentReceiptPathAsync(int requesterUserId, int invoiceId)
         {
             var response = new Response<string?>();
 
             try
             {
-                var invoice = await _teacherSallaryRepository.GetByIdAsync(invoiceId);
+                var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+                if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
+                {
+                    return response.AppendErrors(scopeResponse.Errors);
+                }
+
+                var invoice = await ApplyInvoiceScope(_teacherSallaryRepository.Where(i => i.Id == invoiceId), scopeResponse.Data)
+                    .FirstOrDefaultAsync();
                 if (invoice == null || invoice.IsDeleted.Value)
                 {
                     return response.CreateResponse(MessageCodes.NotFound);
@@ -520,14 +559,20 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        public async Task<IResponse<TeacherInvoiceDto>> GetInvoiceByIdAsync(int invoiceId)
+        public async Task<IResponse<TeacherInvoiceDto>> GetInvoiceByIdAsync(int requesterUserId, int invoiceId)
         {
             var response = new Response<TeacherInvoiceDto>();
 
             try
             {
+                var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+                if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
+                {
+                    return response.AppendErrors(scopeResponse.Errors);
+                }
+
                 var invoice = await ProjectInvoices(
-                        _teacherSallaryRepository.Where(invoice => invoice.Id == invoiceId))
+                        ApplyInvoiceScope(_teacherSallaryRepository.Where(invoice => invoice.Id == invoiceId), scopeResponse.Data))
 
                     .FirstOrDefaultAsync();
 
@@ -544,9 +589,32 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
-        private async Task<TeacherMonthlySummaryDto> BuildMonthlySummaryAsync(int teacherId, string? teacherName, DateTime monthStart)
+        private async Task<TeacherMonthlySummaryDto> BuildMonthlySummaryAsync(int teacherId, string? teacherName, DateTime monthStart, int requesterUserId)
         {
             DateTime monthEnd = monthStart.AddMonths(1);
+
+            var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+            if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
+            {
+                return new TeacherMonthlySummaryDto
+                {
+                    TeacherId = teacherId,
+                    TeacherName = teacherName,
+                    Month = monthStart
+                };
+            }
+
+            bool teacherAllowed = await ApplyTeachersScope(_userRepository.Where(u => u.Id == teacherId), scopeResponse.Data)
+                .AnyAsync();
+            if (!teacherAllowed)
+            {
+                return new TeacherMonthlySummaryDto
+                {
+                    TeacherId = teacherId,
+                    TeacherName = teacherName,
+                    Month = monthStart
+                };
+            }
 
             var teacherRecords = await _teacherReportRepository
                 .Where(record =>
@@ -566,20 +634,20 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
             int totalReports = teacherRecords.Count;
             int totalMinutes = teacherRecords.Sum(r => r.Minutes);
-            double totalSalary = teacherRecords.Sum(r => r.Salary);
+            double totalSalary = Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
+
             int presentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent);
             int absentWithExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse);
             int absentWithoutExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse);
 
-            totalSalary = Math.Round(totalSalary, 2, MidpointRounding.AwayFromZero);
-
             var invoice = await ProjectInvoices(
-                    _teacherSallaryRepository.Where(invoice =>
-                        invoice.TeacherId == teacherId &&
-
-                        invoice.Month.HasValue &&
-                        invoice.Month.Value.Year == monthStart.Year &&
-                        invoice.Month.Value.Month == monthStart.Month))
+                    ApplyInvoiceScope(
+                        _teacherSallaryRepository.Where(invoice =>
+                            invoice.TeacherId == teacherId &&
+                            invoice.Month.HasValue &&
+                            invoice.Month.Value.Year == monthStart.Year &&
+                            invoice.Month.Value.Month == monthStart.Month),
+                        scopeResponse.Data))
                 .FirstOrDefaultAsync();
 
             if (invoice != null && string.IsNullOrWhiteSpace(invoice.TeacherName))
@@ -602,6 +670,106 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             };
         }
 
+
+        private async Task<IResponse<SalaryAccessScope>> ResolveSalaryAccessScopeAsync(int requesterUserId)
+        {
+            var response = new Response<SalaryAccessScope>();
+
+            var requester = await _userRepository
+                .Where(u => u.Id == requesterUserId && !u.IsDeleted)
+                .Select(u => new { u.Id, u.UserTypeId, u.BranchId })
+                .FirstOrDefaultAsync();
+
+            if (requester == null || !requester.UserTypeId.HasValue)
+            {
+                return response.CreateResponse(MessageCodes.UnAuthorizedAccess);
+            }
+
+            var role = (UserTypesEnum)requester.UserTypeId.Value;
+
+            if (role == UserTypesEnum.Admin)
+            {
+                return response.CreateResponse(new SalaryAccessScope
+                {
+                    Mode = SalaryAccessMode.AllTeachers
+                });
+            }
+
+            if (role == UserTypesEnum.BranchLeader)
+            {
+                if (!requester.BranchId.HasValue)
+                {
+                    return response.AppendError(MessageCodes.UnAuthorizedAccess, nameof(User.BranchId), "Branch leader does not have an assigned branch.");
+                }
+
+                return response.CreateResponse(new SalaryAccessScope
+                {
+                    Mode = SalaryAccessMode.BranchTeachers,
+                    BranchId = requester.BranchId
+                });
+            }
+
+            if (role == UserTypesEnum.Manager)
+            {
+                return response.CreateResponse(new SalaryAccessScope
+                {
+                    Mode = SalaryAccessMode.ManagerTeachers,
+                    ManagerId = requester.Id
+                });
+            }
+
+            return response.CreateResponse(MessageCodes.UnAuthorizedAccess);
+        }
+
+        private IQueryable<User> ApplyTeachersScope(IQueryable<User> query, SalaryAccessScope scope)
+        {
+            query = query.Where(u => u.UserTypeId == (int)UserTypesEnum.Teacher && !u.IsDeleted);
+
+            if (scope.Mode == SalaryAccessMode.BranchTeachers && scope.BranchId.HasValue)
+            {
+                int branchId = scope.BranchId.Value;
+                query = query.Where(u => u.BranchId == branchId);
+            }
+            else if (scope.Mode == SalaryAccessMode.ManagerTeachers && scope.ManagerId.HasValue)
+            {
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(u => u.ManagerTeacherTeachers.Any(mt => mt.ManagerId == managerId));
+            }
+
+            return query;
+        }
+
+        private IQueryable<TeacherSallary> ApplyInvoiceScope(IQueryable<TeacherSallary> query, SalaryAccessScope scope)
+        {
+            if (scope.Mode == SalaryAccessMode.BranchTeachers && scope.BranchId.HasValue)
+            {
+                int branchId = scope.BranchId.Value;
+                query = query.Where(invoice => invoice.Teacher != null && invoice.Teacher.BranchId == branchId);
+            }
+            else if (scope.Mode == SalaryAccessMode.ManagerTeachers && scope.ManagerId.HasValue)
+            {
+                int managerId = scope.ManagerId.Value;
+                query = query.Where(invoice =>
+                    invoice.Teacher != null &&
+                    invoice.Teacher.ManagerTeacherTeachers.Any(mt => mt.ManagerId == managerId));
+            }
+
+            return query;
+        }
+
+        private sealed class SalaryAccessScope
+        {
+            public SalaryAccessMode Mode { get; set; }
+            public int? BranchId { get; set; }
+            public int? ManagerId { get; set; }
+        }
+
+        private enum SalaryAccessMode
+        {
+            AllTeachers = 1,
+            BranchTeachers = 2,
+            ManagerTeachers = 3
+        }
         private static IQueryable<TeacherInvoiceDto> ProjectInvoices(IQueryable<TeacherSallary> query)
         {
             return query.Select(invoice => new TeacherInvoiceDto
