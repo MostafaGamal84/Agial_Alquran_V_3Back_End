@@ -345,6 +345,72 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             }
         }
 
+
+        public async Task<IResponse<IEnumerable<TeacherMonthlyReportRecordDto>>> GetMonthlyReportRecordsAsync(int requesterUserId, int teacherId, DateTime? month)
+        {
+            var response = new Response<IEnumerable<TeacherMonthlyReportRecordDto>>();
+
+            try
+            {
+                if (!month.HasValue)
+                {
+                    return response.CreateResponse(MessageCodes.Failed);
+                }
+
+                DateTime monthStart = new(month.Value.Year, month.Value.Month, 1);
+                DateTime monthEnd = monthStart.AddMonths(1);
+
+                var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
+                if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
+                {
+                    return response.AppendErrors(scopeResponse.Errors);
+                }
+
+                bool teacherAllowed = await ApplyTeachersScope(_userRepository.Where(u => u.Id == teacherId), scopeResponse.Data)
+                    .AnyAsync();
+
+                if (!teacherAllowed)
+                {
+                    return response.CreateResponse(MessageCodes.UnAuthorizedAccess);
+                }
+
+                var records = await _teacherReportRepository
+                    .Where(record =>
+                        record.TeacherId == teacherId &&
+                        record.IsDeleted != true &&
+                        record.CreatedAt.HasValue &&
+                        record.CreatedAt.Value >= monthStart &&
+                        record.CreatedAt.Value < monthEnd)
+                    .Include(record => record.Teacher)
+                    .Include(record => record.CircleReport)
+                    .ThenInclude(report => report.Student)
+                    .Select(record => new TeacherMonthlyReportRecordDto
+                    {
+                        Id = record.Id,
+                        TeacherId = record.TeacherId ?? 0,
+                        TeacherName = record.Teacher != null ? record.Teacher.FullName : null,
+                        CircleReportId = record.CircleReportId,
+                        CircleId = record.CircleReport != null ? record.CircleReport.CircleId : null,
+                        StudentId = record.CircleReport != null ? record.CircleReport.StudentId : null,
+                        StudentName = record.CircleReport != null && record.CircleReport.Student != null ? record.CircleReport.Student.FullName : null,
+                        Minutes = record.Minutes ?? 0,
+                        Salary = (double?)(record.CircleSallary ?? 0) ?? 0d,
+                        AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null,
+                        RecordCreatedAt = record.CreatedAt,
+                        CircleReportCreatedAt = record.CircleReport != null ? record.CircleReport.CreatedAt : null
+                    })
+                    .OrderByDescending(record => record.RecordCreatedAt)
+                    .ThenByDescending(record => record.Id)
+                    .ToListAsync();
+
+                return response.CreateResponse(records);
+            }
+            catch (Exception ex)
+            {
+                return response.CreateResponse(ex);
+            }
+        }
+
         public async Task<IResponse<TeacherSallaryDetailsDto>> GetInvoiceDetailsAsync(int requesterUserId, int invoiceId)
         {
             var response = new Response<TeacherSallaryDetailsDto>();

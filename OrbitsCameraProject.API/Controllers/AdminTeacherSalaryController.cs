@@ -122,6 +122,20 @@ namespace OrbitsProject.API.Controllers
             return Ok(response);
         }
 
+
+        /// <summary>
+        /// Returns detailed teacher report records used for salary calculation for a specific teacher and month.
+        /// </summary>
+        /// <param name="teacherId">Teacher identifier.</param>
+        /// <param name="month">Required month filter (day component ignored).</param>
+        [HttpGet("monthly-report-records")]
+        [ProducesResponseType(typeof(IResponse<IEnumerable<TeacherMonthlyReportRecordDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetMonthlyReportRecords([FromQuery] int teacherId, [FromQuery] DateTime? month)
+        {
+            var response = await _teacherSallaryBll.GetMonthlyReportRecordsAsync(UserId, teacherId, month);
+            return Ok(response);
+        }
+
         /// <summary>
         /// Generates teacher salary invoices for the requested month (or the previous month by default).
         /// </summary>
