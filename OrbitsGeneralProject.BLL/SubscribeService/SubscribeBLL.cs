@@ -268,10 +268,10 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
             Subscribe entity = _SubscribeRepository.GetById(id);
             if (entity == null)
                 return output.AppendError(MessageCodes.NotFound);
-            if (entity.StudentSubscribes.Count > 0)
-            {
-                return output.AppendError(MessageCodes.FailedToRemoveSubscribe);
-            }
+            //if (entity.StudentSubscribes.Count > 0)
+            //{
+            //    return output.AppendError(MessageCodes.FailedToRemoveSubscribe);
+            //}
             entity.IsDeleted = true;
             _SubscribeRepository.Update(entity);
             await _unitOfWork.CommitAsync();

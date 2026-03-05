@@ -211,7 +211,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 var teacherReportRecord = new TeacherReportRecord
                 {
                     CircleReportId = created.Id,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = entity.CreationTime,
                     CreatedBy = userId,
                     IsDeleted = false,
                     Minutes = (int)created.Minutes!.Value,
@@ -337,6 +337,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 }
 
                 teacherReport.ModefiedAt = DateTime.UtcNow;
+                teacherReport.CreatedAt = report.CreationTime;
                 teacherReport.ModefiedBy = userId;
             }
 
