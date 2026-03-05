@@ -43,6 +43,8 @@ namespace Orbits.GeneralProject.DTO.Paging
         /// </summary>
         public virtual string? ResidentGroup { get; set; }
         public virtual string? Lang { get; set; } = "en";
+        public virtual DateTime? FromDate { get; set; }
+        public virtual DateTime? ToDate { get; set; }
 
         public virtual string? SortingDirection { get; set; } = "ASC";
         public virtual string? SortBy { get; set; } 

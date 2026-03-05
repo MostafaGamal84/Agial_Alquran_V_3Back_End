@@ -106,6 +106,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
             var managerStudentsQuery = _managerStudentRepository.GetAll();
+            var fromDate = pagedDto.FromDate?.Date;
+            var toDateExclusive = pagedDto.ToDate?.Date.AddDays(1);
 
             // ?????? ??????: ??????? + ????? ????? + ???
             Expression<Func<CircleReport, bool>> predicate = r =>
@@ -140,6 +142,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 && (!studentId.HasValue || r.StudentId == studentId.Value)
                 && (!nationalityId.HasValue || (r.Student != null && r.Student.NationalityId == nationalityId.Value))
                 && (!applyResidentFilter || (r.Student != null && r.Student.ResidentId.HasValue && residentIdsFilter!.Contains(r.Student.ResidentId.Value)))
+                && (!fromDate.HasValue || (r.CreatedAt ?? r.CreationTime) >= fromDate.Value)
+                && (!toDateExclusive.HasValue || (r.CreatedAt ?? r.CreationTime) < toDateExclusive.Value)
 
                 // -------- ????? ??????? ----------
                 && (
