@@ -31,6 +31,15 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         /// <param name="teacherId">Optional teacher filter.</param>
         Task<IResponse<IEnumerable<TeacherInvoiceDto>>> GetInvoicesAsync(int requesterUserId, DateTime? month = null, int? teacherId = null);
 
+
+        /// <summary>
+        /// Returns detailed teacher report records used for salary calculation for the specified month.
+        /// </summary>
+        /// <param name="requesterUserId">Current authenticated user identifier used for scope filtering.</param>
+        /// <param name="teacherId">Teacher identifier.</param>
+        /// <param name="month">Month filter. The day component is ignored.</param>
+        Task<IResponse<IEnumerable<TeacherMonthlyReportRecordDto>>> GetMonthlyReportRecordsAsync(int requesterUserId, int teacherId, DateTime? month);
+
         /// <summary>
         /// Retrieves a salary invoice along with contextual summary information.
         /// </summary>
