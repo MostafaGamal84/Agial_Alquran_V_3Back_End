@@ -142,8 +142,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 && (!studentId.HasValue || r.StudentId == studentId.Value)
                 && (!nationalityId.HasValue || (r.Student != null && r.Student.NationalityId == nationalityId.Value))
                 && (!applyResidentFilter || (r.Student != null && r.Student.ResidentId.HasValue && residentIdsFilter!.Contains(r.Student.ResidentId.Value)))
-                && (!fromDate.HasValue || (r.CreatedAt ?? r.CreationTime) >= fromDate.Value)
-                && (!toDateExclusive.HasValue || (r.CreatedAt ?? r.CreationTime) < toDateExclusive.Value)
+                && (!fromDate.HasValue || ( r.CreationTime) >= fromDate.Value)
+                && (!toDateExclusive.HasValue || (r.CreationTime) < toDateExclusive.Value)
 
                 // -------- ????? ??????? ----------
                 && (
