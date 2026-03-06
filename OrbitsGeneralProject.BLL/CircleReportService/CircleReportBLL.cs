@@ -283,29 +283,10 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             bool prevCounts = CountsForBilling(prevStatusId);
             bool newCounts = CountsForBilling(newStatusId);
 
-            // 5) ????? ???? ????? ?????? ??? ?????? ??????
-            // Four cases:
-            // A) prev: count & new: count   -> ???/????? ??? ??????? ???
-            // B) prev: count & new: noCount -> ????? ?? ????? ??????? ???????
-            // C) prev: noCount & new: count -> ??? ?? ????? ??????? ???????
-            // D) prev: noCount & new: noCount -> ?? ?????
-            int deltaRemaining = 0;
-            if (prevCounts && newCounts)
-            {
-                // remaining -= (new - prev)  ==> delta = -(new - prev)
-                deltaRemaining = -(newMinutes - prevMinutes);
-            }
-            else if (prevCounts && !newCounts)
-            {
-                // ???? ???? ??????? ???? ???? ????? ??????
-                deltaRemaining = +prevMinutes;
-            }
-            else if (!prevCounts && newCounts)
-            {
-                // ???? ???? ??????? ???????
-                deltaRemaining = -newMinutes;
-            }
-            // else: 0
+            // 5) ????? ??????? ??? ??????? ?? ?????? ?????? ?????? ??? ?? ??? ??????
+            int chargedPrevMinutes = prevCounts ? prevMinutes : 0;
+            int chargedNewMinutes = newCounts ? newMinutes : 0;
+            int deltaRemaining = chargedPrevMinutes - chargedNewMinutes;
           
             studentSubscribe.RemainingMinutes += deltaRemaining;
             studentSubscribe.ModefiedAt = DateTime.UtcNow;
@@ -317,32 +298,40 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             report.ModifiedAt = DateTime.UtcNow;
             report.StudentId = student.Id; // ????? ?????
             report.IsDeleted = false;
+            report.Minutes = chargedNewMinutes;
+            report.AttendStatueId = newStatusId;
 
             // 7) ???? ?????? ????? ??? ?????? ??????? ??? (????/???? ???? ???)
             var teacherReport = _teacherReportRecordRepository
                 .Where(x => x.CircleReportId == model.Id).FirstOrDefault();
 
+            var subscribeType = studentSubscribe.StudentSubscribeType;
+            var pricePerUnit = ResolveHourlyRate(subscribeType);
+            var teacherSalary = CalculateTeacherSalary(pricePerUnit, chargedNewMinutes);
+
             if (teacherReport != null)
             {
-                // ??? ???????/?????? ??? ??? ???????? ???????
-                var subscribeType = studentSubscribe.StudentSubscribeType;
-                var pricePerUnit = ResolveHourlyRate(subscribeType);
-
-                if (newCounts)
-                {
-                    teacherReport.Minutes = newMinutes;
-                    teacherReport.CircleSallary = CalculateTeacherSalary(pricePerUnit, newMinutes);
-                }
-                else
-                {
-                    // ????? ?????? ??? ?????? ????
-                    teacherReport.Minutes = 0;
-                    teacherReport.CircleSallary = 0;
-                }
+                teacherReport.Minutes = chargedNewMinutes;
+                teacherReport.CircleSallary = newCounts ? teacherSalary : 0;
 
                 teacherReport.ModefiedAt = DateTime.UtcNow;
                 teacherReport.CreatedAt = report.CreationTime;
                 teacherReport.ModefiedBy = userId;
+            }
+            else if (newCounts)
+            {
+                var teacherReportRecord = new TeacherReportRecord
+                {
+                    CreatedAt = report.CreationTime,
+                    StudentId = student.Id,
+                    TeacherId = teacher.Id,
+                    IsDeleted = false,
+                    Minutes = chargedNewMinutes,
+                    CircleReportId = report.Id,
+                    CircleSallary = teacherSalary
+                };
+
+                _teacherReportRecordRepository.Add(teacherReportRecord);
             }
 
             // 8) ??? ?? ??? ?????? ?????
