@@ -31,9 +31,9 @@ namespace OrbitsProject.API.Controllers
         public async Task<IActionResult> GetUsersForSelects(
             [FromQuery] FilteredResultRequestDto paginationFilterModel,
             int UserTypeId,
-            int managerId,
-            int teacherId,
-            int branchId,
+            int? managerId,
+            int? teacherId,
+            int? branchId,
             int? nationalityId,
             [FromQuery(Name = "managerIds")] string? managerIds,
             [FromQuery(Name = "managerIds[]")] int[]? managerIdsArray,
@@ -56,6 +56,10 @@ namespace OrbitsProject.API.Controllers
             {
                 parsedManagerIds.AddRange(managerIdsArray.Where(id => id > 0));
             }
+
+            parsedManagerIds = parsedManagerIds
+                .Distinct()
+                .ToList();
 
             return Ok(_usersForGroupsBLL.GetUsersForSelects(
                 paginationFilterModel,
