@@ -306,7 +306,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 deltaRemaining = -newMinutes;
             }
             // else: 0
-
+          
             studentSubscribe.RemainingMinutes += deltaRemaining;
             studentSubscribe.ModefiedAt = DateTime.UtcNow;
             studentSubscribe.ModefiedBy = userId;

@@ -148,6 +148,7 @@ namespace Orbits.GeneralProject.BLL.Constants
     {
      
         public const string Surah_Must_Not_Null = "اسم السورة لا يمكن اي يكون فارغا";
+        public const string New_Must_Not_Null = " الجديد من والى  لا يمكن اي يكون فارغا";
         public const string Teacher_Must_Not_Null = "اسم المعلم لا يمكن اي يكون فارغا";
         public const string Student_Must_Not_Null = "اسم الطالب لا يمكن اي يكون فارغا";
         public const string Circle_Must_Not_Null = "اسم الحلقة لا يمكن اي يكون فارغا";

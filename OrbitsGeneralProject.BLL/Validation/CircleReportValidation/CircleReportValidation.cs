@@ -15,7 +15,7 @@ public class CircleReportValidation : AbstractValidator<CircleReportAddDto>
         });
 
         When(m => m.AttendStatueId == 1 || m.AttendStatueId == 3, () => {
-            RuleFor(l => l.Minutes).NotNull().WithMessage(CircleReportValidationResponseConstants.Surah_Must_Not_Null)
+            RuleFor(l => l.Minutes).NotNull().WithMessage(CircleReportValidationResponseConstants.Minutes_Must_Not_Null)
              .NotEmpty().WithMessage(CircleReportValidationResponseConstants.Minutes_Must_Not_Null);
         });
         
