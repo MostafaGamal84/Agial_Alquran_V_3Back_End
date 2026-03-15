@@ -323,7 +323,6 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 var teacherReportRecord = new TeacherReportRecord
                 {
                     CreatedAt = report.CreationTime,
-                    StudentId = student.Id,
                     TeacherId = teacher.Id,
                     IsDeleted = false,
                     Minutes = chargedNewMinutes,

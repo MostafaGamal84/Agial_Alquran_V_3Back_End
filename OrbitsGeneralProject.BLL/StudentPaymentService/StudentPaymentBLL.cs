@@ -320,6 +320,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.ModefiedBy = userId;
                 entity.ModefiedAt = DateTime.Now;
                 entity.PayStatue = dto.PayStatue;
+                entity.IsCancelled = false;
                 studentSubscribe.ModefiedAt = DateTime.Now;
                 studentSubscribe.ModefiedBy = userId;
                 studentSubscribe.PayStatus = dto.PayStatue;
@@ -331,7 +332,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.PayStatue = false;
                 entity.ModefiedBy = userId;
                 entity.ModefiedAt = DateTime.Now;
-                _StudentSubscribeRepo.Delete(studentSubscribe);
+                //_StudentSubscribeRepo.Delete(studentSubscribe);
             }
 
             if (dto.PayStatue == false && dto.IsCancelled == false)

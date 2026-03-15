@@ -31,6 +31,7 @@ namespace Orbits.GeneralProject.DTO.LockUpDtos
         public string? CircleName { get; set; }
         public bool? Inactive { get; set; }
 
+        public DateTime? ModefiedAt { get; set; }
 
         public ICollection<UserLockUpDto>? Managers { get; set; }
         public ICollection<UserLockUpDto>? Teachers { get; set; }
