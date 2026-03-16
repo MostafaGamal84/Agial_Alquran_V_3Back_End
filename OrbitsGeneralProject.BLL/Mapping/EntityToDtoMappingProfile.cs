@@ -73,7 +73,8 @@ namespace Orbits.GeneralProject.BLL.Mapping
                             .ForMember(d => d.StartDate, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().CreatedAt!))
                             .ForMember(d => d.Plan, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentSubscribeType.Name! + " ( " + c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentSubscribeNavigation.Name! + " ) ")) 
                             .ForMember(d => d.PayStatus, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().PayStatus!))
-                            .ForMember(d => d.StudentPaymentId, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentPaymentId!));
+                            .ForMember(d => d.StudentPaymentId, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentPaymentId!))
+                            .ForMember(d => d.SubscribeTypeGroup, m => m.MapFrom(c => c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentSubscribeType.Group.HasValue ? (SubscribeTypeCategory?)c.StudentSubscribes!.Where(x => x.StudentId == c.Id).LastOrDefault().StudentSubscribeType.Group.Value : null));
             CreateMap<StudentPayment, StudentPaymentReDto>()
      .ForMember(d => d.InvoiceId, m => m.MapFrom(s => s.Id))
      .ForMember(d => d.StudentId, m => m.MapFrom(s => s.StudentId ?? 0))
@@ -101,7 +102,15 @@ namespace Orbits.GeneralProject.BLL.Mapping
                             .ForMember(d => d.StartDate, m => m.MapFrom(c => c.CreatedAt!))
                             .ForMember(d => d.Plan, m => m.MapFrom(c => c.StudentSubscribeType.Name!))
                             .ForMember(d => d.PayStatus, m => m.MapFrom(c => c.PayStatus!))
-                            .ForMember(d => d.StudentPaymentId, m => m.MapFrom(c => c.StudentPaymentId!));
+                            .ForMember(d => d.StudentPaymentId, m => m.MapFrom(c => c.StudentPaymentId!))
+                            .ForMember(d => d.SubscribeTypeGroup, m => m.MapFrom(c => c.StudentSubscribeType != null && c.StudentSubscribeType.Group.HasValue ? (SubscribeTypeCategory?)c.StudentSubscribeType.Group.Value : null));
+            CreateMap<StudentSubscribeHistory, StudentSubscribeHistoryReDto>()
+                .ForMember(d => d.ChangedAt, m => m.MapFrom(c => c.CreatedAt))
+                .ForMember(
+                    d => d.ChangedByName,
+                    m => m.MapFrom(c => c.CreatedByUser != null && !string.IsNullOrWhiteSpace(c.CreatedByUser.FullName)
+                        ? c.CreatedByUser.FullName
+                        : "System"));
             CreateMap<StudentPayment, PaymentsFullDashboardDto>();
 
             CreateMap<CircleReport, CircleReportReDto>()

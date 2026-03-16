@@ -26,5 +26,6 @@ namespace Orbits.GeneralProject.DTO.UserDtos
 
         
         public List<int>? StudentIds { get; set; } = new List<int>();
+        public int? StudentSubscribeId { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.Extensions.Logging;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.Helpers;
@@ -13,8 +14,8 @@ using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.DTO.StudentSubscribDtos;
 using Orbits.GeneralProject.Repositroy.Base;
 using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
-using Twilio.TwiML.Voice;
 
 namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 {
@@ -23,25 +24,29 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         private readonly IMapper _mapper;
         private readonly IRepository<User> _UserRepo;
         private readonly IRepository<StudentSubscribe> _StudentSubscribeRepo;
+        private readonly IRepository<StudentSubscribeHistory> _StudentSubscribeHistoryRepo;
         private readonly IRepository<StudentPayment> _StudentPaymentRepo;
         private readonly IRepository<Subscribe> _SubscribeRepo;
         private readonly IRepository<SubscribeType> _SubscribeTypeRepo;
         private readonly IRepository<Nationality> _nationalityRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRepository<ManagerStudent> _managerStudentRepo;
+        private readonly ILogger<StudentSubscribeBLL> _logger;
 
 
-        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<Subscribe> subscribeRepo, IRepository<SubscribeType> subscribeTypeRepo, IRepository<StudentPayment> studentPaymentRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork, IRepository<ManagerStudent> managerStudentRepo) : base(mapper)
+        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<StudentSubscribeHistory> studentSubscribeHistoryRepo, IRepository<Subscribe> subscribeRepo, IRepository<SubscribeType> subscribeTypeRepo, IRepository<StudentPayment> studentPaymentRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork, IRepository<ManagerStudent> managerStudentRepo, ILogger<StudentSubscribeBLL> logger) : base(mapper)
         {
             _mapper = mapper;
             _UserRepo = UserRepo;
             _StudentSubscribeRepo = studentSubscribeRepo;
+            _StudentSubscribeHistoryRepo = studentSubscribeHistoryRepo;
             _SubscribeRepo = subscribeRepo;
             _SubscribeTypeRepo = subscribeTypeRepo;
             _StudentPaymentRepo = studentPaymentRepo;
             _nationalityRepo = nationalityRepo;
             _unitOfWork = unitOfWork;
             _managerStudentRepo = managerStudentRepo;
+            _logger = logger;
         }
 
 
@@ -153,15 +158,77 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
             return output.CreateResponse(paged);
         }
-        public async Task<IResponse<bool>> AddAsync(AddStudentSubscribeDto model, int userId)
+
+        public IResponse<PagedResultDto<StudentSubscribeHistoryReDto>> GetStudentSubscribeHistory(
+            FilteredResultRequestDto pagedDto,
+            int? studentId)
+        {
+            var output = new Response<PagedResultDto<StudentSubscribeHistoryReDto>>();
+            var searchWord = pagedDto.SearchTerm?.Trim();
+            var sw = searchWord?.ToLower();
+
+            pagedDto.SortBy = string.IsNullOrWhiteSpace(pagedDto.SortBy)
+                ? nameof(StudentSubscribeHistory.CreatedAt)
+                : pagedDto.SortBy;
+
+            try
+            {
+                Expression<Func<StudentSubscribeHistory, bool>> predicate = x =>
+                    (!(studentId.HasValue && studentId.Value > 0) || x.StudentId == studentId.Value)
+                    && (
+                        string.IsNullOrEmpty(sw)
+                        || (x.ActionType != null && x.ActionType.ToLower().Contains(sw))
+                        || (x.OldPlanName != null && x.OldPlanName.ToLower().Contains(sw))
+                        || (x.NewPlanName != null && x.NewPlanName.ToLower().Contains(sw))
+                        || (x.CreatedByUser != null && x.CreatedByUser.FullName != null && x.CreatedByUser.FullName.ToLower().Contains(sw))
+                    );
+
+                var paged = GetPagedList<StudentSubscribeHistoryReDto, StudentSubscribeHistory, int>(
+                    pagedDto,
+                    _StudentSubscribeHistoryRepo,
+                    x => x.Id,
+                    predicate,
+                    sortDirection: "DESC",
+                    disableFilter: true,
+                    excluededColumns: null,
+                    x => x.CreatedByUser);
+
+                return output.CreateResponse(paged);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Student subscription history could not be loaded for StudentId: {StudentId}",
+                    studentId);
+
+                return output.CreateResponse(new PagedResultDto<StudentSubscribeHistoryReDto>(0, new List<StudentSubscribeHistoryReDto>()));
+            }
+        }
+
+        public async Task<IResponse<bool>> AddAsync(AddStudentSubscribeDto model, int? userId)
         {
             var output = new Response<bool>();
+            if (model?.StudentId == null || model.StudentSubscribeId == null)
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(AddStudentSubscribeDto.StudentSubscribeId),
+                    "StudentId and StudentSubscribeId are required.");
+            }
+
             var subscribe = _SubscribeRepo.GetById(model.StudentSubscribeId.Value);
             if (subscribe == null)
             {
                 return output.AppendError(MessageCodes.NotFound);
             }
+
             var student = _UserRepo.GetById(model.StudentId.Value);
+            if (student == null)
+            {
+                return output.AppendError(MessageCodes.NotFound);
+            }
+
             var subscribeGroup = ResolveSubscribeGroup(subscribe);
             if (!subscribeGroup.HasValue)
             {
@@ -172,6 +239,26 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             }
 
             var (Amount, Currency) = ResolvePaymentDetails(subscribe, subscribeGroup.Value);
+
+            var currentStudentSubscribe = _StudentSubscribeRepo
+                .Where(x => x.StudentId == model.StudentId.Value)
+                .OrderByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                .ThenByDescending(x => x.Id)
+                .FirstOrDefault();
+
+            if (ShouldUpdateCurrentMonthSubscription(currentStudentSubscribe))
+            {
+                await UpdateCurrentMonthSubscriptionAsync(
+                    currentStudentSubscribe!,
+                    subscribe,
+                    Amount,
+                    Currency,
+                    userId,
+                    model.ActionType);
+
+                return output.CreateResponse(data: true);
+            }
+
             var studentPayment = new StudentPayment
             {
                 CreatedAt = DateTime.Now,
@@ -184,7 +271,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 IsCancelled = false,
             };
             var studentPaymentAdd = await _StudentPaymentRepo.AddAsync(studentPayment);
-            await _unitOfWork.CommitAsync(); 
+            await _unitOfWork.CommitAsync();
 
             var studentSubscribe = new StudentSubscribe
             {
@@ -198,11 +285,19 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 StudentPaymentId = studentPaymentAdd.Id
             };
 
-            // 4a) Save circle to get the generated Id
-            var studentSubscribeAdd = await _StudentSubscribeRepo.AddAsync(studentSubscribe);
-            await _unitOfWork.CommitAsync(); // after this, created.Id is available
-           
-                return output.CreateResponse(data: true);
+            await _StudentSubscribeRepo.AddAsync(studentSubscribe);
+            await _unitOfWork.CommitAsync();
+
+            await TryCreateHistoryAsync(
+                CreateSubscriptionCreatedHistoryEntry(
+                    studentSubscribe,
+                    subscribe,
+                    Amount,
+                    Currency,
+                    userId,
+                    model.ActionType));
+
+            return output.CreateResponse(data: true);
         }
 
         private SubscribeTypeCategory? ResolveSubscribeGroup(Subscribe subscribe)
@@ -237,6 +332,276 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             };
 
             return ((int)Math.Round(price, MidpointRounding.AwayFromZero), currencyId);
+        }
+
+        private bool ShouldUpdateCurrentMonthSubscription(StudentSubscribe? currentStudentSubscribe)
+        {
+            if (currentStudentSubscribe?.CreatedAt == null)
+            {
+                return false;
+            }
+
+            var now = DateTime.Now;
+            return currentStudentSubscribe.CreatedAt.Value.Year == now.Year
+                   && currentStudentSubscribe.CreatedAt.Value.Month == now.Month;
+        }
+
+        private async Task UpdateCurrentMonthSubscriptionAsync(
+            StudentSubscribe currentStudentSubscribe,
+            Subscribe newSubscribe,
+            int amount,
+            int currency,
+            int? userId,
+            string? actionType = null)
+        {
+            var now = DateTime.Now;
+            var oldSubscribe = currentStudentSubscribe.StudentSubscribeId.HasValue
+                ? _SubscribeRepo.GetById(currentStudentSubscribe.StudentSubscribeId.Value)
+                : null;
+
+            int currentRemainingMinutes = Math.Max(0, currentStudentSubscribe.RemainingMinutes ?? 0);
+            int oldTotalMinutes = Math.Max(currentRemainingMinutes, oldSubscribe?.Minutes ?? 0);
+            int usedMinutes = Math.Max(0, oldTotalMinutes - currentRemainingMinutes);
+            int newTotalMinutes = Math.Max(0, newSubscribe.Minutes ?? 0);
+            int newRemainingMinutes = Math.Max(0, newTotalMinutes - usedMinutes);
+            bool? previousStudentPayStatus = currentStudentSubscribe.PayStatus;
+
+            int? previousSubscribeId = currentStudentSubscribe.StudentSubscribeId;
+            int? previousSubscribeTypeId = currentStudentSubscribe.StudentSubscribeTypeId;
+            int? paymentId = currentStudentSubscribe.StudentPaymentId;
+
+            currentStudentSubscribe.StudentSubscribeId = newSubscribe.Id;
+            currentStudentSubscribe.StudentSubscribeTypeId = newSubscribe.SubscribeTypeId;
+            currentStudentSubscribe.StudentSubscribeNavigation = newSubscribe;
+            currentStudentSubscribe.StudentSubscribeType = newSubscribe.SubscribeType
+                ?? (newSubscribe.SubscribeTypeId.HasValue
+                    ? _SubscribeTypeRepo.GetById(newSubscribe.SubscribeTypeId.Value)
+                    : null);
+            currentStudentSubscribe.RemainingMinutes = newRemainingMinutes;
+            currentStudentSubscribe.ModefiedAt = now;
+            currentStudentSubscribe.ModefiedBy = userId;
+
+            StudentPayment? currentPayment = null;
+            int? previousAmount = null;
+            int? previousCurrencyId = null;
+            bool? previousPaymentStatus = null;
+            bool? newPaymentStatus = currentStudentSubscribe.PayStatus;
+            int amountPaidBeforeChange = 0;
+            int remainingAmountAfterChange = amount;
+            if (paymentId.HasValue)
+            {
+                currentPayment = _StudentPaymentRepo.GetById(paymentId.Value);
+                previousAmount = currentPayment?.Amount;
+                previousCurrencyId = currentPayment?.CurrencyId;
+                previousPaymentStatus = currentPayment?.PayStatue;
+            }
+
+            if (currentPayment != null)
+            {
+                amountPaidBeforeChange = currentPayment.PayStatue == true
+                    ? Math.Max(0, currentPayment.Amount ?? 0)
+                    : 0;
+
+                currentPayment.StudentSubscribeId = newSubscribe.Id;
+                currentPayment.StudentSubscribe = newSubscribe;
+                currentPayment.CurrencyId = currency;
+                currentPayment.IsCancelled = false;
+                currentPayment.ModefiedAt = now;
+                currentPayment.ModefiedBy = userId;
+
+                if (currentPayment.PayStatue == true && amount > amountPaidBeforeChange)
+                {
+                    remainingAmountAfterChange = amount - amountPaidBeforeChange;
+                    currentPayment.Amount = remainingAmountAfterChange;
+                    currentPayment.PayStatue = false;
+                    currentPayment.PaymentDate = null;
+                    currentPayment.ReceiptPath = null;
+                    currentStudentSubscribe.PayStatus = false;
+                }
+                else
+                {
+                    remainingAmountAfterChange = amount;
+                    currentPayment.Amount = amount;
+                    currentStudentSubscribe.PayStatus = currentPayment.PayStatue;
+                }
+
+                newPaymentStatus = currentPayment.PayStatue;
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Current-month student subscription update found no linked payment. StudentId: {StudentId}, StudentSubscribeId: {StudentSubscribeId}, RequestedSubscribeId: {RequestedSubscribeId}",
+                    currentStudentSubscribe.StudentId,
+                    currentStudentSubscribe.Id,
+                    newSubscribe.Id);
+            }
+
+            _StudentSubscribeRepo.Update(currentStudentSubscribe);
+            if (currentPayment != null)
+            {
+                _StudentPaymentRepo.Update(currentPayment);
+            }
+
+            await _unitOfWork.CommitAsync();
+
+            await TryCreateHistoryAsync(
+                CreateSubscriptionUpdatedHistoryEntry(
+                    currentStudentSubscribe,
+                    oldSubscribe,
+                    newSubscribe,
+                    currentRemainingMinutes,
+                    newRemainingMinutes,
+                    usedMinutes,
+                    previousAmount,
+                    amount,
+                    amountPaidBeforeChange,
+                    currentPayment != null ? remainingAmountAfterChange : amount,
+                    previousCurrencyId,
+                    currency,
+                    previousPaymentStatus ?? previousStudentPayStatus,
+                    newPaymentStatus ?? currentStudentSubscribe.PayStatus,
+                    userId,
+                    now,
+                    actionType));
+
+            _logger.LogInformation(
+                "Student subscription changed in-place for current month. StudentId: {StudentId}, PaymentId: {PaymentId}, OldSubscribeId: {OldSubscribeId}, NewSubscribeId: {NewSubscribeId}, OldSubscribeTypeId: {OldSubscribeTypeId}, NewSubscribeTypeId: {NewSubscribeTypeId}, UsedMinutes: {UsedMinutes}, OldRemainingMinutes: {OldRemainingMinutes}, NewRemainingMinutes: {NewRemainingMinutes}, OldAmount: {OldAmount}, NewAmount: {NewAmount}, RemainingAmountAfterChange: {RemainingAmountAfterChange}, AmountPaidBeforeChange: {AmountPaidBeforeChange}, OldCurrencyId: {OldCurrencyId}, NewCurrencyId: {NewCurrencyId}, PreviousPaymentStatus: {PreviousPaymentStatus}, NewPaymentStatus: {NewPaymentStatus}, ChangedBy: {ChangedBy}, ChangedAt: {ChangedAt}",
+                currentStudentSubscribe.StudentId,
+                paymentId,
+                previousSubscribeId,
+                newSubscribe.Id,
+                previousSubscribeTypeId,
+                newSubscribe.SubscribeTypeId,
+                usedMinutes,
+                currentRemainingMinutes,
+                newRemainingMinutes,
+                previousAmount,
+                amount,
+                remainingAmountAfterChange,
+                amountPaidBeforeChange,
+                previousCurrencyId,
+                currency,
+                previousPaymentStatus,
+                newPaymentStatus,
+                userId.HasValue ? userId.Value : "System",
+                now);
+        }
+
+        private StudentSubscribeHistory CreateSubscriptionCreatedHistoryEntry(
+            StudentSubscribe studentSubscribe,
+            Subscribe subscribe,
+            int amount,
+            int currency,
+            int? userId,
+            string? actionType = null)
+        {
+            return new StudentSubscribeHistory
+            {
+                CreatedAt = studentSubscribe.CreatedAt ?? DateTime.Now,
+                CreatedBy = userId,
+                StudentId = studentSubscribe.StudentId,
+                StudentSubscribeRecordId = studentSubscribe.Id,
+                ActionType = ResolveHistoryActionType(actionType, "Created"),
+                NewSubscribeId = subscribe.Id,
+                NewPlanName = BuildPlanName(subscribe),
+                NewRemainingMinutes = studentSubscribe.RemainingMinutes,
+                UsedMinutes = 0,
+                NewAmount = amount,
+                AmountPaidBeforeChange = 0,
+                RemainingAmountAfterChange = amount,
+                NewCurrencyId = currency,
+                NewPayStatus = studentSubscribe.PayStatus,
+                IsDeleted = false
+            };
+        }
+
+        private StudentSubscribeHistory CreateSubscriptionUpdatedHistoryEntry(
+            StudentSubscribe studentSubscribe,
+            Subscribe? oldSubscribe,
+            Subscribe newSubscribe,
+            int oldRemainingMinutes,
+            int newRemainingMinutes,
+            int usedMinutes,
+            int? oldAmount,
+            int newAmount,
+            int amountPaidBeforeChange,
+            int remainingAmountAfterChange,
+            int? oldCurrencyId,
+            int newCurrencyId,
+            bool? oldPayStatus,
+            bool? newPayStatus,
+            int? userId,
+            DateTime changedAt,
+            string? actionType = null)
+        {
+            return new StudentSubscribeHistory
+            {
+                CreatedAt = changedAt,
+                CreatedBy = userId,
+                StudentId = studentSubscribe.StudentId,
+                StudentSubscribeRecordId = studentSubscribe.Id,
+                ActionType = ResolveHistoryActionType(actionType, "Updated"),
+                OldSubscribeId = oldSubscribe?.Id,
+                OldPlanName = BuildPlanName(oldSubscribe),
+                NewSubscribeId = newSubscribe.Id,
+                NewPlanName = BuildPlanName(newSubscribe),
+                OldRemainingMinutes = oldRemainingMinutes,
+                NewRemainingMinutes = newRemainingMinutes,
+                UsedMinutes = usedMinutes,
+                OldAmount = oldAmount,
+                NewAmount = newAmount,
+                AmountPaidBeforeChange = amountPaidBeforeChange,
+                RemainingAmountAfterChange = remainingAmountAfterChange,
+                OldCurrencyId = oldCurrencyId,
+                NewCurrencyId = newCurrencyId,
+                OldPayStatus = oldPayStatus,
+                NewPayStatus = newPayStatus,
+                IsDeleted = false
+            };
+        }
+
+        private static string ResolveHistoryActionType(string? actionType, string defaultActionType)
+            => string.IsNullOrWhiteSpace(actionType) ? defaultActionType : actionType.Trim();
+
+        private string? BuildPlanName(Subscribe? subscribe)
+        {
+            if (subscribe == null)
+            {
+                return null;
+            }
+
+            string? subscribeTypeName = subscribe.SubscribeType?.Name;
+            if (string.IsNullOrWhiteSpace(subscribeTypeName) && subscribe.SubscribeTypeId.HasValue)
+            {
+                subscribeTypeName = _SubscribeTypeRepo.GetById(subscribe.SubscribeTypeId.Value)?.Name;
+            }
+
+            if (!string.IsNullOrWhiteSpace(subscribeTypeName) && !string.IsNullOrWhiteSpace(subscribe.Name))
+            {
+                return $"{subscribeTypeName} ( {subscribe.Name} )";
+            }
+
+            return !string.IsNullOrWhiteSpace(subscribe.Name)
+                ? subscribe.Name
+                : subscribeTypeName;
+        }
+
+        private async Task TryCreateHistoryAsync(StudentSubscribeHistory historyEntry)
+        {
+            try
+            {
+                await _StudentSubscribeHistoryRepo.AddAsync(historyEntry);
+                await _unitOfWork.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Student subscription history could not be persisted. StudentId: {StudentId}, ActionType: {ActionType}, SubscriptionRecordId: {SubscriptionRecordId}",
+                    historyEntry.StudentId,
+                    historyEntry.ActionType,
+                    historyEntry.StudentSubscribeRecordId);
+            }
         }
 
     }

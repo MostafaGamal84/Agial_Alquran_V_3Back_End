@@ -12,6 +12,7 @@ namespace Orbits.GeneralProject.DTO.StudentSubscribDtos
       
         public int? StudentId { get; set; }
         public int? StudentSubscribeId { get; set; }
+        public string? ActionType { get; set; }
        
     }
 }

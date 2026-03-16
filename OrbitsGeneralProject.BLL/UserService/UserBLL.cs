@@ -6,9 +6,12 @@ using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.Helpers;
 using Orbits.GeneralProject.BLL.StaticEnums;
+using Orbits.GeneralProject.BLL.StudentSubscribeService;
 using Orbits.GeneralProject.BLL.Validation.UserValidation;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Enums;
 using Orbits.GeneralProject.Core.Infrastructure;
+using Orbits.GeneralProject.DTO.StudentSubscribDtos;
 using Orbits.GeneralProject.DTO.UserDto;
 using Orbits.GeneralProject.DTO.UserDtos;
 using Orbits.GeneralProject.Repositroy.Base;
@@ -25,12 +28,16 @@ namespace Orbits.GeneralProject.BLL.UserService
         private readonly IRepository<ManagerTeacher> _managerTeacherRepository;
         private readonly IRepository<ManagerStudent> _managerStudentRepository;
         private readonly IRepository<Nationality> _nationalityRepository;
+        private readonly IRepository<StudentSubscribe> _studentSubscribeRepository;
+        private readonly IRepository<Subscribe> _subscribeRepository;
+        private readonly IRepository<SubscribeType> _subscribeTypeRepository;
+        private readonly IStudentSubscribeBLL _studentSubscribeBLL;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public UserBLL(IMapper mapper, IRepository<User> userrepository,
              IUnitOfWork unitOfWork,
-             IHostEnvironment hostEnvironment, IRepository<Nationality> nationalityRepository, IRepository<ManagerCircle> managerCircleRepository, IRepository<Circle> circleRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
+             IHostEnvironment hostEnvironment, IRepository<Nationality> nationalityRepository, IRepository<ManagerCircle> managerCircleRepository, IRepository<Circle> circleRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository, IRepository<StudentSubscribe> studentSubscribeRepository, IRepository<Subscribe> subscribeRepository, IRepository<SubscribeType> subscribeTypeRepository, IStudentSubscribeBLL studentSubscribeBLL) : base(mapper)
         {
             _userRepository = userrepository;
             _unitOfWork = unitOfWork;
@@ -40,6 +47,10 @@ namespace Orbits.GeneralProject.BLL.UserService
             _managerTeacherRepository = managerTeacherRepository;
             _managerStudentRepository = managerStudentRepository;
             _nationalityRepository = nationalityRepository;
+            _studentSubscribeRepository = studentSubscribeRepository;
+            _subscribeRepository = subscribeRepository;
+            _subscribeTypeRepository = subscribeTypeRepository;
+            _studentSubscribeBLL = studentSubscribeBLL;
         }
 
         public async Task<IResponse<bool>> Add(DTO.UserDto.CreateUserDto createUserDto)
@@ -109,6 +120,45 @@ namespace Orbits.GeneralProject.BLL.UserService
             var (isGovernorateValid, governorateValidationError) = await ValidateGovernorateRequirementAsync(targetResidentId, targetGovernorateId);
             if (!isGovernorateValid)
                 return output.AppendError(MessageCodes.InputValidationError, nameof(UpdateUserDto.GovernorateId), governorateValidationError ?? string.Empty);
+
+            var isStudentUser = (UserTypesEnum)(existedUser.UserTypeId ?? 0) == UserTypesEnum.Student;
+            var requestedStudentSubscribeId = updateUserDto.StudentSubscribeId;
+            var shouldUpdateStudentSubscription = false;
+            var isResidenceTriggeredSubscriptionUpdate = false;
+
+            if (isStudentUser)
+            {
+                var targetSubscribeGroup = await ResolveSubscribeTypeCategoryByResidentIdAsync(targetResidentId);
+                var residentChanged = updateUserDto.ResidentId.HasValue && updateUserDto.ResidentId != existedUser.ResidentId;
+                var latestStudentSubscription = GetLatestStudentSubscription(existedUser.Id);
+                var currentSubscribeGroup = ResolveSubscribeTypeCategory(latestStudentSubscription);
+
+                if (residentChanged && latestStudentSubscription != null && currentSubscribeGroup != targetSubscribeGroup && !requestedStudentSubscribeId.HasValue)
+                {
+                    return output.AppendError(
+                        MessageCodes.InputValidationError,
+                        nameof(UpdateUserDto.StudentSubscribeId),
+                        "A compatible subscription must be selected before changing the student's residence.");
+                }
+
+                if (requestedStudentSubscribeId.HasValue)
+                {
+                    var subscribeValidationError = ValidateRequestedSubscription(
+                        requestedStudentSubscribeId.Value,
+                        targetSubscribeGroup);
+
+                    if (!string.IsNullOrWhiteSpace(subscribeValidationError))
+                    {
+                        return output.AppendError(
+                            MessageCodes.InputValidationError,
+                            nameof(UpdateUserDto.StudentSubscribeId),
+                            subscribeValidationError);
+                    }
+
+                    shouldUpdateStudentSubscription = true;
+                    isResidenceTriggeredSubscriptionUpdate = residentChanged;
+                }
+            }
 
             // 4) Uniqueness: Mobile
             if (!string.IsNullOrWhiteSpace(updateUserDto.Mobile))
@@ -444,6 +494,21 @@ namespace Orbits.GeneralProject.BLL.UserService
             // 7) Update main user
             _userRepository.Update(existedUser);
 
+            if (shouldUpdateStudentSubscription && requestedStudentSubscribeId.HasValue)
+            {
+                var studentSubscribeResponse = await _studentSubscribeBLL.AddAsync(
+                    new AddStudentSubscribeDto
+                    {
+                        StudentId = existedUser.Id,
+                        StudentSubscribeId = requestedStudentSubscribeId.Value,
+                        ActionType = isResidenceTriggeredSubscriptionUpdate ? "ResidenceChanged" : null
+                    },
+                    userid);
+
+                if (!studentSubscribeResponse.IsSuccess)
+                    return output.AppendErrors(studentSubscribeResponse.Errors);
+            }
+
             // 8) Commit once
             await _unitOfWork.CommitAsync();
 
@@ -634,6 +699,86 @@ namespace Orbits.GeneralProject.BLL.UserService
                 return (true, null);
 
             return (false, UserValidationReponseConstants.GovernorateRequiredForEgyptian);
+        }
+
+        private StudentSubscribe? GetLatestStudentSubscription(int userId)
+        {
+            return _studentSubscribeRepository
+                .Where(x => x.StudentId == userId)
+                .OrderByDescending(x => x.ModefiedAt ?? x.CreatedAt ?? DateTime.MinValue)
+                .ThenByDescending(x => x.Id)
+                .FirstOrDefault();
+        }
+
+        private async Task<SubscribeTypeCategory?> ResolveSubscribeTypeCategoryByResidentIdAsync(int? residentId)
+        {
+            if (!residentId.HasValue || residentId.Value <= 0)
+                return null;
+
+            var resident = await _nationalityRepository.GetByIdAsync(residentId.Value);
+            return ResolveSubscribeTypeCategory(resident);
+        }
+
+        private SubscribeTypeCategory? ResolveSubscribeTypeCategory(StudentSubscribe? studentSubscribe)
+        {
+            if (studentSubscribe?.StudentSubscribeTypeId.HasValue != true)
+                return null;
+
+            if (studentSubscribe.StudentSubscribeType?.Group.HasValue == true)
+                return (SubscribeTypeCategory?)studentSubscribe.StudentSubscribeType.Group.Value;
+
+            var subscribeType = _subscribeTypeRepository.GetById(studentSubscribe.StudentSubscribeTypeId.Value);
+            return subscribeType?.Group.HasValue == true
+                ? (SubscribeTypeCategory?)subscribeType.Group.Value
+                : null;
+        }
+
+        private SubscribeTypeCategory? ResolveSubscribeTypeCategory(Nationality? nationality)
+        {
+            var subscribeFor = NationalityClassificationHelper.ResolveSubscribeFor(nationality);
+            return subscribeFor switch
+            {
+                SubscribeForEnum.Egyptian => SubscribeTypeCategory.Egyptian,
+                SubscribeForEnum.Gulf => SubscribeTypeCategory.Arab,
+                SubscribeForEnum.NonArab => SubscribeTypeCategory.Foreign,
+                _ => null
+            };
+        }
+
+        private string? ValidateRequestedSubscription(int subscribeId, SubscribeTypeCategory? targetGroup)
+        {
+            if (!targetGroup.HasValue)
+                return "The student's target residency group could not be resolved.";
+
+            var subscribe = _subscribeRepository.GetById(subscribeId);
+            if (subscribe == null)
+                return "The selected subscription plan was not found.";
+
+            var subscribeGroup = ResolveSubscribeTypeCategory(subscribe);
+            if (!subscribeGroup.HasValue)
+                return "The selected subscription plan does not have a configured residency group.";
+
+            if (subscribeGroup.Value != targetGroup.Value)
+                return "The selected subscription plan does not match the student's new residence.";
+
+            return null;
+        }
+
+        private SubscribeTypeCategory? ResolveSubscribeTypeCategory(Subscribe? subscribe)
+        {
+            if (subscribe == null)
+                return null;
+
+            if (subscribe.SubscribeType?.Group.HasValue == true)
+                return (SubscribeTypeCategory?)subscribe.SubscribeType.Group.Value;
+
+            if (!subscribe.SubscribeTypeId.HasValue)
+                return null;
+
+            var subscribeType = _subscribeTypeRepository.GetById(subscribe.SubscribeTypeId.Value);
+            return subscribeType?.Group.HasValue == true
+                ? (SubscribeTypeCategory?)subscribeType.Group.Value
+                : null;
         }
 
         private static bool IsEgyptianNationality(Nationality? nationality)

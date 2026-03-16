@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Orbits.GeneralProject.Core.Enums;
+using System;
 
 namespace Orbits.GeneralProject.DTO.StudentSubscribDtos
 {
@@ -17,10 +14,6 @@ namespace Orbits.GeneralProject.DTO.StudentSubscribDtos
         public int? RemainingMinutes { get; set; }
         public DateTime? StartDate { get; set; }
         public int? StudentPaymentId { get; set; }
-
-
-
-
-
+        public SubscribeTypeCategory? SubscribeTypeGroup { get; set; }
     }
 }

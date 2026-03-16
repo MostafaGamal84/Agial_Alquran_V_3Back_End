@@ -33,6 +33,25 @@ namespace OrbitsProject.API.Controllers
             return Ok(_circleReportBLL.GetPagedList(pagination, UserId, circleId, studentId, nationalityId));
         }
 
+        [HttpGet("GetMobileResultsByFilter")]
+        [ProducesResponseType(typeof(IResponse<PagedResultDto<CircleReportReDto>>), 200)]
+        public IActionResult GetMobileResultsByFilter(
+            [FromQuery] FilteredResultRequestDto pagination,
+            [FromQuery] int? circleId,
+            [FromQuery] int? studentId,
+            [FromQuery] int? nationalityId,
+            [FromQuery] int? teacherId)
+        {
+            return Ok(_circleReportBLL.GetMobilePagedList(pagination, UserId, circleId, studentId, nationalityId, teacherId));
+        }
+
+        [HttpGet("GetMobileStats")]
+        [ProducesResponseType(typeof(IResponse<CircleReportStatsDto>), 200)]
+        public async Task<IActionResult> GetMobileStats([FromQuery] int? teacherId, [FromQuery] int? studentId, [FromQuery] DateTime? month)
+        {
+            return Ok(await _circleReportBLL.GetMobileStatsAsync(UserId, teacherId, studentId, month));
+        }
+
 
         [HttpGet("Deleted")]
         [ProducesResponseType(typeof(IResponse<PagedResultDto<CircleReportReDto>>), 200)]

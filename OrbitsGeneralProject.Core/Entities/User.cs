@@ -22,7 +22,9 @@ namespace Orbits.GeneralProject.Core.Entities
             ManagerTeacherTeachers = new HashSet<ManagerTeacher>();
             RefreshTokens = new HashSet<RefreshToken>();
             StudentPayments = new HashSet<StudentPayment>();
+            StudentSubscribeHistories = new HashSet<StudentSubscribeHistory>();
             StudentSubscribes = new HashSet<StudentSubscribe>();
+            CreatedStudentSubscribeHistories = new HashSet<StudentSubscribeHistory>();
             TeacherReportRecords = new HashSet<TeacherReportRecord>();
             TeacherSallaries = new HashSet<TeacherSallary>();
             TeacherScheduleStudents = new HashSet<TeacherSchedule>();
@@ -71,7 +73,9 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual ICollection<ManagerTeacher> ManagerTeacherTeachers { get; set; }
         public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
         public virtual ICollection<StudentPayment> StudentPayments { get; set; }
+        public virtual ICollection<StudentSubscribeHistory> StudentSubscribeHistories { get; set; }
         public virtual ICollection<StudentSubscribe> StudentSubscribes { get; set; }
+        public virtual ICollection<StudentSubscribeHistory> CreatedStudentSubscribeHistories { get; set; }
         public virtual ICollection<TeacherReportRecord> TeacherReportRecords { get; set; }
         public virtual ICollection<TeacherSallary> TeacherSallaries { get; set; }
         public virtual ICollection<TeacherSchedule> TeacherScheduleStudents { get; set; }

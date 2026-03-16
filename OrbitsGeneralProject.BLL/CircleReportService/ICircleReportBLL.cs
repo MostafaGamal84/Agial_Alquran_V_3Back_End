@@ -20,6 +20,10 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
         IResponse<PagedResultDto<CircleReportReDto>> GetPagedList(FilteredResultRequestDto pagedDto,int userId, int? circleId,int? studentId, int? nationalityId);
 
+        IResponse<PagedResultDto<CircleReportReDto>> GetMobilePagedList(FilteredResultRequestDto pagedDto, int userId, int? circleId, int? studentId, int? nationalityId, int? teacherId);
+
+        Task<IResponse<CircleReportStatsDto>> GetMobileStatsAsync(int userId, int? teacherId, int? studentId, DateTime? month);
+
         IResponse<PagedResultDto<CircleReportReDto>> GetDeletedPagedList(FilteredResultRequestDto pagedDto);
 
         Task<IResponse<bool>> AddAsync(CircleReportAddDto model, int userId);

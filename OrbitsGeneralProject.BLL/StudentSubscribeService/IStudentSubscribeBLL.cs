@@ -21,7 +21,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
     public interface IStudentSubscribeBLL
     {
 
-        Task<IResponse<bool>> AddAsync(AddStudentSubscribeDto model, int userId);
+        Task<IResponse<bool>> AddAsync(AddStudentSubscribeDto model, int? userId);
 
         IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetStudents(
             FilteredResultRequestDto pagedDto,
@@ -32,6 +32,9 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             FilteredResultRequestDto pagedDto,
             int? studentId,
             int? nationalityId);
+        IResponse<PagedResultDto<StudentSubscribeHistoryReDto>> GetStudentSubscribeHistory(
+            FilteredResultRequestDto pagedDto,
+            int? studentId);
 
     }
 }

@@ -5,6 +5,11 @@ namespace Orbits.GeneralProject.Core.Entities
 {
     public partial class StudentSubscribe:EntityBase
     {
+        public StudentSubscribe()
+        {
+            StudentSubscribeHistories = new HashSet<StudentSubscribeHistory>();
+        }
+
         public int Id { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
@@ -23,5 +28,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual StudentPayment? StudentPayment { get; set; }
         public virtual Subscribe? StudentSubscribeNavigation { get; set; }
         public virtual SubscribeType? StudentSubscribeType { get; set; }
+        public virtual ICollection<StudentSubscribeHistory> StudentSubscribeHistories { get; set; }
     }
 }

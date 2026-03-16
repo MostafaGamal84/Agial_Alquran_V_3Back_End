@@ -46,9 +46,17 @@ namespace OrbitsProject.API.Controllers
             [FromQuery] int? nationalityId)
              => Ok(_StudentSubscribBLL.GetStudentSubscribesWithPayment(paginationFilterModel, studentId, nationalityId));
 
+        [HttpGet("GetStudentSubscribeHistory"), ProducesResponseType(typeof(IResponse<PagedResultDto<StudentSubscribeHistoryReDto>>), 200)]
+        public async Task<IActionResult> GetStudentSubscribeHistory(
+            [FromQuery] FilteredResultRequestDto paginationFilterModel,
+            [FromQuery] int studentId)
+             => Ok(_StudentSubscribBLL.GetStudentSubscribeHistory(paginationFilterModel, studentId));
+
         [HttpPost("Create"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Create(AddStudentSubscribeDto model)
-         => Ok(await _StudentSubscribBLL.AddAsync(model, 1));
+         => Ok(await _StudentSubscribBLL.AddAsync(
+             model,
+             User?.Identity?.IsAuthenticated == true ? UserId : null));
 
         [HttpPost("RunMonthlyRenewalNow"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> RunMonthlyRenewalNow()

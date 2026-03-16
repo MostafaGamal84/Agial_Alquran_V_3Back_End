@@ -24,13 +24,14 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         private readonly IRepository<SubscribeType> _subscribeTypeRepository;
         private readonly IRepository<Nationality> _nationalityRepository;
         private readonly IRepository<User> _userRepository;
+        private readonly IRepository<ManagerTeacher> _managerTeacherRepository;
         private readonly IRepository<ManagerStudent> _managerStudentRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
+             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
@@ -40,6 +41,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _studentSubscribeRecordRepository = studentSubscribeRecordRepository;
             _subscribeTypeRepository = subscribeTypeRepository;
             _nationalityRepository = nationalityRepository;
+            _managerTeacherRepository = managerTeacherRepository;
             _managerStudentRepository = managerStudentRepository;
         }
 
@@ -79,11 +81,11 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         }
 
         public IResponse<PagedResultDto<CircleReportReDto>> GetPagedList(
-    FilteredResultRequestDto pagedDto,
-    int userId,
-    int? circleId,         // ???? ??????? ?????????
-    int? studentId,
-    int? nationalityId)        // ???? ??????? ???????
+            FilteredResultRequestDto pagedDto,
+            int userId,
+            int? circleId,
+            int? studentId,
+            int? nationalityId)
         {
             var output = new Response<PagedResultDto<CircleReportReDto>>();
 
@@ -109,43 +111,24 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             var fromDate = pagedDto.FromDate?.Date;
             var toDateExclusive = pagedDto.ToDate?.Date.AddDays(1);
 
-            // ?????? ??????: ??????? + ????? ????? + ???
             Expression<Func<CircleReport, bool>> predicate = r =>
-                // -------- ??????? ----------
                 !r.IsDeleted &&
                 (
-                    // Admin: ?? ????????
                     isAdmin
-
-                    // Branch Leader: ?????? ????? ?? ?????? ???? ??? ????????
                     || (isBranchLeader &&
-                        (r.Student != null && r.Student.BranchId.HasValue && r.Student.BranchId == me.BranchId)
-                       )
-
-                    // Manager: ?????? ????? ?????? ??? ???????
+                        (r.Student != null && r.Student.BranchId.HasValue && r.Student.BranchId == me.BranchId))
                     || (isManager &&
-                        (r.Student != null && managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == r.StudentId))
-                       )
-
-                    // Teacher: ?????? ????? ?? ????? ??????? ?????? ??????
+                        (r.Student != null && managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == r.StudentId)))
                     || (isTeacher &&
-                        (
-                            
-                             (r.Student != null && r.Student.TeacherId == me.Id)
-                        )
-                       )
+                        (r.Student != null && r.Student.TeacherId == me.Id))
                 )
-
-                // -------- ????? ??????? ----------
                 && (!applyBranchRestriction || (r.Circle != null && r.Circle.BranchId.HasValue && r.Circle.BranchId == me.BranchId))
                 && (!circleId.HasValue || r.CircleId == circleId.Value)
                 && (!studentId.HasValue || r.StudentId == studentId.Value)
                 && (!nationalityId.HasValue || (r.Student != null && r.Student.NationalityId == nationalityId.Value))
                 && (!applyResidentFilter || (r.Student != null && r.Student.ResidentId.HasValue && residentIdsFilter!.Contains(r.Student.ResidentId.Value)))
-                && (!fromDate.HasValue || ( r.CreationTime) >= fromDate.Value)
-                && (!toDateExclusive.HasValue || (r.CreationTime) < toDateExclusive.Value)
-
-                // -------- ????? ??????? ----------
+                && (!fromDate.HasValue || r.CreationTime >= fromDate.Value)
+                && (!toDateExclusive.HasValue || r.CreationTime < toDateExclusive.Value)
                 && (
                     string.IsNullOrEmpty(sw)
                     || (r.Student != null && r.Student.FullName != null && r.Student.FullName.ToLower().Contains(sw))
@@ -154,7 +137,6 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                     || (r.Other != null && r.Other.ToLower().Contains(sw))
                 );
 
-            // ??????? ?????? ?????
             var list = GetPagedList<CircleReportReDto, CircleReport, DateTime>(
                 pagedDto,
                 repository: _circleReportRepository,
@@ -166,6 +148,150 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             );
 
             return output.CreateResponse(list);
+        }
+
+        public IResponse<PagedResultDto<CircleReportReDto>> GetMobilePagedList(
+            FilteredResultRequestDto pagedDto,
+            int userId,
+            int? circleId,
+            int? studentId,
+            int? nationalityId,
+            int? teacherId)
+        {
+            var output = new Response<PagedResultDto<CircleReportReDto>>();
+            var query = BuildMobileScopedReportsQuery(pagedDto, userId, circleId, studentId, nationalityId, teacherId);
+
+            var totalCount = query.Count();
+            var items = query
+                .OrderByDescending(r => r.CreatedAt ?? r.CreationTime)
+                .Skip(pagedDto.SkipCount)
+                .Take(pagedDto.MaxResultCount)
+                .Select(r => new CircleReportReDto
+                {
+                    Id = r.Id,
+                    Minutes = r.Minutes,
+                    NewId = r.NewId,
+                    NewFrom = r.NewFrom,
+                    NewTo = r.NewTo,
+                    RecentPast = r.RecentPast,
+                    DistantPast = r.DistantPast,
+                    FarthestPast = r.FarthestPast,
+                    GeneralRate = r.GeneralRate,
+                    TheWordsQuranStranger = r.TheWordsQuranStranger,
+                    Intonation = r.Intonation,
+                    Other = r.Other,
+                    CreationTime = r.CreationTime,
+                    CircleId = r.CircleId,
+                    StudentId = r.StudentId,
+                    TeacherId = r.TeacherId,
+                    CircleName = r.Circle != null ? r.Circle.Name : null,
+                    StudentName = r.Student != null ? r.Student.FullName : null,
+                    TeacherName = r.Teacher != null ? r.Teacher.FullName : null,
+                    AttendStatueId = r.AttendStatueId,
+                    IsVisual = r.IsVisual,
+                    NextCircleOrder = r.NextCircleOrder
+                })
+                .ToList();
+
+            return output.CreateResponse(new PagedResultDto<CircleReportReDto>(totalCount, items));
+        }
+
+        public async Task<IResponse<CircleReportStatsDto>> GetMobileStatsAsync(int userId, int? teacherId, int? studentId, DateTime? month)
+        {
+            var output = new Response<CircleReportStatsDto>();
+
+            var filter = new FilteredResultRequestDto();
+            if (month.HasValue)
+            {
+                var monthStart = new DateTime(month.Value.Year, month.Value.Month, 1);
+                filter.FromDate = monthStart;
+                filter.ToDate = monthStart.AddMonths(1).AddDays(-1);
+            }
+
+            var counts = await BuildMobileScopedReportsQuery(filter, userId, null, studentId, null, teacherId)
+                .GroupBy(r => r.AttendStatueId)
+                .Select(g => new
+                {
+                    StatusId = g.Key ?? 0,
+                    Count = g.Count()
+                })
+                .ToListAsync();
+
+            var normalizedMonth = month.HasValue ? new DateTime(month.Value.Year, month.Value.Month, 1) : (DateTime?)null;
+
+            return output.CreateResponse(new CircleReportStatsDto
+            {
+                TotalReports = counts.Sum(x => x.Count),
+                AttendedCount = counts.Where(x => x.StatusId == (int)AttendStatus.Present).Sum(x => x.Count),
+                ExcusedAbsenceCount = counts.Where(x => x.StatusId == (int)AttendStatus.AbsentWithExcuse).Sum(x => x.Count),
+                UnexcusedAbsenceCount = counts.Where(x => x.StatusId == (int)AttendStatus.AbsentWithoutExcuse).Sum(x => x.Count),
+                TeacherId = teacherId,
+                StudentId = studentId,
+                Month = normalizedMonth
+            });
+        }
+
+        private IQueryable<CircleReport> BuildMobileScopedReportsQuery(
+            FilteredResultRequestDto? pagedDto,
+            int userId,
+            int? circleId,
+            int? studentId,
+            int? nationalityId,
+            int? teacherId)
+        {
+            var me = _userRepository
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.Id, u.UserTypeId, u.BranchId })
+                .FirstOrDefault();
+
+            if (me == null)
+            {
+                return _circleReportRepository.Where(r => false);
+            }
+
+            var userType = (UserTypesEnum)(me.UserTypeId ?? 0);
+            string? sw = pagedDto?.SearchTerm?.Trim().ToLower();
+
+            bool isAdmin = userType == UserTypesEnum.Admin;
+            bool isBranchLeader = userType == UserTypesEnum.BranchLeader;
+            bool isManager = userType == UserTypesEnum.Manager;
+            bool isTeacher = userType == UserTypesEnum.Teacher;
+            bool isStudent = userType == UserTypesEnum.Student;
+
+            var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
+            var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
+            bool applyResidentFilter = residentIdsFilter != null;
+            var managerTeachersQuery = _managerTeacherRepository.GetAll();
+            var fromDate = pagedDto?.FromDate?.Date;
+            var toDateExclusive = pagedDto?.ToDate?.Date.AddDays(1);
+
+            return _circleReportRepository.Where(r =>
+                !r.IsDeleted
+                && (
+                    isAdmin
+                    || (isBranchLeader && me.BranchId.HasValue && (
+                        (r.Circle != null && r.Circle.BranchId.HasValue && r.Circle.BranchId == me.BranchId)
+                        || (r.Student != null && r.Student.BranchId.HasValue && r.Student.BranchId == me.BranchId)
+                        || (r.Teacher != null && r.Teacher.BranchId.HasValue && r.Teacher.BranchId == me.BranchId)
+                    ))
+                    || (isManager && managerTeachersQuery.Any(mt => mt.ManagerId == me.Id && mt.TeacherId == r.TeacherId))
+                    || (isTeacher && r.TeacherId == me.Id)
+                    || (isStudent && r.StudentId == me.Id)
+                )
+                && (!circleId.HasValue || r.CircleId == circleId.Value)
+                && (!studentId.HasValue || r.StudentId == studentId.Value)
+                && (!teacherId.HasValue || r.TeacherId == teacherId.Value)
+                && (!nationalityId.HasValue || (r.Student != null && r.Student.NationalityId == nationalityId.Value))
+                && (!applyResidentFilter || (r.Student != null && r.Student.ResidentId.HasValue && residentIdsFilter!.Contains(r.Student.ResidentId.Value)))
+                && (!fromDate.HasValue || r.CreationTime >= fromDate.Value)
+                && (!toDateExclusive.HasValue || r.CreationTime < toDateExclusive.Value)
+                && (
+                    string.IsNullOrEmpty(sw)
+                    || (r.Student != null && r.Student.FullName != null && r.Student.FullName.ToLower().Contains(sw))
+                    || (r.Teacher != null && r.Teacher.FullName != null && r.Teacher.FullName.ToLower().Contains(sw))
+                    || (r.Circle != null && r.Circle.Name != null && r.Circle.Name.ToLower().Contains(sw))
+                    || (r.Other != null && r.Other.ToLower().Contains(sw))
+                ));
         }
 
 
