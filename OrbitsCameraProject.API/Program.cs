@@ -7,6 +7,7 @@ using Orbits.GeneralProject.DTO.Setting.Authentication;
 using Orbits.GeneralProject.DTO.Setting.Files;
 using Orbits.GeneralProject.Repositroy.Base;
 using OrbitsProject.API.BackgroundJobs;
+using OrbitsProject.API.Infrastructure;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.IdentityModel.Tokens;
@@ -60,6 +61,7 @@ builder.Services.AddCors(options =>
 
 // ----- HttpContextAccessor
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddScoped<IAuditUserContext, HttpContextAuditUserContext>();
 
 // ----- Swagger + Bearer
 builder.Services.AddEndpointsApiExplorer();
@@ -103,7 +105,9 @@ builder.Services.AddScoped<IStudentSubscriptionRenewalJob, StudentSubscriptionRe
 
 // ----- Repository
 builder.Services.AddScoped<IDbFactory, DbFactory>(s =>
-    new DbFactory(new SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+    new DbFactory(
+        new SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")),
+        s.GetRequiredService<IAuditUserContext>()));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 

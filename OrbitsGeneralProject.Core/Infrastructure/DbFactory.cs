@@ -15,18 +15,21 @@ namespace Orbits.GeneralProject.Core.Infrastructure
 
         /// <summary>   The connection. </summary>
         //private readonly DbContextOptions<MyDexefContext> options;
-        private DbConnection _connection;
+        private readonly DbConnection _connection;
+        private readonly IAuditUserContext _auditUserContext;
 
         /// <summary>   Default constructor. </summary>
-        public DbFactory(DbConnection connection)
+        public DbFactory(DbConnection connection, IAuditUserContext? auditUserContext = null)
         {
             _connection = connection;
+            _auditUserContext = auditUserContext ?? new NullAuditUserContext();
 
             // _dbContext.Database.SetDbConnection(_connection);
         }
         public DbFactory(ApplicationDbContext context)
         {
             _dbContext = context;
+            _auditUserContext = new NullAuditUserContext();
             // _dbContext.Database.SetDbConnection(_connection);
         }
         //public DbFactory( DbContextOptions<MyDexefContext> options )
@@ -57,7 +60,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             //return _dbContext ?? (_dbContext = new ApplicationDbContext(options));
             if (_dbContext == null)
             {
-                _dbContext = new ApplicationDbContext();
+                _dbContext = new ApplicationDbContext(_auditUserContext);
             }
 
             _dbContext.Database.SetDbConnection(_connection);

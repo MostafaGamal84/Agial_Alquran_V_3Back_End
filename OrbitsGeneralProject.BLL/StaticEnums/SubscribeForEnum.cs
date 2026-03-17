@@ -8,9 +8,9 @@ namespace Orbits.GeneralProject.BLL.StaticEnums
 {
     public enum SubscribeForEnum
     {
-        Egyptian = 1 ,
+        Egyptian = 3 ,
         Gulf = 2,
-        NonArab = 3,
+        NonArab = 1,
        
     }
 }

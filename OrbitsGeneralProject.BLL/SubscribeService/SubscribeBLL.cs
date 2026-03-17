@@ -74,8 +74,13 @@ namespace Orbits.GeneralProject.BLL.SubscribeService
                 var student = _UserRepository.GetById(studentId.Value);
                 if (student?.ResidentId != null && student.ResidentId.Value > 0)
                     residentId = student.ResidentId.Value;
-                else if (student?.NationalityId != null && student.NationalityId.Value > 0)
-                    residentId = student.NationalityId.Value;
+                else
+                {
+                    return output.AppendError(MessageCodes.NoResidentFound);
+
+                }
+                //else if (student?.NationalityId != null && student.NationalityId.Value > 0)
+                //    residentId = student.NationalityId.Value;
             }
 
             if (residentId.HasValue && residentId.Value > 0)

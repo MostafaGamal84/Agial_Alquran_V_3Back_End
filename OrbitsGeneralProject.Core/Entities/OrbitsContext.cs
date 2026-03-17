@@ -7,6 +7,8 @@ namespace Orbits.GeneralProject.Core.Entities
 {
     public partial class OrbitsContext : DbContext
     {
+        public virtual DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public virtual DbSet<AuditLogParticipant> AuditLogParticipants { get; set; } = null!;
         public virtual DbSet<Challenge> Challenges { get; set; } = null!;
         public virtual DbSet<ChallengeParticipant> ChallengeParticipants { get; set; } = null!;
         public virtual DbSet<ChallengeRole> ChallengeRoles { get; set; } = null!;
@@ -46,13 +48,42 @@ namespace Orbits.GeneralProject.Core.Entities
             if (!optionsBuilder.IsConfigured)
             {
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-                optionsBuilder.UseSqlServer("workstation id=ajyal_new.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=ajyal_new.mssql.somee.com;persist security info=False;initial catalog=ajyal_new;TrustServerCertificate=True");
-                //optionsBuilder.UseSqlServer("Data Source=.\\SQLEXPRESS;Initial Catalog=ajyal_new;Integrated Security=True;TrustServerCertificate=True");
+                //optionsBuilder.UseSqlServer("workstation id=ajyal_new.mssql.somee.com;packet size=4096;user id=ajyal_alquran_SQLLogin_1;pwd=uxb1px7683;data source=ajyal_new.mssql.somee.com;persist security info=False;initial catalog=ajyal_new;TrustServerCertificate=True");
+                optionsBuilder.UseSqlServer("Data Source=.\\SQLEXPRESS;Initial Catalog=ajyal_new;Integrated Security=True;TrustServerCertificate=True");
             }
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.ToTable("AuditLog");
+
+                entity.Property(e => e.ActionType).HasMaxLength(50);
+                entity.Property(e => e.EntityType).HasMaxLength(100);
+                entity.Property(e => e.EntityLabel).HasMaxLength(200);
+                entity.Property(e => e.EntityDisplayName).HasMaxLength(500);
+                entity.Property(e => e.ActorName).HasMaxLength(300);
+                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+                entity.Property(e => e.IsDeleted).HasDefaultValueSql("((0))");
+
+                entity.HasMany(d => d.Participants)
+                    .WithOne(p => p.AuditLog)
+                    .HasForeignKey(p => p.AuditLogId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_AuditLogParticipant_AuditLog");
+            });
+
+            modelBuilder.Entity<AuditLogParticipant>(entity =>
+            {
+                entity.ToTable("AuditLogParticipant");
+
+                entity.Property(e => e.ParticipantType).HasMaxLength(100);
+                entity.Property(e => e.ParticipantLabel).HasMaxLength(200);
+                entity.Property(e => e.DisplayName).HasMaxLength(300);
+                entity.Property(e => e.IsDeleted).HasDefaultValueSql("((0))");
+            });
+
             modelBuilder.Entity<Challenge>(entity =>
             {
                 entity.ToTable("Challenge");

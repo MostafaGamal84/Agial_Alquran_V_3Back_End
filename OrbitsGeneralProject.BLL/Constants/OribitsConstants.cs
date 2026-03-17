@@ -502,6 +502,8 @@ namespace Orbits.GeneralProject.BLL.Constants
         StudentMinutesNotFound = 7068,
         [Description("كلمة المرور الحالية غير صحيحة")]
         InvalidCurrentPassword = 7069,
+        [Description("لا يوجد اقامه للطالب يرجى تحديث الاقامه لعرض الباقات المناسبة")]
+        NoResidentFound = 7070
     }
 
     #endregion BLL Responses MessageCodes
