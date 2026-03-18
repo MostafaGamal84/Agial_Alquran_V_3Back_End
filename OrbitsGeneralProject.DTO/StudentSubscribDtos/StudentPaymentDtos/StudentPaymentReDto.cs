@@ -20,9 +20,6 @@ namespace Orbits.GeneralProject.DTO.StudentSubscribDtos.StudentPaymentDtos
             public DateTime? DueDate { get; set; }
         public DateTime? PaymentDate { get; set; }
         
-
-        // Use decimal for money. If your entity's Amount is double, either
-        // change this to double or cast in the Select: Quantity = (decimal)p.Amount
         public decimal Amount { get; set; }
 
             // "Paid" | "Unpaid" | "Overdue"

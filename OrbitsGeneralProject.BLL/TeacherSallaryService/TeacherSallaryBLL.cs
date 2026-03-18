@@ -73,7 +73,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     {
                         TeacherId = group.Key,
                         TotalMinutes = group.Sum(r => r.Minutes ?? 0),
-                        TotalSalary = group.Sum(r => (double?)(r.CircleSallary ?? 0)) ?? 0d
+                        TotalSalary = group.Sum(r => r.CircleSallary ?? 0m)
                     })
                     .ToListAsync();
 
@@ -118,7 +118,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     result.TotalTeachers++;
                     result.TotalMinutes += group.TotalMinutes;
                     var roundedAmount = Math.Round(group.TotalSalary, 2, MidpointRounding.AwayFromZero);
-                    result.TotalSalary += roundedAmount;
+                    var roundedAmountAsDouble = (double)roundedAmount;
+                    result.TotalSalary += roundedAmountAsDouble;
 
                     if (existingByTeacher.TryGetValue(group.TeacherId, out var existingInvoice))
                     {
@@ -136,9 +137,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                             shouldUpdate = true;
                         }
 
-                        if (existingInvoice.Sallary == null || Math.Abs(existingInvoice.Sallary.Value - roundedAmount) > 0.01)
+                        if (existingInvoice.Sallary == null || Math.Abs(existingInvoice.Sallary.Value - roundedAmountAsDouble) > 0.01)
                         {
-                            existingInvoice.Sallary = roundedAmount;
+                            existingInvoice.Sallary = roundedAmountAsDouble;
                             shouldUpdate = true;
                         }
 
@@ -156,7 +157,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                         {
                             TeacherId = group.TeacherId,
                             Month = monthStart,
-                            Sallary = roundedAmount,
+                            Sallary = roundedAmountAsDouble,
                             CreatedAt = DateTime.UtcNow,
                             CreatedBy = createdBy,
                             IsPayed = false
@@ -316,12 +317,12 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     .Select(record => new
                     {
                         Minutes = record.Minutes ?? 0,
-                        Salary = (double?)(record.CircleSallary ?? 0) ?? 0d,
+                        Salary = record.CircleSallary ?? 0m,
                         AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null
                     })
                     .ToListAsync();
 
-                var totalSalary = Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
+                var totalSalary = (double)Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
 
                 var aggregateSummary = new TeacherMonthlySummaryDto
                 {
@@ -394,7 +395,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                         StudentId = record.CircleReport != null ? record.CircleReport.StudentId : null,
                         StudentName = record.CircleReport != null && record.CircleReport.Student != null ? record.CircleReport.Student.FullName : null,
                         Minutes = record.Minutes ?? 0,
-                        Salary = (double?)(record.CircleSallary ?? 0) ?? 0d,
+                        Salary = (double)(record.CircleSallary ?? 0m),
                         AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null,
                         RecordCreatedAt = record.CreatedAt,
                         CircleReportCreatedAt = record.CircleReport != null ? record.CircleReport.CreatedAt : null
@@ -696,14 +697,14 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 .Select(record => new
                 {
                     Minutes = record.Minutes ?? 0,
-                    Salary = (double?)(record.CircleSallary ?? 0) ?? 0d,
+                    Salary = record.CircleSallary ?? 0m,
                     AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null
                 })
                 .ToListAsync();
 
             int totalReports = teacherRecords.Count;
             int totalMinutes = teacherRecords.Sum(r => r.Minutes);
-            double totalSalary = Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
+            double totalSalary = (double)Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
 
             int presentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent);
             int absentWithExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse);

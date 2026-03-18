@@ -350,6 +350,8 @@ namespace Orbits.GeneralProject.Core.Entities
             {
                 entity.ToTable("StudentPayment");
 
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
@@ -407,11 +409,19 @@ namespace Orbits.GeneralProject.Core.Entities
 
                 entity.Property(e => e.ActionType).HasMaxLength(50);
 
+                entity.Property(e => e.AmountPaidBeforeChange).HasColumnType("decimal(18,2)");
+
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.NewAmount).HasColumnType("decimal(18,2)");
 
                 entity.Property(e => e.NewPlanName).HasMaxLength(300);
 
                 entity.Property(e => e.OldPlanName).HasMaxLength(300);
+
+                entity.Property(e => e.OldAmount).HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.RemainingAmountAfterChange).HasColumnType("decimal(18,2)");
 
                 entity.HasOne(d => d.CreatedByUser)
                     .WithMany(p => p.CreatedStudentSubscribeHistories)
@@ -459,6 +469,8 @@ namespace Orbits.GeneralProject.Core.Entities
             modelBuilder.Entity<TeacherReportRecord>(entity =>
             {
                 entity.ToTable("TeacherReportRecord");
+
+                entity.Property(e => e.CircleSallary).HasColumnType("decimal(18,2)");
 
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 

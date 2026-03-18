@@ -88,7 +88,7 @@ namespace Orbits.GeneralProject.BLL.Mapping
         s.CreatedAt.Value.Year,
         s.CreatedAt.Value.Month,
         1).AddMonths(1)))
-     .ForMember(d => d.Amount, m => m.MapFrom(s => (decimal)(s.Amount ?? 0)))
+     .ForMember(d => d.Amount, m => m.MapFrom(s => s.Amount ?? 0m))
      .ForMember(d => d.StatusText, m => m.MapFrom(s =>
          s.IsCancelled == true ? "Cancelled" :
          s.PayStatue == true ? "Paid" : "Unpaid"));

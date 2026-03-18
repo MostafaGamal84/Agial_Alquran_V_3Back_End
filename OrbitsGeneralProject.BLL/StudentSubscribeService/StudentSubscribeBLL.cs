@@ -320,7 +320,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         private static SubscribeTypeCategory? ConvertGroup(int? groupValue)
             => groupValue.HasValue ? (SubscribeTypeCategory?)groupValue.Value : null;
 
-        private static (int Amount, int Currency) ResolvePaymentDetails(Subscribe subscribe, SubscribeTypeCategory group)
+        private static (decimal Amount, int Currency) ResolvePaymentDetails(Subscribe subscribe, SubscribeTypeCategory group)
         {
             decimal price = subscribe.Price;
             int currencyId = group switch
@@ -331,7 +331,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 _ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unsupported subscription group")
             };
 
-            return ((int)Math.Round(price, MidpointRounding.AwayFromZero), currencyId);
+            return (Math.Round(price, 2, MidpointRounding.AwayFromZero), currencyId);
         }
 
         private bool ShouldUpdateCurrentMonthSubscription(StudentSubscribe? currentStudentSubscribe)
@@ -349,7 +349,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         private async Task UpdateCurrentMonthSubscriptionAsync(
             StudentSubscribe currentStudentSubscribe,
             Subscribe newSubscribe,
-            int amount,
+            decimal amount,
             int currency,
             int? userId,
             string? actionType = null)
@@ -382,12 +382,12 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             currentStudentSubscribe.ModefiedBy = userId;
 
             StudentPayment? currentPayment = null;
-            int? previousAmount = null;
+            decimal? previousAmount = null;
             int? previousCurrencyId = null;
             bool? previousPaymentStatus = null;
             bool? newPaymentStatus = currentStudentSubscribe.PayStatus;
-            int amountPaidBeforeChange = 0;
-            int remainingAmountAfterChange = amount;
+            decimal amountPaidBeforeChange = 0m;
+            decimal remainingAmountAfterChange = amount;
             if (paymentId.HasValue)
             {
                 currentPayment = _StudentPaymentRepo.GetById(paymentId.Value);
@@ -399,8 +399,8 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             if (currentPayment != null)
             {
                 amountPaidBeforeChange = currentPayment.PayStatue == true
-                    ? Math.Max(0, currentPayment.Amount ?? 0)
-                    : 0;
+                    ? Math.Max(0m, currentPayment.Amount ?? 0m)
+                    : 0m;
 
                 currentPayment.StudentSubscribeId = newSubscribe.Id;
                 currentPayment.StudentSubscribe = newSubscribe;
@@ -490,7 +490,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         private StudentSubscribeHistory CreateSubscriptionCreatedHistoryEntry(
             StudentSubscribe studentSubscribe,
             Subscribe subscribe,
-            int amount,
+            decimal amount,
             int currency,
             int? userId,
             string? actionType = null)
@@ -507,7 +507,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 NewRemainingMinutes = studentSubscribe.RemainingMinutes,
                 UsedMinutes = 0,
                 NewAmount = amount,
-                AmountPaidBeforeChange = 0,
+                AmountPaidBeforeChange = 0m,
                 RemainingAmountAfterChange = amount,
                 NewCurrencyId = currency,
                 NewPayStatus = studentSubscribe.PayStatus,
@@ -522,10 +522,10 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             int oldRemainingMinutes,
             int newRemainingMinutes,
             int usedMinutes,
-            int? oldAmount,
-            int newAmount,
-            int amountPaidBeforeChange,
-            int remainingAmountAfterChange,
+            decimal? oldAmount,
+            decimal newAmount,
+            decimal amountPaidBeforeChange,
+            decimal remainingAmountAfterChange,
             int? oldCurrencyId,
             int newCurrencyId,
             bool? oldPayStatus,

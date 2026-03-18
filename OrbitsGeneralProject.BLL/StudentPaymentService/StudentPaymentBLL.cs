@@ -180,9 +180,10 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
             if (currencyId.HasValue && currencyId.Value > 0)
                 baseQ = baseQ.Where(p => p.CurrencyId == currencyId.Value);
 
-            static double Pct(double current, double previous)
-                => previous == 0 ? (current == 0 ? 0 : 100)
-                                 : Math.Round(((current - previous) / previous) * 100.0, 1);
+            static double Pct(decimal current, decimal previous)
+                => previous == 0m
+                    ? (current == 0m ? 0d : 100d)
+                    : (double)Math.Round(((current - previous) / previous) * 100m, 1, MidpointRounding.AwayFromZero);
 
             // ---------- CURRENT (created inside cur month)
             var curAgg = await baseQ
@@ -190,15 +191,15 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 .GroupBy(_ => 1)
                 .Select(g => new
                 {
-                    PaidAmt = g.Sum(p => p.PayStatue == true ? (double?)(p.Amount ?? 0) : 0) ?? 0,
-                    UnpaidAmt = g.Sum(p => p.PayStatue != true && p.IsCancelled == false ? (double?)(p.Amount ?? 0) : 0) ?? 0,  // treats null as unpaid
+                    PaidAmt = g.Sum(p => p.PayStatue == true ? (p.Amount ?? 0m) : 0m),
+                    UnpaidAmt = g.Sum(p => p.PayStatue != true && p.IsCancelled == false ? (p.Amount ?? 0m) : 0m),
 
                     PaidCnt = g.Count(p => p.PayStatue == true),
                     UnpaidCnt = g.Count(p => p.PayStatue != true && p.IsCancelled == false),
                 })
                 .FirstOrDefaultAsync();
 
-            var cur = curAgg ?? new { PaidAmt = 0d, UnpaidAmt = 0d, PaidCnt = 0, UnpaidCnt = 0 };
+            var cur = curAgg ?? new { PaidAmt = 0m, UnpaidAmt = 0m, PaidCnt = 0, UnpaidCnt = 0 };
 
             // Overdue for current: unpaid with CreatedAt < curStart (lives outside the month window by definition)
             var curOverdueAgg = await baseQ
@@ -206,12 +207,12 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 .GroupBy(_ => 1)
                 .Select(g => new
                 {
-                    OverdueAmt = g.Sum(p => (double?)(p.Amount ?? 0)) ?? 0,
+                    OverdueAmt = g.Sum(p => p.Amount ?? 0m),
                     OverdueCnt = g.Count()
                 })
                 .FirstOrDefaultAsync();
 
-            var curOverdue = curOverdueAgg ?? new { OverdueAmt = 0d, OverdueCnt = 0 };
+            var curOverdue = curOverdueAgg ?? new { OverdueAmt = 0m, OverdueCnt = 0 };
 
             // ---------- COMPARE (created inside cmp month)
             var cmpAgg = await baseQ
@@ -219,12 +220,12 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 .GroupBy(_ => 1)
                 .Select(g => new
                 {
-                    PaidAmt = g.Sum(p => p.PayStatue == true ? (double?)(p.Amount ?? 0) : 0) ?? 0,
-                    UnpaidAmt = g.Sum(p => p.PayStatue != true && p.IsCancelled == false ? (double?)(p.Amount ?? 0) : 0) ?? 0,
+                    PaidAmt = g.Sum(p => p.PayStatue == true ? (p.Amount ?? 0m) : 0m),
+                    UnpaidAmt = g.Sum(p => p.PayStatue != true && p.IsCancelled == false ? (p.Amount ?? 0m) : 0m),
                 })
                 .FirstOrDefaultAsync();
 
-            var cmp = cmpAgg ?? new { PaidAmt = 0d, UnpaidAmt = 0d };
+            var cmp = cmpAgg ?? new { PaidAmt = 0m, UnpaidAmt = 0m };
 
             // Overdue for compare: unpaid with CreatedAt < cmpStart
             var cmpOverdueAgg = await baseQ
@@ -232,11 +233,11 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 .GroupBy(_ => 1)
                 .Select(g => new
                 {
-                    OverdueAmt = g.Sum(p => (double?)(p.Amount ?? 0)) ?? 0
+                    OverdueAmt = g.Sum(p => p.Amount ?? 0m)
                 })
                 .FirstOrDefaultAsync();
 
-            var cmpOverdue = cmpOverdueAgg ?? new { OverdueAmt = 0d };
+            var cmpOverdue = cmpOverdueAgg ?? new { OverdueAmt = 0m };
 
             // ---------- Receivables (as of now, across all time)
             var recvAgg = await baseQ
@@ -244,46 +245,46 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 .GroupBy(_ => 1)
                 .Select(g => new
                 {
-                    Current = g.Sum(p => (p.PaymentDate.HasValue && p.PaymentDate.Value >= now) ? (double?)(p.Amount ?? 0) : 0) ?? 0,
-                    Overdue = g.Sum(p => (p.PaymentDate.HasValue && p.PaymentDate.Value < now) ? (double?)(p.Amount ?? 0) : 0) ?? 0
+                    Current = g.Sum(p => (p.PaymentDate.HasValue && p.PaymentDate.Value >= now) ? (p.Amount ?? 0m) : 0m),
+                    Overdue = g.Sum(p => (p.PaymentDate.HasValue && p.PaymentDate.Value < now) ? (p.Amount ?? 0m) : 0m)
                 })
                 .FirstOrDefaultAsync();
 
-            var recv = recvAgg ?? new { Current = 0d, Overdue = 0d };
+            var recv = recvAgg ?? new { Current = 0m, Overdue = 0m };
 
             // total paid (all time)
-            double totalPaidEver = await baseQ
+            decimal totalPaidEver = await baseQ
                 .Where(p => p.PayStatue == true)
-                .Select(p => (double?)(p.Amount ?? 0))
-                .SumAsync() ?? 0d;
+                .Select(p => p.Amount ?? 0m)
+                .SumAsync();
 
             var totalReceivables = recv.Current + recv.Overdue;
-            var collectionRate = (totalPaidEver + totalReceivables) == 0
-                ? 0
-                : Math.Round((totalPaidEver / (totalPaidEver + totalReceivables)) * 100.0, 1);
+            var collectionRate = (totalPaidEver + totalReceivables) == 0m
+                ? 0d
+                : (double)Math.Round((totalPaidEver / (totalPaidEver + totalReceivables)) * 100m, 1, MidpointRounding.AwayFromZero);
 
             return new PaymentsFullDashboardDto
             {
                 Month = curStart,
 
                 // Amounts + counts for the month
-                TotalPaid = cur.PaidAmt,
+                TotalPaid = (double)cur.PaidAmt,
                 TotalPaidCount = cur.PaidCnt,
                 TotalPaidMoMPercentage = Pct(cur.PaidAmt, cmp.PaidAmt),
 
-                TotalUnPaid = cur.UnpaidAmt,
+                TotalUnPaid = (double)cur.UnpaidAmt,
                 TotalUnPaidCount = cur.UnpaidCnt,
                 TotalUnPaidMoMPercentage = Pct(cur.UnpaidAmt, cmp.UnpaidAmt),
 
                 // Overdue is unpaid created before month start
-                TotalOverdue = curOverdue.OverdueAmt,
+                TotalOverdue = (double)curOverdue.OverdueAmt,
                 TotalOverdueCount = curOverdue.OverdueCnt,
                 TotalOverdueMoMPercentage = Pct(curOverdue.OverdueAmt, cmpOverdue.OverdueAmt),
 
                 // Blue card (as-of-now)
-                CurrentReceivables = recv.Current,
-                OverdueReceivables = recv.Overdue,
-                TotalReceivables = totalReceivables,
+                CurrentReceivables = (double)recv.Current,
+                OverdueReceivables = (double)recv.Overdue,
+                TotalReceivables = (double)totalReceivables,
                 CollectionRate = collectionRate
             };
         }
@@ -309,7 +310,9 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
             if (dto.PayStatue == true)
             {
 
-                entity.Amount = dto.Amount;
+                entity.Amount = dto.Amount.HasValue
+                    ? Math.Round(dto.Amount.Value, 2, MidpointRounding.AwayFromZero)
+                    : null;
                 entity.ReceiptPath = dto.ReceiptPath!=null ? _fileService.CreateFileAsync(dto.ReceiptPath,"StudentInvoices/").Result.Data.FilePath : null;
                 entity.PaymentDate = DateTime.Now;
                 // ✅ يحدث فقط لو فيها قيمة

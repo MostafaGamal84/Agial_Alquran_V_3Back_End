@@ -15,10 +15,10 @@ namespace Orbits.GeneralProject.DTO.StudentSubscribDtos
         public int? OldRemainingMinutes { get; set; }
         public int? NewRemainingMinutes { get; set; }
         public int? UsedMinutes { get; set; }
-        public int? OldAmount { get; set; }
-        public int? NewAmount { get; set; }
-        public int? AmountPaidBeforeChange { get; set; }
-        public int? RemainingAmountAfterChange { get; set; }
+        public decimal? OldAmount { get; set; }
+        public decimal? NewAmount { get; set; }
+        public decimal? AmountPaidBeforeChange { get; set; }
+        public decimal? RemainingAmountAfterChange { get; set; }
         public int? OldCurrencyId { get; set; }
         public int? NewCurrencyId { get; set; }
         public bool? OldPayStatus { get; set; }

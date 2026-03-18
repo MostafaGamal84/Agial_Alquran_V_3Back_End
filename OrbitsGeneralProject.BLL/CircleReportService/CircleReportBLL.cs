@@ -438,7 +438,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             if (teacherReport != null)
             {
                 teacherReport.Minutes = chargedNewMinutes;
-                teacherReport.CircleSallary = newCounts ? teacherSalary : 0;
+                teacherReport.CircleSallary = newCounts ? teacherSalary : 0m;
 
                 teacherReport.ModefiedAt = DateTime.UtcNow;
                 teacherReport.CreatedAt = report.CreationTime;
@@ -545,22 +545,22 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             return output.CreateResponse(true);
         }
 
-        private int CalculateTeacherSalary(decimal hourlyRate, double? minutes)
+        private decimal CalculateTeacherSalary(decimal hourlyRate, double? minutes)
         {
             if (minutes == null)
             {
-                return 0;
+                return 0m;
             }
 
             decimal minutesValue = Convert.ToDecimal(minutes.Value);
             var total = (hourlyRate / 60) * minutesValue;
-            return (int)Math.Round(total, MidpointRounding.AwayFromZero);
+            return Math.Round(total, 2, MidpointRounding.AwayFromZero);
         }
 
-        private int CalculateTeacherSalary(decimal hourlyRate, int minutes)
+        private decimal CalculateTeacherSalary(decimal hourlyRate, int minutes)
         {
             var total = (hourlyRate / 60 )  * minutes;
-            return (int)Math.Round(total, MidpointRounding.AwayFromZero);
+            return Math.Round(total, 2, MidpointRounding.AwayFromZero);
         }
 
         private decimal ResolveHourlyRate(SubscribeType? subscribeType)

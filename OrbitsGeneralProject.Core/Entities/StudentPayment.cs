@@ -17,7 +17,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public DateTime? ModefiedAt { get; set; }
         public int? StudentId { get; set; }
         public int? StudentSubscribeId { get; set; }
-        public int? Amount { get; set; }
+        public decimal? Amount { get; set; }
         public int? CurrencyId { get; set; }
         public DateTime? PaymentDate { get; set; }
         public string? ReceiptPath { get; set; }
