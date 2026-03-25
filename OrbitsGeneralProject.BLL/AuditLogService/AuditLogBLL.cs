@@ -66,7 +66,10 @@ namespace Orbits.GeneralProject.BLL.AuditLogService
                         (!string.IsNullOrWhiteSpace(x.Summary) && x.Summary.ToLower().Contains(searchTerm)) ||
                         (!string.IsNullOrWhiteSpace(x.ActorName) && x.ActorName.ToLower().Contains(searchTerm)) ||
                         (!string.IsNullOrWhiteSpace(x.EntityLabel) && x.EntityLabel.ToLower().Contains(searchTerm)) ||
-                        (!string.IsNullOrWhiteSpace(x.EntityDisplayName) && x.EntityDisplayName.ToLower().Contains(searchTerm)));
+                        (!string.IsNullOrWhiteSpace(x.EntityDisplayName) && x.EntityDisplayName.ToLower().Contains(searchTerm)) ||
+                        (!string.IsNullOrWhiteSpace(x.SourceScreen) && x.SourceScreen.ToLower().Contains(searchTerm)) ||
+                        (!string.IsNullOrWhiteSpace(x.SourceRoute) && x.SourceRoute.ToLower().Contains(searchTerm)) ||
+                        (!string.IsNullOrWhiteSpace(x.RequestPath) && x.RequestPath.ToLower().Contains(searchTerm)));
                 }
 
                 if (!string.IsNullOrWhiteSpace(pagedDto.ActionType))
@@ -126,6 +129,10 @@ namespace Orbits.GeneralProject.BLL.AuditLogService
                         ActorUserId = x.ActorUserId,
                         ActorName = x.ActorName,
                         ActorRoleId = x.ActorRoleId,
+                        SourceScreen = x.SourceScreen,
+                        SourceRoute = x.SourceRoute,
+                        RequestPath = x.RequestPath,
+                        HttpMethod = x.HttpMethod,
                         CreatedAt = x.CreatedAt,
                         ChangesJson = x.ChangesJson,
                         Participants = x.Participants
@@ -264,6 +271,10 @@ namespace Orbits.GeneralProject.BLL.AuditLogService
                 ActorUserId = projection.ActorUserId,
                 ActorName = projection.ActorName,
                 ActorRoleId = projection.ActorRoleId,
+                SourceScreen = projection.SourceScreen,
+                SourceRoute = projection.SourceRoute,
+                RequestPath = projection.RequestPath,
+                HttpMethod = projection.HttpMethod,
                 CreatedAt = projection.CreatedAt,
                 Changes = DeserializeChanges(projection.ChangesJson),
                 Participants = projection.Participants
@@ -300,6 +311,10 @@ namespace Orbits.GeneralProject.BLL.AuditLogService
             public int? ActorUserId { get; set; }
             public string? ActorName { get; set; }
             public int? ActorRoleId { get; set; }
+            public string? SourceScreen { get; set; }
+            public string? SourceRoute { get; set; }
+            public string? RequestPath { get; set; }
+            public string? HttpMethod { get; set; }
             public DateTime CreatedAt { get; set; }
             public string? ChangesJson { get; set; }
             public IReadOnlyList<AuditLogParticipantDto> Participants { get; set; } = Array.Empty<AuditLogParticipantDto>();

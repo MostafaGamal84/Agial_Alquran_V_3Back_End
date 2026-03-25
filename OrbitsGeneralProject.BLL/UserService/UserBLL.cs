@@ -462,33 +462,57 @@ namespace Orbits.GeneralProject.BLL.UserService
                 }
             }
 
-            // ===== MANAGER CIRCLES (refresh only the provided CircleIds) =====
+            // ===== MANAGER CIRCLES =====
+            // null => leave untouched, [] => remove all, [ids] => add/remove only the actual differences.
             if (existedUser.UserTypeId == (int)UserTypesEnum.Manager)
             {
-                var circleIds = (updateUserDto.CircleIds ?? new List<int>()).Where(id => id > 0).Distinct().ToList();
-            
-                // 1) Remove old rows for this manager where CircleId is in the provided list
-                var oldRows = _managerCircleRepository.GetAll()
-                    .Where(mc => mc.ManagerId == existedUser.Id)
-                    .ToList();
-
-                foreach (var mc in oldRows)
-                    _managerCircleRepository.Delete(mc);
-            if (circleIds.Count > 0)
-            {
-                // 2) Re-insert fresh rows for exactly these CircleIds
-                foreach (var cid in circleIds)
+                if (updateUserDto.CircleIds != null)
                 {
-                    _managerCircleRepository.Add(new ManagerCircle
+                    var targetCircleIds = updateUserDto.CircleIds
+                        .Where(id => id > 0)
+                        .Distinct()
+                        .ToList();
+
+                    var targetSet = targetCircleIds.ToHashSet();
+                    var currentLinks = _managerCircleRepository.GetAll()
+                        .Where(mc => mc.ManagerId == existedUser.Id && mc.CircleId.HasValue)
+                        .ToList();
+
+                    var currentCircleIds = currentLinks
+                        .Select(mc => mc.CircleId!.Value)
+                        .ToHashSet();
+
+                    var linksToDelete = currentLinks
+                        .Where(mc => !targetSet.Contains(mc.CircleId!.Value))
+                        .ToList();
+
+                    foreach (var link in linksToDelete)
                     {
-                        ManagerId = existedUser.Id,
-                        CircleId = cid,
-                        ModefiedAt = DateTime.Now,
-                        ModefiedBy = userid
-                        // If you have audit fields, set them here (e.g., CreatedAt/CreatedBy)
-                    });
+                        _managerCircleRepository.Delete(link);
+                    }
+
+                    var validTargetCircleIds = targetCircleIds.Count == 0
+                        ? new HashSet<int>()
+                        : _circleRepository.GetAll()
+                            .Where(c => targetSet.Contains(c.Id) && c.IsDeleted != true)
+                            .Select(c => c.Id)
+                            .ToHashSet();
+
+                    var circleIdsToAdd = validTargetCircleIds
+                        .Where(id => !currentCircleIds.Contains(id))
+                        .ToList();
+
+                    foreach (var circleId in circleIdsToAdd)
+                    {
+                        _managerCircleRepository.Add(new ManagerCircle
+                        {
+                            ManagerId = existedUser.Id,
+                            CircleId = circleId,
+                            ModefiedAt = DateTime.Now,
+                            ModefiedBy = userid
+                        });
+                    }
                 }
-            }
             }
            
             // 7) Update main user

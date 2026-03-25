@@ -20,6 +20,10 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? ActorUserId { get; set; }
         public string? ActorName { get; set; }
         public int? ActorRoleId { get; set; }
+        public string? SourceScreen { get; set; }
+        public string? SourceRoute { get; set; }
+        public string? RequestPath { get; set; }
+        public string? HttpMethod { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? ChangesJson { get; set; }
 

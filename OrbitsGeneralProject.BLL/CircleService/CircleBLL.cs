@@ -1038,36 +1038,41 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 SyncCircleDayLinks(entity, validDays, userId);
             }
 
-            // Update managers (replace all with incoming if provided)
-            if (dto.Managers != null && dto.Managers.Count > 0)
+            // Sync managers by diff only:
+            // null => leave untouched, [] => remove all, [ids] => add/remove only the actual differences.
+            if (dto.Managers != null)
             {
+                var targetIds = dto.Managers
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToList();
 
+                var targetSet = targetIds.ToHashSet();
+                var currentLinks = _managerCircleRepository.GetAll()
+                    .Where(x => x.CircleId == dto.Id && x.ManagerId.HasValue)
+                    .ToList();
 
-                // Clean & distinct (ignore zeros if they sometimes sneak in)
-                var targetIds = dto.Managers.Where(id => id > 0).Distinct().ToList();
-                var targetSet = new HashSet<int>(targetIds);
+                var currentManagerIds = currentLinks
+                    .Select(x => x.ManagerId!.Value)
+                    .ToHashSet();
 
-                // Delete existing links for this circle where ManagerId is in dto.Managers
-                if (entity.ManagerCircles?.Any() == true)
+                var linksToDelete = currentLinks
+                    .Where(x => !targetSet.Contains(x.ManagerId!.Value))
+                    .ToList();
+
+                if (linksToDelete.Count > 0)
                 {
-                    var toDelete = entity.ManagerCircles
-                       .Where(x => x.CircleId == dto.Id && targetSet.Contains(x.ManagerId.Value))
-                       .ToList();
-                    if (User.UserTypeId == (int)UserTypesEnum.Admin)
-                    {
-                         toDelete = entity.ManagerCircles
-                        .Where(x => x.CircleId == dto.Id )
-                        .ToList();
-                    }
-                   
-
-                    if (toDelete.Count > 0)
-                        _managerCircleRepository.DeleteRange(toDelete);
+                    _managerCircleRepository.DeleteRange(linksToDelete);
                 }
 
-                // Recreate links for provided managers
-                if (targetIds.Count > 0)
-                    _managerCircleRepository.Add(addCirclesManagers(dto.Id, targetIds,userId));
+                var managerIdsToAdd = targetIds
+                    .Where(id => !currentManagerIds.Contains(id))
+                    .ToList();
+
+                if (managerIdsToAdd.Count > 0)
+                {
+                    _managerCircleRepository.Add(addCirclesManagers(dto.Id, managerIdsToAdd, userId));
+                }
             }
 
             // ===== Students sync =====

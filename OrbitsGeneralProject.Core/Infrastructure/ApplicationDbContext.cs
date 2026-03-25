@@ -435,6 +435,10 @@ namespace Orbits.GeneralProject.Core.Infrastructure
                     ActorUserId = _auditUserContext.UserId,
                     ActorName = actorName,
                     ActorRoleId = _auditUserContext.RoleId,
+                    SourceScreen = NormalizeAuditText(_auditUserContext.SourceScreen),
+                    SourceRoute = NormalizeAuditText(_auditUserContext.SourceRoute),
+                    RequestPath = NormalizeAuditText(_auditUserContext.RequestPath),
+                    HttpMethod = NormalizeAuditText(_auditUserContext.HttpMethod),
                     CreatedAt = DateTime.UtcNow,
                     ChangesJson = pendingEntry.Changes.Count == 0
                         ? null
@@ -498,6 +502,8 @@ namespace Orbits.GeneralProject.Core.Infrastructure
                     return await ResolveNationalityDisplayNameAsync(TryConvertToInt(normalizedValue), lookupCache, cancellationToken) ?? normalizedValue;
                 case "GovernorateId":
                     return await ResolveGovernorateDisplayNameAsync(TryConvertToInt(normalizedValue), lookupCache, cancellationToken) ?? normalizedValue;
+                case "BranchId":
+                    return ResolveBranchDisplayName(TryConvertToInt(normalizedValue)) ?? normalizedValue;
                 case "CircleId":
                     return await ResolveCircleDisplayNameAsync(TryConvertToInt(normalizedValue), lookupCache, cancellationToken) ?? normalizedValue;
                 case "StudentSubscribeId":
@@ -880,6 +886,16 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             return null;
         }
 
+        private static string? ResolveBranchDisplayName(int? branchId)
+        {
+            return branchId switch
+            {
+                1 => "الرجال",
+                2 => "النساء",
+                _ => null
+            };
+        }
+
         private static bool ShouldAuditEntry(EntityEntry entry)
         {
             if (entry.State is EntityState.Detached or EntityState.Unchanged)
@@ -990,8 +1006,26 @@ namespace Orbits.GeneralProject.Core.Infrastructure
 
             if (pendingEntry.ActionType == "Update" && pendingEntry.Changes.Count > 0)
             {
-                var firstChange = pendingEntry.Changes[0];
-                return $"{actor} عدّل {entityName}: {firstChange.PropertyLabel} من {firstChange.OldValue ?? "فارغ"} إلى {firstChange.NewValue ?? "فارغ"}";
+                var visibleChanges = pendingEntry.Changes
+                    .Take(3)
+                    .Select(BuildChangeSummary)
+                    .Where(summary => !string.IsNullOrWhiteSpace(summary))
+                    .ToList();
+
+                if (visibleChanges.Count == 0)
+                {
+                    return $"{actor} عدّل {entityName}";
+                }
+
+                var hiddenChangesCount = pendingEntry.Changes.Count - visibleChanges.Count;
+                var changesSummary = string.Join("، ", visibleChanges);
+
+                if (hiddenChangesCount > 0)
+                {
+                    changesSummary = $"{changesSummary}، و{hiddenChangesCount} تغييرات أخرى";
+                }
+
+                return $"{actor} عدّل {entityName}: {changesSummary}";
             }
 
             return pendingEntry.ActionType switch
@@ -1001,6 +1035,18 @@ namespace Orbits.GeneralProject.Core.Infrastructure
                 "Restore" => $"{actor} استعاد {entityName}",
                 _ => $"{actor} غيّر {entityName}"
             };
+        }
+
+        private static string BuildChangeSummary(AuditChange change)
+        {
+            var label = string.IsNullOrWhiteSpace(change.PropertyLabel)
+                ? change.PropertyName
+                : change.PropertyLabel;
+
+            var oldValue = string.IsNullOrWhiteSpace(change.OldValue) ? "فارغ" : change.OldValue.Trim();
+            var newValue = string.IsNullOrWhiteSpace(change.NewValue) ? "فارغ" : change.NewValue.Trim();
+
+            return $"{label} من {oldValue} إلى {newValue}";
         }
 
         private async Task<string?> ResolveActorNameAsync(CancellationToken cancellationToken)
@@ -1150,6 +1196,11 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             }
 
             return Convert.ToString(value, CultureInfo.InvariantCulture);
+        }
+
+        private static string? NormalizeAuditText(string? value)
+        {
+            return NormalizeValue(value) as string;
         }
 
         private static bool IsEmptyAuditValue(object? value)
