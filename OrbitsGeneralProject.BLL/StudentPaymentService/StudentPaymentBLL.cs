@@ -60,11 +60,14 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     var me = _UserRepo.GetById(userId);
     if (me == null) return output.AppendError(MessageCodes.NotFound);
 
-    var now = DateTime.Now;
-    var monthStart = month.HasValue
-        ? new DateTime(month.Value.Year, month.Value.Month, 1)
-        : new DateTime(now.Year, now.Month, 1);
-    var monthEnd = monthStart.AddMonths(1);
+    var now = BusinessDateTime.UtcNow;
+    var (monthStart, monthEnd) = month.HasValue
+        ? BusinessDateTime.GetCairoMonthRangeUtc(month.Value.Year, month.Value.Month)
+        : BusinessDateTime.GetCurrentCairoMonthRangeUtc();
+    var createdFromUtc = createdFrom.HasValue ? BusinessDateTime.GetCairoDayRangeUtc(createdFrom.Value).StartUtc : (DateTime?)null;
+    var createdToExclusiveUtc = createdTo.HasValue ? BusinessDateTime.GetCairoDayRangeUtc(createdTo.Value).EndUtc : (DateTime?)null;
+    var dueFromUtc = dueFrom.HasValue ? BusinessDateTime.GetCairoDayRangeUtc(dueFrom.Value).StartUtc : (DateTime?)null;
+    var dueToExclusiveUtc = dueTo.HasValue ? BusinessDateTime.GetCairoDayRangeUtc(dueTo.Value).EndUtc : (DateTime?)null;
 
     var sw = pagedDto?.SearchTerm?.Trim().ToLower();
     var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
@@ -106,12 +109,12 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
         ) &&
 
         // ----- created date range (optional)
-        (!createdFrom.HasValue || (p.CreatedAt.HasValue && p.CreatedAt.Value >= createdFrom.Value)) &&
-        (!createdTo.HasValue   || (p.CreatedAt.HasValue && p.CreatedAt.Value <  createdTo.Value.AddDays(1))) &&
+        (!createdFromUtc.HasValue || (p.CreatedAt.HasValue && p.CreatedAt.Value >= createdFromUtc.Value)) &&
+        (!createdToExclusiveUtc.HasValue   || (p.CreatedAt.HasValue && p.CreatedAt.Value <  createdToExclusiveUtc.Value)) &&
 
         // ----- due date range (optional)
-        (!dueFrom.HasValue || (p.PaymentDate.HasValue && p.PaymentDate.Value >= dueFrom.Value)) &&
-        (!dueTo.HasValue   || (p.PaymentDate.HasValue && p.PaymentDate.Value <  dueTo.Value.AddDays(1))) &&
+        (!dueFromUtc.HasValue || (p.PaymentDate.HasValue && p.PaymentDate.Value >= dueFromUtc.Value)) &&
+        (!dueToExclusiveUtc.HasValue   || (p.PaymentDate.HasValue && p.PaymentDate.Value <  dueToExclusiveUtc.Value)) &&
 
         // ----- search
         (
@@ -158,19 +161,20 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     DateTime? dataMonth = null,          // month to report
     DateTime? compareMonth = null)       // month to compare against
         {
-            var now = DateTime.Now;
+            var now = BusinessDateTime.UtcNow;
+            var cairoNow = BusinessDateTime.CairoNow;
+            var currentMonthReference = dataMonth.HasValue
+                ? new DateTime(dataMonth.Value.Year, dataMonth.Value.Month, 1)
+                : new DateTime(cairoNow.Year, cairoNow.Month, 1);
+            var compareMonthReference = compareMonth.HasValue
+                ? new DateTime(compareMonth.Value.Year, compareMonth.Value.Month, 1)
+                : currentMonthReference.AddMonths(-1);
 
             // Resolve current month window
-            var curStart = dataMonth.HasValue
-                ? new DateTime(dataMonth.Value.Year, dataMonth.Value.Month, 1)
-                : new DateTime(now.Year, now.Month, 1);
-            var curEnd = curStart.AddMonths(1);
+            var (curStart, curEnd) = BusinessDateTime.GetCairoMonthRangeUtc(currentMonthReference.Year, currentMonthReference.Month);
 
             // Resolve compare month window (default: previous month of current)
-            var cmpStart = compareMonth.HasValue
-                ? new DateTime(compareMonth.Value.Year, compareMonth.Value.Month, 1)
-                : curStart.AddMonths(-1);
-            var cmpEnd = cmpStart.AddMonths(1);
+            var (cmpStart, cmpEnd) = BusinessDateTime.GetCairoMonthRangeUtc(compareMonthReference.Year, compareMonthReference.Month);
 
             IQueryable<StudentPayment> baseQ = _StudentPaymentRepo.GetAll(); // Preferably AsNoTracking() inside
 
@@ -265,7 +269,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
 
             return new PaymentsFullDashboardDto
             {
-                Month = curStart,
+                Month = currentMonthReference,
 
                 // Amounts + counts for the month
                 TotalPaid = (double)cur.PaidAmt,
@@ -306,7 +310,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
             var studentSubscribe = _StudentSubscribeRepo.GetById(entity.StudentSubscribes.Where(x => x.StudentPaymentId == entity.Id).FirstOrDefault().Id);
 
             entity.ModefiedBy = userId;
-            entity.ModefiedAt = DateTime.Now;
+            entity.ModefiedAt = BusinessDateTime.UtcNow;
             if (dto.PayStatue == true)
             {
 
@@ -314,17 +318,17 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                     ? Math.Round(dto.Amount.Value, 2, MidpointRounding.AwayFromZero)
                     : null;
                 entity.ReceiptPath = dto.ReceiptPath!=null ? _fileService.CreateFileAsync(dto.ReceiptPath,"StudentInvoices/").Result.Data.FilePath : null;
-                entity.PaymentDate = DateTime.Now;
+                entity.PaymentDate = BusinessDateTime.UtcNow;
                 // ✅ يحدث فقط لو فيها قيمة
                 if (dto.CurrencyId.HasValue)
                 {
                     entity.CurrencyId = dto.CurrencyId.Value;
                 }
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = DateTime.Now;
+                entity.ModefiedAt = BusinessDateTime.UtcNow;
                 entity.PayStatue = dto.PayStatue;
                 entity.IsCancelled = false;
-                studentSubscribe.ModefiedAt = DateTime.Now;
+                studentSubscribe.ModefiedAt = BusinessDateTime.UtcNow;
                 studentSubscribe.ModefiedBy = userId;
                 studentSubscribe.PayStatus = dto.PayStatue;
             }
@@ -334,7 +338,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.IsCancelled = true;
                 entity.PayStatue = false;
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = DateTime.Now;
+                entity.ModefiedAt = BusinessDateTime.UtcNow;
                 //_StudentSubscribeRepo.Delete(studentSubscribe);
             }
 
@@ -343,7 +347,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.IsCancelled = false;
                 entity.PayStatue = false;
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = DateTime.Now;
+                entity.ModefiedAt = BusinessDateTime.UtcNow;
             }
 
             await _unitOfWork.CommitAsync();

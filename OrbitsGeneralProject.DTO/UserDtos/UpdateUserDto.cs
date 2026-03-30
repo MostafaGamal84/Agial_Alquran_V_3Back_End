@@ -23,9 +23,9 @@ namespace Orbits.GeneralProject.DTO.UserDtos
         public List<int>? TeacherIds { get; set; }
         public List<int>? ManagerIds { get; set; }
         public List<int>? CircleIds { get; set; }
-
-        
-        public List<int>? StudentIds { get; set; } = new List<int>();
+        public bool? UpdateTeacherId { get; set; }
+        public bool? UpdateCircleId { get; set; }
+        public List<int>? StudentIds { get; set; }
         public int? StudentSubscribeId { get; set; }
     }
 }

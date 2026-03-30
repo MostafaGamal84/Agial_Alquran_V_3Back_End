@@ -4,6 +4,7 @@ using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
 using Orbits.GeneralProject.BLL.StaticEnums;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.Dashboard;
 using Orbits.GeneralProject.Repositroy.Base;
 using System.Globalization;
@@ -63,10 +64,11 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             Response<DashboardSummaryDto> output = new();
             try
             {
-                DateTime utcNow = DateTime.UtcNow;
-                DateTime currentMonthStart = new DateTime(utcNow.Year, utcNow.Month, 1);
-                DateTime nextMonthStart = currentMonthStart.AddMonths(1);
-                DateTime previousMonthStart = currentMonthStart.AddMonths(-1);
+                DateTime cairoNow = BusinessDateTime.CairoNow;
+                DateTime currentMonthReference = new(cairoNow.Year, cairoNow.Month, 1);
+                DateTime previousMonthReference = currentMonthReference.AddMonths(-1);
+                var (currentMonthStart, nextMonthStart) = BusinessDateTime.GetCairoMonthRangeUtc(currentMonthReference.Year, currentMonthReference.Month);
+                var (previousMonthStart, _) = BusinessDateTime.GetCairoMonthRangeUtc(previousMonthReference.Year, previousMonthReference.Month);
 
                 var paymentsQuery = _studentPaymentRepository
                     .Where(payment => payment.PaymentDate.HasValue && payment.Amount.HasValue);
@@ -426,7 +428,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                         scope)
                     .Where(c => c.CircleDays.Any());
 
-                DateTime reference = DateTime.UtcNow;
+                DateTime reference = BusinessDateTime.CairoNow;
 
                 var circles = await circlesQuery
                     .ToListAsync();
@@ -458,14 +460,15 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
             try
             {
-                DateTime utcNow = DateTime.UtcNow;
-                DateTime currentMonthStart = new DateTime(utcNow.Year, utcNow.Month, 1);
-                DateTime startPeriod = currentMonthStart.AddMonths(1 - months);
-                DateTime endPeriod = currentMonthStart.AddMonths(1);
+                DateTime cairoNow = BusinessDateTime.CairoNow;
+                DateTime currentMonthReference = new(cairoNow.Year, cairoNow.Month, 1);
+                DateTime startPeriod = currentMonthReference.AddMonths(1 - months);
+                DateTime endPeriod = currentMonthReference.AddMonths(1);
+                DateTime endPeriodUtc = BusinessDateTime.ToUtcFromCairoLocal(endPeriod);
 
                 var allPayments = await _studentPaymentRepository
                     .Where(payment => payment.PaymentDate.HasValue && payment.StudentId.HasValue)
-                    .Where(payment => payment.PaymentDate.Value < endPeriod)
+                    .Where(payment => payment.PaymentDate.Value < endPeriodUtc)
                     .Select(payment => new
                     {
                         StudentId = payment.StudentId!.Value,
@@ -482,13 +485,15 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 for (int index = 0; index < months; index++)
                 {
-                    DateTime monthStart = new DateTime(startPeriod.Year, startPeriod.Month, 1).AddMonths(index);
+                    DateTime monthStart = startPeriod.AddMonths(index);
                     DateTime nextMonthStart = monthStart.AddMonths(1);
+                    DateTime monthStartUtc = BusinessDateTime.ToUtcFromCairoLocal(monthStart);
+                    DateTime nextMonthStartUtc = BusinessDateTime.ToUtcFromCairoLocal(nextMonthStart);
 
                     categories.Add(monthStart.ToString("MMM yyyy", CultureInfo.InvariantCulture));
 
                     var monthPayments = allPayments
-                        .Where(payment => payment.PaymentDate >= monthStart && payment.PaymentDate < nextMonthStart)
+                        .Where(payment => payment.PaymentDate >= monthStartUtc && payment.PaymentDate < nextMonthStartUtc)
                         .ToList();
 
                     if (monthPayments.Count == 0)
@@ -511,7 +516,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     int returningCustomers = monthPayments
                         .Select(payment => payment.StudentId)
                         .Distinct()
-                        .Count(studentId => firstPaymentByStudent.TryGetValue(studentId, out DateTime firstPaymentDate) && firstPaymentDate < monthStart);
+                        .Count(studentId => firstPaymentByStudent.TryGetValue(studentId, out DateTime firstPaymentDate) && firstPaymentDate < monthStartUtc);
 
                     decimal returningRate = totalCustomers == 0
                         ? 0m
@@ -560,42 +565,38 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
             try
             {
-                DateTime utcNow = DateTime.UtcNow;
-                DateTime currentMonthStart = new DateTime(utcNow.Year, utcNow.Month, 1);
-                DateTime startPeriod = currentMonthStart.AddMonths(1 - months);
-                DateTime endPeriod = currentMonthStart.AddMonths(1);
+                DateTime cairoNow = BusinessDateTime.CairoNow;
+                DateTime currentMonthReference = new(cairoNow.Year, cairoNow.Month, 1);
+                DateTime startPeriod = currentMonthReference.AddMonths(1 - months);
+                DateTime endPeriod = currentMonthReference.AddMonths(1);
+                DateTime startPeriodUtc = BusinessDateTime.ToUtcFromCairoLocal(startPeriod);
+                DateTime endPeriodUtc = BusinessDateTime.ToUtcFromCairoLocal(endPeriod);
 
                 var revenueData = await ApplyPaymentScope(_studentPaymentRepository.GetAll().AsNoTracking(), new DashboardScope())
                     .Where(payment => payment.PaymentDate.HasValue && payment.Amount.HasValue &&
-                                       payment.PaymentDate.Value >= startPeriod && payment.PaymentDate.Value < endPeriod)
-                    .GroupBy(payment => new { payment.PaymentDate!.Value.Year, payment.PaymentDate!.Value.Month })
-                    .Select(group => new
+                                       payment.PaymentDate.Value >= startPeriodUtc && payment.PaymentDate.Value < endPeriodUtc)
+                    .Select(payment => new
                     {
-                        group.Key.Year,
-                        group.Key.Month,
-                        Total = group.Sum(payment => (decimal?)(payment.Amount ?? 0)) ?? 0m
+                        PaymentDate = payment.PaymentDate!.Value,
+                        Amount = payment.Amount ?? 0m
                     })
                     .ToListAsync();
 
                 var teacherData = await ApplyTeacherSalaryScope(_teacherSalaryRepository.GetAll().AsNoTracking(), new DashboardScope())
-                    .Where(salary => salary.Month.HasValue && salary.Month.Value >= startPeriod && salary.Month.Value < endPeriod)
-                    .GroupBy(salary => new { salary.Month!.Value.Year, salary.Month!.Value.Month })
-                    .Select(group => new
+                    .Where(salary => salary.Month.HasValue && salary.Month.Value >= startPeriodUtc && salary.Month.Value < endPeriodUtc)
+                    .Select(salary => new
                     {
-                        group.Key.Year,
-                        group.Key.Month,
-                        Total = group.Sum(salary => salary.Sallary ?? 0d)
+                        Month = salary.Month!.Value,
+                        Total = salary.Sallary ?? 0d
                     })
                     .ToListAsync();
 
                 var managerData = await ApplyManagerSalaryScope(_managerSalaryRepository.GetAll().AsNoTracking(), new DashboardScope())
-                    .Where(salary => salary.Month.HasValue && salary.Month.Value >= startPeriod && salary.Month.Value < endPeriod)
-                    .GroupBy(salary => new { salary.Month!.Value.Year, salary.Month!.Value.Month })
-                    .Select(group => new
+                    .Where(salary => salary.Month.HasValue && salary.Month.Value >= startPeriodUtc && salary.Month.Value < endPeriodUtc)
+                    .Select(salary => new
                     {
-                        group.Key.Year,
-                        group.Key.Month,
-                        Total = group.Sum(salary => salary.Sallary ?? 0d)
+                        Month = salary.Month!.Value,
+                        Total = salary.Sallary ?? 0d
                     })
                     .ToListAsync();
 
@@ -611,24 +612,24 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
                 for (int index = 0; index < months; index++)
                 {
-                    DateTime monthStart = new DateTime(startPeriod.Year, startPeriod.Month, 1).AddMonths(index);
+                    DateTime monthStart = startPeriod.AddMonths(index);
+                    DateTime nextMonthStart = monthStart.AddMonths(1);
+                    DateTime monthStartUtc = BusinessDateTime.ToUtcFromCairoLocal(monthStart);
+                    DateTime nextMonthStartUtc = BusinessDateTime.ToUtcFromCairoLocal(nextMonthStart);
                     string monthLabel = monthStart.ToString("MMM yyyy", CultureInfo.InvariantCulture);
                     categories.Add(monthLabel);
 
                     decimal monthRevenue = revenueData
-                        .Where(entry => entry.Year == monthStart.Year && entry.Month == monthStart.Month)
-                        .Select(entry => entry.Total)
-                        .FirstOrDefault();
+                        .Where(entry => entry.PaymentDate >= monthStartUtc && entry.PaymentDate < nextMonthStartUtc)
+                        .Sum(entry => entry.Amount);
 
                     decimal monthTeacher = teacherData
-                        .Where(entry => entry.Year == monthStart.Year && entry.Month == monthStart.Month)
-                        .Select(entry => Convert.ToDecimal(entry.Total))
-                        .FirstOrDefault();
+                        .Where(entry => entry.Month >= monthStartUtc && entry.Month < nextMonthStartUtc)
+                        .Sum(entry => Convert.ToDecimal(entry.Total));
 
                     decimal monthManager = managerData
-                        .Where(entry => entry.Year == monthStart.Year && entry.Month == monthStart.Month)
-                        .Select(entry => Convert.ToDecimal(entry.Total))
-                        .FirstOrDefault();
+                        .Where(entry => entry.Month >= monthStartUtc && entry.Month < nextMonthStartUtc)
+                        .Sum(entry => Convert.ToDecimal(entry.Total));
 
                     decimal monthNet = monthRevenue - monthTeacher - monthManager;
 
@@ -869,25 +870,27 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
             List<DashboardMonthlyRevenuePointDto> results = new();
 
-            DateTime anchorMonthStart = new DateTime(referenceEnd.Year, referenceEnd.Month, 1);
+            DateTime cairoReferenceEnd = BusinessDateTime.ToCairo(referenceEnd);
+            DateTime anchorMonthStart = new(cairoReferenceEnd.Year, cairoReferenceEnd.Month, 1);
 
             for (int index = months - 1; index >= 0; index--)
             {
                 DateTime monthStart = anchorMonthStart.AddMonths(-index);
                 DateTime monthEndExclusive = monthStart.AddMonths(1);
+                var (monthStartUtc, monthEndExclusiveUtc) = BusinessDateTime.GetCairoMonthRangeUtc(monthStart.Year, monthStart.Month);
 
                 decimal earningsRaw = await paymentsBaseQuery
                     .Where(p =>
-                        (p.PaymentDate ?? p.CreatedAt) >= monthStart &&
-                        (p.PaymentDate ?? p.CreatedAt) < monthEndExclusive)
+                        (p.PaymentDate ?? p.CreatedAt) >= monthStartUtc &&
+                        (p.PaymentDate ?? p.CreatedAt) < monthEndExclusiveUtc)
                     .SumAsync(p => (decimal?)(p.Amount ?? 0)) ?? 0m;
 
                 double teacherRawDouble = await teacherSalaryBaseQuery
-                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < monthEndExclusive)
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStartUtc && s.Month.Value < monthEndExclusiveUtc)
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
                 double managerRawDouble = await managerSalaryBaseQuery
-                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < monthEndExclusive)
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStartUtc && s.Month.Value < monthEndExclusiveUtc)
                     .SumAsync(s => (double?)(s.Sallary ?? 0d)) ?? 0d;
 
                 decimal teacherRaw = Convert.ToDecimal(teacherRawDouble);
@@ -980,49 +983,55 @@ namespace Orbits.GeneralProject.BLL.DashboardService
 
         private static DashboardRange ResolveRange(DashboardRangeInputDto? range)
         {
-            DateTime utcNow = DateTime.UtcNow;
+            DateTime utcNow = BusinessDateTime.UtcNow;
+            DateTime cairoNow = BusinessDateTime.CairoNow;
 
             if (!string.IsNullOrWhiteSpace(range?.Range))
             {
                 var requested = range.Range!.Trim();
                 if (string.Equals(requested, "monthly", StringComparison.OrdinalIgnoreCase))
                 {
-                    DateTime start = new DateTime(utcNow.Year, utcNow.Month, 1);
-                    return new DashboardRange(start, start.AddMonths(1), start.AddMonths(1));
+                    var currentMonthReference = new DateTime(cairoNow.Year, cairoNow.Month, 1);
+                    var (startUtc, endUtc) = BusinessDateTime.GetCairoMonthRangeUtc(currentMonthReference.Year, currentMonthReference.Month);
+                    return new DashboardRange(startUtc, endUtc, utcNow);
                 }
 
                 if (string.Equals(requested, "last30d", StringComparison.OrdinalIgnoreCase))
                 {
-                    DateTime end = utcNow.Date.AddDays(1);
-                    return new DashboardRange(end.AddDays(-30), end, end);
+                    var todayRange = BusinessDateTime.GetCairoDayRangeUtc(cairoNow);
+                    return new DashboardRange(todayRange.EndUtc.AddDays(-30), todayRange.EndUtc, utcNow);
                 }
 
                 var rangeParts = requested.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 if (rangeParts.Length == 2 && DateTime.TryParse(rangeParts[0], out var parsedStart) && DateTime.TryParse(rangeParts[1], out var parsedEnd))
                 {
-                    parsedStart = parsedStart.ToUniversalTime();
-                    parsedEnd = parsedEnd.ToUniversalTime();
                     if (parsedStart > parsedEnd)
                     {
                         (parsedStart, parsedEnd) = (parsedEnd, parsedStart);
                     }
 
-                    return new DashboardRange(parsedStart.Date, parsedEnd.Date.AddDays(1), parsedEnd);
+                    var startDayRange = BusinessDateTime.GetCairoDayRangeUtc(parsedStart);
+                    var endDayRange = BusinessDateTime.GetCairoDayRangeUtc(parsedEnd);
+                    return new DashboardRange(startDayRange.StartUtc, endDayRange.EndUtc, utcNow);
                 }
             }
 
-            DateTime referenceEnd = (range?.EndDate?.ToUniversalTime() ?? utcNow);
-            DateTime startCandidate = (range?.StartDate?.ToUniversalTime() ?? referenceEnd.AddDays(-29));
+            DateTime referenceEnd = range?.EndDate.HasValue == true
+                ? BusinessDateTime.NormalizeClientDateTimeToUtc(range.EndDate.Value)
+                : utcNow;
+            DateTime startCandidate = range?.StartDate.HasValue == true
+                ? BusinessDateTime.NormalizeClientDateTimeToUtc(range.StartDate.Value)
+                : referenceEnd.AddDays(-29);
 
             if (startCandidate > referenceEnd)
             {
                 (startCandidate, referenceEnd) = (referenceEnd, startCandidate);
             }
 
-            DateTime rangeStart = startCandidate.Date;
-            DateTime rangeEndExclusive = referenceEnd.Date.AddDays(1);
+            var startDay = BusinessDateTime.GetCairoDayRangeUtc(BusinessDateTime.ToCairo(startCandidate));
+            var endDay = BusinessDateTime.GetCairoDayRangeUtc(BusinessDateTime.ToCairo(referenceEnd));
 
-            return new DashboardRange(rangeStart, rangeEndExclusive, referenceEnd);
+            return new DashboardRange(startDay.StartUtc, endDay.EndUtc, referenceEnd);
         }
 
         private IQueryable<User> CreateScopedBranchLeadersQuery(DashboardScope scope)
@@ -1306,28 +1315,31 @@ namespace Orbits.GeneralProject.BLL.DashboardService
         {
             List<DashboardOverviewMonthlyRevenueDto> result = new();
 
-            DateTime monthCursor = new DateTime(range.Start.Year, range.Start.Month, 1);
-            DateTime endCursor = new DateTime(range.EndExclusive.Year, range.EndExclusive.Month, 1);
+            DateTime cairoRangeStart = BusinessDateTime.ToCairo(range.Start);
+            DateTime cairoRangeEnd = BusinessDateTime.ToCairo(range.EndExclusive.AddTicks(-1));
+            DateTime monthCursor = new(cairoRangeStart.Year, cairoRangeStart.Month, 1);
+            DateTime endCursor = new(cairoRangeEnd.Year, cairoRangeEnd.Month, 1);
 
             while (monthCursor <= endCursor)
             {
                 DateTime monthStart = monthCursor;
                 DateTime nextMonth = monthStart.AddMonths(1);
+                var (monthStartUtc, nextMonthUtc) = BusinessDateTime.GetCairoMonthRangeUtc(monthStart.Year, monthStart.Month);
 
                 decimal earnings = await paymentsQuery
-                    .Where(p => (p.PaymentDate ?? p.CreatedAt) >= monthStart && (p.PaymentDate ?? p.CreatedAt) < nextMonth)
+                    .Where(p => (p.PaymentDate ?? p.CreatedAt) >= monthStartUtc && (p.PaymentDate ?? p.CreatedAt) < nextMonthUtc)
                     .SumAsync(p => (decimal?)(p.Amount ?? 0m)) ?? 0m;
 
                 decimal teacherPayout = await teacherSalaryQuery
-                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < nextMonth)
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStartUtc && s.Month.Value < nextMonthUtc)
                     .SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m;
 
                 decimal managerPayout = await managerSalaryQuery
-                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStart && s.Month.Value < nextMonth)
+                    .Where(s => s.Month.HasValue && s.Month.Value >= monthStartUtc && s.Month.Value < nextMonthUtc)
                     .SumAsync(s => (decimal?)(s.Sallary ?? 0d)) ?? 0m;
 
                 int reports = await circleReportQuery
-                    .Where(r => r.CreationTime >= monthStart && r.CreationTime < nextMonth)
+                    .Where(r => r.CreationTime >= monthStartUtc && r.CreationTime < nextMonthUtc)
                     .CountAsync();
 
                 decimal netIncome = Round(earnings - teacherPayout - managerPayout);
@@ -1359,7 +1371,7 @@ namespace Orbits.GeneralProject.BLL.DashboardService
                     Id = entry.Id,
                     Amount = Round(entry.Amount ?? 0m),
                     Currency = ResolveCurrencyCode(entry.CurrencyId ?? (int)CurrencyEnum.EGP),
-                    Date = FormatDate((entry.PaymentDate ?? entry.CreatedAt) ?? DateTime.UtcNow),
+                    Date = FormatDate(BusinessDateTime.ToCairo((entry.PaymentDate ?? entry.CreatedAt) ?? BusinessDateTime.UtcNow)),
                     Status = entry.IsCancelled == true
                         ? "failed"
                         : entry.PayStatue == true

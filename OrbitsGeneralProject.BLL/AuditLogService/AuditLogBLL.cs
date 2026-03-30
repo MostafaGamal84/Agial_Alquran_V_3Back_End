@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.Core.Entities;
+using Orbits.GeneralProject.Core.Infrastructure;
 using Orbits.GeneralProject.DTO.AuditLogDtos;
 using Orbits.GeneralProject.DTO.Paging;
 using Orbits.GeneralProject.Repositroy.Base;
@@ -89,13 +90,13 @@ namespace Orbits.GeneralProject.BLL.AuditLogService
 
                 if (pagedDto.FromDate.HasValue)
                 {
-                    var fromDate = pagedDto.FromDate.Value.Date;
+                    var fromDate = BusinessDateTime.GetCairoDayRangeUtc(pagedDto.FromDate.Value).StartUtc;
                     query = query.Where(x => x.CreatedAt >= fromDate);
                 }
 
                 if (pagedDto.ToDate.HasValue)
                 {
-                    var toExclusive = pagedDto.ToDate.Value.Date.AddDays(1);
+                    var toExclusive = BusinessDateTime.GetCairoDayRangeUtc(pagedDto.ToDate.Value).EndUtc;
                     query = query.Where(x => x.CreatedAt < toExclusive);
                 }
 
@@ -275,7 +276,7 @@ namespace Orbits.GeneralProject.BLL.AuditLogService
                 SourceRoute = projection.SourceRoute,
                 RequestPath = projection.RequestPath,
                 HttpMethod = projection.HttpMethod,
-                CreatedAt = projection.CreatedAt,
+                CreatedAt = BusinessDateTime.EnsureUtc(projection.CreatedAt),
                 Changes = DeserializeChanges(projection.ChangesJson),
                 Participants = projection.Participants
             };

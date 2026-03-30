@@ -105,7 +105,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
 
             LoginResultDto loginResult = new LoginResultDto();
             //check if any refresh token not active in RefreshToken Table 
-            JwtSecurityToken generatedToken = this.GenerateToken(user, DateTime.Now.AddDays(Convert.ToDouble(_authSetting.ExpiryInDays)));
+            JwtSecurityToken generatedToken = this.GenerateToken(user, BusinessDateTime.UtcNow.AddDays(Convert.ToDouble(_authSetting.ExpiryInDays)));
             string tokenString = new JwtSecurityTokenHandler().WriteToken(generatedToken);
             if (user.RefreshTokens.Any())
             {
@@ -120,7 +120,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
                 loginResult.RefreshToken = generatedRefreshToken;
                 user.RefreshTokens.Add(new RefreshToken
                 {
-                    CreatedOn = DateTime.Now,
+                    CreatedOn = BusinessDateTime.UtcNow,
                     ExpiresOn = refreshToken.ValidTo,
                     Token = generatedRefreshToken,
                     UserId = user.Id
@@ -303,7 +303,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
                 }
 
                 user.PasswordHash = passwordHasher.HashPassword(user, dto.NewPassword);
-                user.ModefiedAt = DateTime.Now;
+                user.ModefiedAt = BusinessDateTime.UtcNow;
                 user.ModefiedBy = userId;
 
                 _userRepository.Update(user);
@@ -336,7 +336,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
 
                 string code = new Random().Next(1000, 9999).ToString();
                 user.Code = code.Trim();
-                user.CodeExpirationTime = DateTime.Now;
+                user.CodeExpirationTime = BusinessDateTime.UtcNow;
 
                 if (_amanaSetting.CanSendToFront)
                 {
@@ -392,7 +392,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
                     return output.CreateResponse(MessageCodes.InvalidCode);
                 }
 
-                if (!user.CodeExpirationTime.HasValue || user.CodeExpirationTime.Value.AddMinutes(5) < DateTime.Now)
+                if (!user.CodeExpirationTime.HasValue || user.CodeExpirationTime.Value.AddMinutes(5) < BusinessDateTime.UtcNow)
                 {
                     return output.CreateResponse(MessageCodes.CodeNotValidAnyMore);
                 }
@@ -526,7 +526,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             });
 
             // Remove attempts outside the time window
-            attempts.RemoveAll(attemptTime => attemptTime < DateTime.Now.AddSeconds(-timeWindowSeconds));
+            attempts.RemoveAll(attemptTime => attemptTime < BusinessDateTime.UtcNow.AddSeconds(-timeWindowSeconds));
 
             // If the rate limit is reached, return true
             return attempts.Count >= maxLoginAttempts;
@@ -542,7 +542,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             });
 
             // Log the current failed attempt
-            attempts.Add(DateTime.Now);
+            attempts.Add(BusinessDateTime.UtcNow);
             _memoryCache.Set(cacheKey, attempts, TimeSpan.FromSeconds(300));
         }
 
@@ -565,7 +565,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             });
 
             // Remove attempts outside the time window
-            attempts.RemoveAll(attemptTime => attemptTime < DateTime.Now.AddSeconds(-timeWindowSeconds));
+            attempts.RemoveAll(attemptTime => attemptTime < BusinessDateTime.UtcNow.AddSeconds(-timeWindowSeconds));
 
             // If the rate limit is reached, return true
             return attempts.Count >= maxVerifyCodeAttempts;
@@ -581,7 +581,7 @@ namespace Orbits.GeneralProject.BLL.AuthenticationService
             });
 
             // Log the current failed attempt
-            attempts.Add(DateTime.Now);
+            attempts.Add(BusinessDateTime.UtcNow);
             _memoryCache.Set(cacheKey, attempts, TimeSpan.FromSeconds(300));
         }
 

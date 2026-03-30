@@ -144,7 +144,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 searchExpression: predicate,
                 sortDirection: "DESC",
                 disableFilter: true,
-                excluededColumns: null
+                excluededColumns: null,
+                includeProperties: new Expression<Func<CircleReport, object>>[] { r => r.Student, r => r.Teacher, r => r.Circle }
             );
 
             return output.CreateResponse(list);

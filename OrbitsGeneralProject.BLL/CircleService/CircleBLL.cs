@@ -41,7 +41,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         private const int DefaultUpcomingTake = 4;
 
-        private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+        private static readonly TimeZoneInfo BusinessTimeZone = BusinessDateTime.CairoTimeZone;
 
         private static readonly IReadOnlyDictionary<int, DayOfWeek> DayOfWeekLookup = new Dictionary<int, DayOfWeek>
         {
@@ -341,7 +341,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 return output.CreateResponse(new List<UpcomingCircleDto>());
             }
 
-            DateTime referenceUtc = DateTime.UtcNow;
+            DateTime referenceUtc = BusinessDateTime.UtcNow;
             DateTime referenceBusinessTime = ConvertFromUtc(referenceUtc);
 
             var schedulesLookup = await BuildCircleSchedulesAsync(circles);
@@ -532,37 +532,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         private static DateTime ConvertFromUtc(DateTime utcDateTime)
         {
-            if (utcDateTime.Kind != DateTimeKind.Utc)
-            {
-                utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
-            }
-
-            return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, BusinessTimeZone);
-        }
-
-        private static TimeZoneInfo ResolveBusinessTimeZone()
-        {
-            string[] preferredTimeZoneIds = new[]
-            {
-                "Asia/Riyadh",
-                "Arab Standard Time"
-            };
-
-            foreach (var timeZoneId in preferredTimeZoneIds)
-            {
-                try
-                {
-                    return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-                }
-                catch (TimeZoneNotFoundException)
-                {
-                }
-                catch (InvalidTimeZoneException)
-                {
-                }
-            }
-
-            return TimeZoneInfo.Local;
+            return TimeZoneInfo.ConvertTimeFromUtc(BusinessDateTime.EnsureUtc(utcDateTime), BusinessTimeZone);
         }
 
         private static string? ResolveDayName(int? dayId, IReadOnlyDictionary<int, string?>? dayNameLookup = null)
@@ -762,7 +732,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
         private static List<CircleDay> BuildCircleDayLinks(int circleId, IEnumerable<CircleDayRequestDto> days, int userId, DateTime? createdAt = null)
         {
-            var timestamp = createdAt ?? DateTime.UtcNow;
+            var timestamp = createdAt ?? BusinessDateTime.UtcNow;
 
             return days
                 .Select(day => new CircleDay
@@ -937,7 +907,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             // 4) Map & create the circle
             var entity = _mapper.Map<CreateCircleDto, Circle>(model);
             entity.CreatedBy = userId;
-            entity.CreatedAt = DateTime.UtcNow;
+            entity.CreatedAt = BusinessDateTime.UtcNow;
             entity.IsDeleted = false;
             var branchId = model.BranchId ?? currentUser.BranchId;
             if (branchId.HasValue)
@@ -970,7 +940,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                     {
                         CircleId = created.Id,
                         ManagerId = mgrId,
-                        CreatedAt = DateTime.UtcNow,
+                        CreatedAt = BusinessDateTime.UtcNow,
                         CreatedBy = userId
                     })
                     .ToList();
@@ -990,7 +960,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 foreach (var s in students)
                 {
                     s.CircleId = created.Id;
-                    s.ModefiedAt = DateTime.UtcNow;
+                    s.ModefiedAt = BusinessDateTime.UtcNow;
                     s.ModefiedBy = userId;
                 }
             }
@@ -1025,6 +995,9 @@ namespace Orbits.GeneralProject.BLL.CircleService
             if (entity == null) return output.AppendError(MessageCodes.NotFound);
             var User = await _userRepository.GetByIdAsync(userId);
             if (User == null) return output.AppendError(MessageCodes.NotFound);
+
+            if (!CanUpdateCircle(User, entity))
+                return output.CreateResponse(MessageCodes.UnAuthorizedAccess);
 
             if (dto.Days != null)
             {
@@ -1100,7 +1073,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                     foreach (var s in addStudents)
                     {
                         s.CircleId = dto.Id;
-                        s.ModefiedAt = DateTime.UtcNow;
+                        s.ModefiedAt = BusinessDateTime.UtcNow;
                         s.ModefiedBy = userId;
                     }
                 }
@@ -1108,14 +1081,14 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 foreach (var s in currentStudents.Where(s => toRemove.Contains(s.Id)))
                 {
                     s.CircleId = null;
-                    s.ModefiedAt = DateTime.UtcNow;
+                    s.ModefiedAt = BusinessDateTime.UtcNow;
                     s.ModefiedBy = userId;
                 }   
             
         }
 
             // Update circle fields
-            entity.ModefiedAt = DateTime.UtcNow;
+            entity.ModefiedAt = BusinessDateTime.UtcNow;
             entity.ModefiedBy = userId;
             _mapper.Map(dto, entity);
             var branchId = dto.BranchId ?? User.BranchId;
@@ -1138,7 +1111,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
             if (entity == null)
                 return output.AppendError(MessageCodes.NotFound);
             entity.ModefiedBy = userId;
-            entity.ModefiedAt = DateTime.UtcNow;
+            entity.ModefiedAt = BusinessDateTime.UtcNow;
             entity.IsDeleted = true;
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(data: true);
@@ -1159,13 +1132,29 @@ namespace Orbits.GeneralProject.BLL.CircleService
 
             entity.IsDeleted = false;
             entity.ModefiedBy = userId;
-            entity.ModefiedAt = DateTime.UtcNow;
+            entity.ModefiedAt = BusinessDateTime.UtcNow;
 
             _circleRepository.Update(entity);
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(true);
 
         }
+
+        private bool CanUpdateCircle(User requester, Circle circle)
+        {
+            var requesterType = (UserTypesEnum)(requester.UserTypeId ?? 0);
+
+            return requesterType switch
+            {
+                UserTypesEnum.Admin => true,
+                UserTypesEnum.BranchLeader => requester.BranchId.HasValue && requester.BranchId == circle.BranchId,
+                UserTypesEnum.Manager => _managerCircleRepository.GetAll()
+                    .Any(mc => mc.ManagerId == requester.Id && mc.CircleId == circle.Id),
+                UserTypesEnum.Teacher => circle.TeacherId == requester.Id,
+                _ => false
+            };
+        }
+
         private List<ManagerCircle> addCirclesManagers(int circleId, List<int>? managerIdS,int userId)
         {
             List<ManagerCircle> ManagerCirclelist = new List<ManagerCircle>();
@@ -1175,7 +1164,7 @@ namespace Orbits.GeneralProject.BLL.CircleService
                 {
                     CircleId = circleId,
                     ManagerId = managerId,
-                    ModefiedAt = DateTime.UtcNow,
+                    ModefiedAt = BusinessDateTime.UtcNow,
                     ModefiedBy= userId
                     
                 });

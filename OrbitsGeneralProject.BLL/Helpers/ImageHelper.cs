@@ -1,6 +1,7 @@
 ﻿
 
 using Microsoft.AspNetCore.Http;
+using Orbits.GeneralProject.Core.Infrastructure;
 using static Orbits.GeneralProject.BLL.Constants.DXConstants;
 
 namespace NewProject.Shared;
@@ -28,7 +29,7 @@ public class ImageHelper
     {
         Random rand = new Random();
         var format_ext_image = Path.GetExtension(img.FileName);
-        var r = rand.Next(1000, int.Parse(DateTime.Now.ToString("yyyyyMMmmss"))).ToString();
+        var r = rand.Next(1000, int.Parse(BusinessDateTime.UtcNow.ToString("yyyyyMMmmss"))).ToString();
         // string uniqueImge = r + "." + img.FileName.Split(format_ext_image)[1];
         string uniqueImge = r + format_ext_image;
         var dir = @$"./wwwroot/{Constanties.IMAGE_UPLOAD_PATH}/{dirName}";

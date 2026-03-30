@@ -185,7 +185,7 @@ using (var scope = app.Services.CreateScope())
         "student-subscription-renewal-monthly",
         job => job.RenewSubscriptionsAsync(),
         Cron.Monthly(1, 0),
-        TimeZoneInfo.Local);
+        BusinessDateTime.CairoTimeZone);
 }
 
 

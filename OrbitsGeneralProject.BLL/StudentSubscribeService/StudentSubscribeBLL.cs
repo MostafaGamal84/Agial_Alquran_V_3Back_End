@@ -261,7 +261,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
             var studentPayment = new StudentPayment
             {
-                CreatedAt = DateTime.Now,
+                CreatedAt = BusinessDateTime.UtcNow,
                 CreatedBy = userId,
                 StudentId = model.StudentId.Value,
                 StudentSubscribeId = model.StudentSubscribeId.Value,
@@ -275,7 +275,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
             var studentSubscribe = new StudentSubscribe
             {
-                CreatedAt = DateTime.Now,
+                CreatedAt = BusinessDateTime.UtcNow,
                 CreatedBy = userId,
                 StudentId = model.StudentId.Value,
                 StudentSubscribeId = model.StudentSubscribeId.Value,
@@ -341,9 +341,9 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 return false;
             }
 
-            var now = DateTime.Now;
-            return currentStudentSubscribe.CreatedAt.Value.Year == now.Year
-                   && currentStudentSubscribe.CreatedAt.Value.Month == now.Month;
+            return BusinessDateTime.IsInSameCairoMonth(
+                currentStudentSubscribe.CreatedAt.Value,
+                BusinessDateTime.UtcNow);
         }
 
         private async Task UpdateCurrentMonthSubscriptionAsync(
@@ -354,7 +354,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             int? userId,
             string? actionType = null)
         {
-            var now = DateTime.Now;
+            var now = BusinessDateTime.UtcNow;
             var oldSubscribe = currentStudentSubscribe.StudentSubscribeId.HasValue
                 ? _SubscribeRepo.GetById(currentStudentSubscribe.StudentSubscribeId.Value)
                 : null;
@@ -497,7 +497,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         {
             return new StudentSubscribeHistory
             {
-                CreatedAt = studentSubscribe.CreatedAt ?? DateTime.Now,
+                CreatedAt = studentSubscribe.CreatedAt ?? BusinessDateTime.UtcNow,
                 CreatedBy = userId,
                 StudentId = studentSubscribe.StudentId,
                 StudentSubscribeRecordId = studentSubscribe.Id,

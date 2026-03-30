@@ -50,7 +50,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
             try
             {
-                DateTime reference = month ?? DateTime.UtcNow;
+                DateTime reference = month ?? BusinessDateTime.CairoNow;
                 DateTime monthStart = new(reference.Year, reference.Month, 1);
 
                 // When no explicit month is supplied we assume the job is running at the beginning
@@ -145,7 +145,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                         if (shouldUpdate)
                         {
-                            existingInvoice.ModefiedAt = DateTime.UtcNow;
+                            existingInvoice.ModefiedAt = BusinessDateTime.UtcNow;
                             existingInvoice.ModefiedBy = createdBy;
                             result.UpdatedInvoices++;
                             hasChanges = true;
@@ -158,7 +158,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                             TeacherId = group.TeacherId,
                             Month = monthStart,
                             Sallary = roundedAmountAsDouble,
-                            CreatedAt = DateTime.UtcNow,
+                            CreatedAt = BusinessDateTime.UtcNow,
                             CreatedBy = createdBy,
                             IsPayed = false
                         };
@@ -237,7 +237,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
             try
             {
-                DateTime reference = month ?? DateTime.UtcNow;
+                DateTime reference = month ?? BusinessDateTime.CairoNow;
                 DateTime monthStart = new(reference.Year, reference.Month, 1);
 
                 if (!month.HasValue)
@@ -509,9 +509,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 invoice.IsPayed = dto.IsPayed;
                 invoice.PayedAt = dto.IsPayed
-                    ? dto.PayedAt ?? DateTime.UtcNow
+                    ? dto.PayedAt.HasValue ? BusinessDateTime.NormalizeClientDateTimeToUtc(dto.PayedAt.Value) : BusinessDateTime.UtcNow
                     : null;
-                invoice.ModefiedAt = DateTime.UtcNow;
+                invoice.ModefiedAt = BusinessDateTime.UtcNow;
                 invoice.ModefiedBy = userId;
 
                 await _unitOfWork.CommitAsync();
@@ -547,7 +547,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 }
 
                 invoice.ModefiedBy = userId;
-                invoice.ModefiedAt = DateTime.UtcNow;
+                invoice.ModefiedAt = BusinessDateTime.UtcNow;
 
                 if (dto.Amount.HasValue)
                 {
@@ -567,7 +567,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     if (dto.PayStatue.HasValue)
                     {
                         invoice.IsPayed = dto.PayStatue.Value;
-                        invoice.PayedAt = dto.PayStatue.Value ? DateTime.UtcNow : null;
+                        invoice.PayedAt = dto.PayStatue.Value ? BusinessDateTime.UtcNow : null;
                     }
 
                     if (dto.ReceiptPath != null)

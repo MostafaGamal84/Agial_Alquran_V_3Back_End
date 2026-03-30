@@ -302,7 +302,7 @@ namespace Orbits.GeneralProject.Repositroy.Base
 
         public virtual void UpdateCrossTable(List<T> selectedObj, Expression<Func<T, bool>> ExistingRecords, string entityName, bool isSoftDelete = false, int? currentUser = null, DateTime? currentDate = null)
         {
-            currentDate ??= DateTime.UtcNow;
+            currentDate ??= BusinessDateTime.UtcNow;
 
             List<int> selectedIds = selectedObj != null ? selectedObj.Select(s => Convert.ToInt32(s.GetType().GetProperty("Id").GetValue(s))).ToList() : new List<int>();
 

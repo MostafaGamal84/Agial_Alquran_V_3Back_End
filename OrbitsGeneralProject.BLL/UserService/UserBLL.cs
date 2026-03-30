@@ -78,7 +78,7 @@ namespace Orbits.GeneralProject.BLL.UserService
 
             // Create User
             var user = _mapper.Map<User>(createUserDto);
-            user.RegisterAt = DateTime.Now;
+            user.RegisterAt = BusinessDateTime.UtcNow;
 
             user.Inactive = false;
             user.IsDeleted = false;
@@ -107,13 +107,19 @@ namespace Orbits.GeneralProject.BLL.UserService
             if (!validationResult.IsValid)
                 return output.AppendErrors(validationResult.Errors);
 
-            // 2) Caller (??????? ?? ????? ???????)
             var loggedInUser = _userRepository.Get(x => x.Id == userid);
+            if (loggedInUser == null)
+                return output.CreateResponse(MessageCodes.NotFound);
+            var requesterType = (UserTypesEnum)(loggedInUser.UserTypeId ?? 0);
+            var canAssignStudentManagerWithoutTeacher =
+                requesterType == UserTypesEnum.Admin || requesterType == UserTypesEnum.BranchLeader;
 
-            // 3) Fetch target user
             var existedUser = await _userRepository.GetByIdAsync(updateUserDto.Id);
             if (existedUser == null)
                 return output.CreateResponse(MessageCodes.NotFound);
+
+            if (!CanUpdateUser(loggedInUser, existedUser))
+                return output.CreateResponse(MessageCodes.UnAuthorizedAccess);
 
             var targetResidentId = updateUserDto.ResidentId ?? existedUser.ResidentId;
             var targetGovernorateId = updateUserDto.GovernorateId ?? existedUser.GovernorateId;
@@ -170,122 +176,149 @@ namespace Orbits.GeneralProject.BLL.UserService
                     return output.CreateResponse(MessageCodes.PhoneNumberAlreadyExisted);
             }
 
-            // 5) Map basic fields
+            var userType = (UserTypesEnum)(existedUser.UserTypeId ?? 0);
+            var isManager = userType == UserTypesEnum.Manager;
+            var isTeacher = userType == UserTypesEnum.Teacher;
+            var isStudent = userType == UserTypesEnum.Student;
             var previousCircleId = existedUser.CircleId;
+            var previousTeacherId = existedUser.TeacherId;
 
             _mapper.Map(updateUserDto, existedUser);
-            existedUser.ModefiedAt = DateTime.Now;
+
+            if ((isTeacher || isStudent) && updateUserDto.UpdateCircleId != true)
+                existedUser.CircleId = previousCircleId;
+
+            if (isStudent && updateUserDto.UpdateTeacherId != true)
+                existedUser.TeacherId = previousTeacherId;
+
+            if (isStudent && (updateUserDto.UpdateTeacherId == true || updateUserDto.UpdateCircleId == true))
+            {
+                if (existedUser.TeacherId.HasValue)
+                {
+                    var assignedTeacher = await _userRepository.GetByIdAsync(existedUser.TeacherId.Value);
+                    if (assignedTeacher == null || assignedTeacher.UserTypeId != (int)UserTypesEnum.Teacher)
+                    {
+                        return output.AppendError(
+                            MessageCodes.InputValidationError,
+                            nameof(UpdateUserDto.TeacherId),
+                            "The selected teacher is invalid.");
+                    }
+
+                    existedUser.CircleId = assignedTeacher.CircleId;
+                }
+                else
+                {
+                    existedUser.CircleId = null;
+                }
+            }
+
+            existedUser.ModefiedAt = BusinessDateTime.UtcNow;
             existedUser.ModefiedBy = userid;
             var studentIds = (updateUserDto.StudentIds ?? new List<int>())
                                 .Where(id => id > 0).Distinct().ToHashSet();
             var managerIds = (updateUserDto.ManagerIds ?? new List<int>())
                                 .Where(id => id > 0).Distinct().ToHashSet();
-            // 6) ?? ???????? ?? Manager ????? ???/??? ???????? ???????
-            var isManager = (UserTypesEnum)(existedUser.UserTypeId ?? 0) == UserTypesEnum.Manager;
             if (isManager)
             {
-                // --- Normalize incoming IDs (?????? 0 ?????? ???????)
                 var teacherIds = (updateUserDto.TeacherIds ?? new List<int>())
                                  .Where(id => id > 0).Distinct().ToHashSet();
-               
-                // IMPORTANT: ?????? Query() ?? ?????? ?? _dbContext.Users.AsQueryable()
                 var usersQuery = _userRepository.GetAll();
 
-                // ===== TEACHERS (ManagerTeacher M:N) =====
-                var teacherUserIds = teacherIds.Count == 0
-                    ? new HashSet<int>()
-                    : usersQuery
-                        .Where(u => teacherIds.Contains(u.Id)
-                                    && u.UserTypeId == (int)UserTypesEnum.Teacher)
-                        .Select(u => u.Id)
-                        .ToHashSet();
-
-                var currentTeacherLinks = _managerTeacherRepository.GetAll()
-                    .Where(mt => mt.ManagerId == existedUser.Id && mt.TeacherId.HasValue)
-                    .ToList();
-
-                var currentTeacherIds = currentTeacherLinks
-                    .Where(mt => mt.TeacherId.HasValue)
-                    .Select(mt => mt.TeacherId!.Value)
-                    .ToHashSet();
-
-                var linksToDelete = currentTeacherLinks
-                    .Where(mt => !teacherUserIds.Contains(mt.TeacherId!.Value))
-                    .ToList();
-
-                foreach (var link in linksToDelete)
-                    _managerTeacherRepository.Delete(link);
-
-                var teacherIdsToAdd = teacherUserIds.Where(id => !currentTeacherIds.Contains(id));
-                foreach (var teacherId in teacherIdsToAdd)
+                if (updateUserDto.TeacherIds != null)
                 {
-                    _managerTeacherRepository.Add(new ManagerTeacher
-                    {
-                        ManagerId = existedUser.Id,
-                        TeacherId = teacherId,
-                        CreatedBy = userid,
-                        CreatedAt = DateTime.Now,
-                        ModefiedBy = userid,
-                        ModefiedAt = DateTime.Now
-                    });
-                }
+                    var teacherUserIds = teacherIds.Count == 0
+                        ? new HashSet<int>()
+                        : usersQuery
+                            .Where(u => teacherIds.Contains(u.Id)
+                                        && u.UserTypeId == (int)UserTypesEnum.Teacher)
+                            .Select(u => u.Id)
+                            .ToHashSet();
 
-                // ===== STUDENTS =====
-                var currentStudents = (from ms in _managerStudentRepository.GetAll()
-                                      join u in usersQuery on ms.StudentId equals u.Id
-                                      where ms.ManagerId == existedUser.Id
-                                            && u.UserTypeId == (int)UserTypesEnum.Student
-                                      select u)
-                    .ToList();
-
-                var studentsToAssign = studentIds.Count == 0
-                    ? new List<User>()
-                    :  usersQuery
-                        .Where(u => studentIds.Contains(u.Id)
-                                    && u.UserTypeId == (int)UserTypesEnum.Student)
+                    var currentTeacherLinks = _managerTeacherRepository.GetAll()
+                        .Where(mt => mt.ManagerId == existedUser.Id && mt.TeacherId.HasValue)
                         .ToList();
 
-                foreach (var s in studentsToAssign)
-                {
-                    if (!_managerStudentRepository.GetAll().Any(ms => ms.ManagerId == existedUser.Id && ms.StudentId == s.Id))
+                    var currentTeacherIds = currentTeacherLinks
+                        .Where(mt => mt.TeacherId.HasValue)
+                        .Select(mt => mt.TeacherId!.Value)
+                        .ToHashSet();
+
+                    var linksToDelete = currentTeacherLinks
+                        .Where(mt => !teacherUserIds.Contains(mt.TeacherId!.Value))
+                        .ToList();
+
+                    foreach (var link in linksToDelete)
+                        _managerTeacherRepository.Delete(link);
+
+                    var teacherIdsToAdd = teacherUserIds.Where(id => !currentTeacherIds.Contains(id));
+                    foreach (var teacherId in teacherIdsToAdd)
                     {
+                        _managerTeacherRepository.Add(new ManagerTeacher
+                        {
+                            ManagerId = existedUser.Id,
+                            TeacherId = teacherId,
+                            CreatedBy = userid,
+                            CreatedAt = BusinessDateTime.UtcNow,
+                            ModefiedBy = userid,
+                            ModefiedAt = BusinessDateTime.UtcNow
+                        });
+                    }
+                }
+
+                if (updateUserDto.StudentIds != null)
+                {
+                    var currentStudents = (from ms in _managerStudentRepository.GetAll()
+                                           join u in usersQuery on ms.StudentId equals u.Id
+                                           where ms.ManagerId == existedUser.Id
+                                                 && u.UserTypeId == (int)UserTypesEnum.Student
+                                           select u)
+                        .ToList();
+
+                    var studentsToAssign = studentIds.Count == 0
+                        ? new List<User>()
+                        : usersQuery
+                            .Where(u => studentIds.Contains(u.Id)
+                                        && u.UserTypeId == (int)UserTypesEnum.Student)
+                            .ToList();
+
+                    foreach (var s in studentsToAssign)
+                    {
+                        if (_managerStudentRepository.GetAll().Any(ms => ms.ManagerId == existedUser.Id && ms.StudentId == s.Id))
+                            continue;
+
                         _managerStudentRepository.Add(new ManagerStudent
                         {
                             ManagerId = existedUser.Id,
                             StudentId = s.Id,
                             CreatedBy = userid,
-                            CreatedAt = DateTime.Now,
-                            ModefiedAt = DateTime.Now,
+                            CreatedAt = BusinessDateTime.UtcNow,
+                            ModefiedAt = BusinessDateTime.UtcNow,
                             ModefiedBy = userid
                         });
-                        s.ModefiedAt = DateTime.Now;
+                        s.ModefiedAt = BusinessDateTime.UtcNow;
+                        s.ModefiedBy = userid;
+                        _userRepository.Update(s);
+                    }
+
+                    var studentsToDetach = currentStudents.Where(s => !studentIds.Contains(s.Id)).ToList();
+                    foreach (var s in studentsToDetach)
+                    {
+                        var links = _managerStudentRepository.GetAll()
+                            .Where(ms => ms.ManagerId == existedUser.Id && ms.StudentId == s.Id)
+                            .ToList();
+                        foreach (var link in links)
+                            _managerStudentRepository.Delete(link);
+                        s.ModefiedAt = BusinessDateTime.UtcNow;
                         s.ModefiedBy = userid;
                         _userRepository.Update(s);
                     }
                 }
-
-                var studentsToDetach = currentStudents.Where(s => !studentIds.Contains(s.Id)).ToList();
-                foreach (var s in studentsToDetach)
-                {
-                    var links = _managerStudentRepository.GetAll()
-                        .Where(ms => ms.ManagerId == existedUser.Id && ms.StudentId == s.Id)
-                        .ToList();
-                    foreach (var link in links)
-                        _managerStudentRepository.Delete(link);
-                    s.ModefiedAt = DateTime.Now;
-                    s.ModefiedBy = userid;
-                    _userRepository.Update(s);
-                }
             }
-            var IsTeacher = (UserTypesEnum)(existedUser.UserTypeId ?? 0) == UserTypesEnum.Teacher;
-            if (IsTeacher)
+            if (isTeacher)
             {
-                // --- Normalize incoming IDs (?????? 0 ?????? ???????)
-               
-                // IMPORTANT: ?????? Query() ?? ?????? ?? _dbContext.Users.AsQueryable()
                 var usersQuery = _userRepository.GetAll();
 
-                if (existedUser.CircleId.HasValue)
+                if (updateUserDto.UpdateCircleId == true && existedUser.CircleId.HasValue)
                 {
                     var requestedCircleId = existedUser.CircleId.Value;
 
@@ -298,7 +331,7 @@ namespace Orbits.GeneralProject.BLL.UserService
                     foreach (var teacherWithSameCircle in teachersWithSameCircle)
                     {
                         teacherWithSameCircle.CircleId = null;
-                        teacherWithSameCircle.ModefiedAt = DateTime.Now;
+                        teacherWithSameCircle.ModefiedAt = BusinessDateTime.UtcNow;
                         teacherWithSameCircle.ModefiedBy = userid;
                         _userRepository.Update(teacherWithSameCircle);
 
@@ -310,120 +343,133 @@ namespace Orbits.GeneralProject.BLL.UserService
                         foreach (var linkedStudent in linkedStudents)
                         {
                             linkedStudent.CircleId = null;
-                            linkedStudent.ModefiedAt = DateTime.Now;
+                            linkedStudent.ModefiedAt = BusinessDateTime.UtcNow;
                             linkedStudent.ModefiedBy = userid;
                             _userRepository.Update(linkedStudent);
                         }
                     }
                 }
 
-                // ===== TEACHERS =====
-                // ???????? ????????? ???? ??????
-                var currentStudents = usersQuery
-                    .Where(u => u.TeacherId == existedUser.Id
-                                && u.UserTypeId == (int)UserTypesEnum.Student).ToList();
-
-                // ????????? ??????? ????? (????? ?? ?????)
-                var studentsToAssign = studentIds.Count == 0
-                    ? new List<User>()
-                    : usersQuery
-                        .Where(u => studentIds.Contains(u.Id)
+                if (updateUserDto.StudentIds != null)
+                {
+                    var currentStudents = usersQuery
+                        .Where(u => u.TeacherId == existedUser.Id
                                     && u.UserTypeId == (int)UserTypesEnum.Student)
                         .ToList();
 
-                // ???? ?? ???? ?? ??????
-                foreach (var t in studentsToAssign)
-                {
-                    
+                    var studentsToAssign = studentIds.Count == 0
+                        ? new List<User>()
+                        : usersQuery
+                            .Where(u => studentIds.Contains(u.Id)
+                                        && u.UserTypeId == (int)UserTypesEnum.Student)
+                            .ToList();
+
+                    foreach (var t in studentsToAssign)
                     {
                         t.TeacherId = existedUser.Id;
                         t.CircleId = existedUser.CircleId;
-                        t.ModefiedAt = DateTime.Now;
+                        t.ModefiedAt = BusinessDateTime.UtcNow;
+                        t.ModefiedBy = userid;
+                        _userRepository.Update(t);
+                    }
+
+                    var studentsToDetach = currentStudents.Where(t => !studentIds.Contains(t.Id)).ToList();
+                    foreach (var t in studentsToDetach)
+                    {
+                        t.TeacherId = null;
+                        t.CircleId = null;
+                        t.ModefiedAt = BusinessDateTime.UtcNow;
                         t.ModefiedBy = userid;
                         _userRepository.Update(t);
                     }
                 }
 
-                // ???? ?? ?? ??? ????? ??? ????? ?? ?????? ???????
-                var studentsToDetach = currentStudents.Where(t => !studentIds.Contains(t.Id)).ToList();
-                foreach (var t in studentsToDetach)
-                {
-                    t.TeacherId = null;
-                    t.CircleId = null;
-                    t.ModefiedAt = DateTime.Now;
-                    t.ModefiedBy = userid;
-                    _userRepository.Update(t);
-                }
-                if (previousCircleId.HasValue && previousCircleId != existedUser.CircleId)
+                if (updateUserDto.UpdateCircleId == true && previousCircleId.HasValue && previousCircleId != existedUser.CircleId)
                 {
                     var previousCircle = _circleRepository.GetById(previousCircleId.Value);
                     if (previousCircle != null && previousCircle.TeacherId == existedUser.Id)
                     {
                         previousCircle.TeacherId = null;
-                        previousCircle.ModefiedAt = DateTime.Now;
+                        previousCircle.ModefiedAt = BusinessDateTime.UtcNow;
                         previousCircle.ModefiedBy = userid;
                         _circleRepository.Update(previousCircle);
                     }
                 }
 
-                if (existedUser.CircleId.HasValue)
+                if (updateUserDto.UpdateCircleId == true && existedUser.CircleId.HasValue)
                 {
                     var updatedCircle = _circleRepository.GetById(existedUser.CircleId.Value);
                     if (updatedCircle != null)
                     {
                         updatedCircle.TeacherId = existedUser.Id;
-                        updatedCircle.ModefiedAt = DateTime.Now;
+                        updatedCircle.ModefiedAt = BusinessDateTime.UtcNow;
                         updatedCircle.ModefiedBy = userid;
                         _circleRepository.Update(updatedCircle);
                     }
                 }
 
-                // ===== TEACHER MANAGERS (ManagerTeacher M:N) =====
-                var currentManagerLinks = _managerTeacherRepository.GetAll()
-                    .Where(mt => mt.TeacherId == existedUser.Id && mt.ManagerId.HasValue)
-                    .ToList();
-
-                var currentManagerIds = currentManagerLinks
-                    .Where(mt => mt.ManagerId.HasValue)
-                    .Select(mt => mt.ManagerId!.Value)
-                    .ToHashSet();
-
-                var linksToDelete = currentManagerLinks
-                    .Where(mt => !managerIds.Contains(mt.ManagerId!.Value))
-                    .ToList();
-
-                foreach (var link in linksToDelete)
-                    _managerTeacherRepository.Delete(link);
-
-                if (managerIds.Count > 0)
+                if (updateUserDto.UpdateCircleId == true)
                 {
-                    var managerUserIds = usersQuery
-                        .Where(u => managerIds.Contains(u.Id)
-                                    && u.UserTypeId == (int)UserTypesEnum.Manager)
-                        .Select(u => u.Id)
+                    var linkedStudents = usersQuery
+                        .Where(u => u.TeacherId == existedUser.Id
+                                    && u.UserTypeId == (int)UserTypesEnum.Student)
+                        .ToList();
+
+                    foreach (var linkedStudent in linkedStudents)
+                    {
+                        linkedStudent.CircleId = existedUser.CircleId;
+                        linkedStudent.ModefiedAt = BusinessDateTime.UtcNow;
+                        linkedStudent.ModefiedBy = userid;
+                        _userRepository.Update(linkedStudent);
+                    }
+                }
+
+                if (updateUserDto.ManagerIds != null)
+                {
+                    var currentManagerLinks = _managerTeacherRepository.GetAll()
+                        .Where(mt => mt.TeacherId == existedUser.Id && mt.ManagerId.HasValue)
+                        .ToList();
+
+                    var currentManagerIds = currentManagerLinks
+                        .Where(mt => mt.ManagerId.HasValue)
+                        .Select(mt => mt.ManagerId!.Value)
                         .ToHashSet();
 
-                    var managerIdsToAdd = managerUserIds.Where(id => !currentManagerIds.Contains(id));
-                    foreach (var managerId in managerIdsToAdd)
+                    var linksToDelete = currentManagerLinks
+                        .Where(mt => !managerIds.Contains(mt.ManagerId!.Value))
+                        .ToList();
+
+                    foreach (var link in linksToDelete)
+                        _managerTeacherRepository.Delete(link);
+
+                    if (managerIds.Count > 0)
                     {
-                        _managerTeacherRepository.Add(new ManagerTeacher
+                        var managerUserIds = usersQuery
+                            .Where(u => managerIds.Contains(u.Id)
+                                        && u.UserTypeId == (int)UserTypesEnum.Manager)
+                            .Select(u => u.Id)
+                            .ToHashSet();
+
+                        var managerIdsToAdd = managerUserIds.Where(id => !currentManagerIds.Contains(id));
+                        foreach (var managerId in managerIdsToAdd)
                         {
-                            ManagerId = managerId,
-                            TeacherId = existedUser.Id,
-                            CreatedBy = userid,
-                            CreatedAt = DateTime.Now,
-                            ModefiedBy = userid,
-                            ModefiedAt = DateTime.Now
-                        });
+                            _managerTeacherRepository.Add(new ManagerTeacher
+                            {
+                                ManagerId = managerId,
+                                TeacherId = existedUser.Id,
+                                CreatedBy = userid,
+                                CreatedAt = BusinessDateTime.UtcNow,
+                                ModefiedBy = userid,
+                                ModefiedAt = BusinessDateTime.UtcNow
+                            });
+                        }
                     }
                 }
             }
 
-            var isStudent = (UserTypesEnum)(existedUser.UserTypeId ?? 0) == UserTypesEnum.Student;
             if (isStudent)
             {
                 var usersQuery = _userRepository.GetAll();
-
                 var currentManagerLinks = _managerStudentRepository.GetAll()
                     .Where(ms => ms.StudentId == existedUser.Id && ms.ManagerId.HasValue)
                     .ToList();
@@ -432,39 +478,53 @@ namespace Orbits.GeneralProject.BLL.UserService
                     .Select(ms => ms.ManagerId!.Value)
                     .ToHashSet();
 
-                var linksToDelete = currentManagerLinks
-                    .Where(ms => !managerIds.Contains(ms.ManagerId!.Value))
-                    .ToList();
-
-                foreach (var link in linksToDelete)
-                    _managerStudentRepository.Delete(link);
-
-                if (managerIds.Count > 0)
+                if (!canAssignStudentManagerWithoutTeacher &&
+                    (updateUserDto.ManagerIds != null || updateUserDto.UpdateTeacherId == true))
                 {
-                    var validManagerIds = usersQuery
-                        .Where(u => managerIds.Contains(u.Id) && u.UserTypeId == (int)UserTypesEnum.Manager)
-                        .Select(u => u.Id)
-                        .ToHashSet();
-
-                    var managerIdsToAdd = validManagerIds.Where(id => !currentManagerIds.Contains(id));
-                    foreach (var managerId in managerIdsToAdd)
+                    var effectiveManagerIds = updateUserDto.ManagerIds != null ? managerIds : currentManagerIds;
+                    if (effectiveManagerIds.Count > 0 && !existedUser.TeacherId.HasValue)
                     {
-                        _managerStudentRepository.Add(new ManagerStudent
+                        return output.AppendError(
+                            MessageCodes.InputValidationError,
+                            nameof(UpdateUserDto.TeacherId),
+                            "اختيار المعلم مطلوب عند إسناد مشرف للطالب.");
+                    }
+                }
+
+                if (updateUserDto.ManagerIds != null)
+                {
+                    var linksToDelete = currentManagerLinks
+                        .Where(ms => !managerIds.Contains(ms.ManagerId!.Value))
+                        .ToList();
+
+                    foreach (var link in linksToDelete)
+                        _managerStudentRepository.Delete(link);
+
+                    if (managerIds.Count > 0)
+                    {
+                        var validManagerIds = usersQuery
+                            .Where(u => managerIds.Contains(u.Id) && u.UserTypeId == (int)UserTypesEnum.Manager)
+                            .Select(u => u.Id)
+                            .ToHashSet();
+
+                        var managerIdsToAdd = validManagerIds.Where(id => !currentManagerIds.Contains(id));
+                        foreach (var managerId in managerIdsToAdd)
                         {
-                            ManagerId = managerId,
-                            StudentId = existedUser.Id,
-                            CreatedBy = userid,
-                            CreatedAt = DateTime.Now,
-                            ModefiedBy = userid,
-                            ModefiedAt = DateTime.Now
-                        });
+                            _managerStudentRepository.Add(new ManagerStudent
+                            {
+                                ManagerId = managerId,
+                                StudentId = existedUser.Id,
+                                CreatedBy = userid,
+                                CreatedAt = BusinessDateTime.UtcNow,
+                                ModefiedBy = userid,
+                                ModefiedAt = BusinessDateTime.UtcNow
+                            });
+                        }
                     }
                 }
             }
 
-            // ===== MANAGER CIRCLES =====
-            // null => leave untouched, [] => remove all, [ids] => add/remove only the actual differences.
-            if (existedUser.UserTypeId == (int)UserTypesEnum.Manager)
+            if (isManager)
             {
                 if (updateUserDto.CircleIds != null)
                 {
@@ -508,7 +568,7 @@ namespace Orbits.GeneralProject.BLL.UserService
                         {
                             ManagerId = existedUser.Id,
                             CircleId = circleId,
-                            ModefiedAt = DateTime.Now,
+                            ModefiedAt = BusinessDateTime.UtcNow,
                             ModefiedBy = userid
                         });
                     }
@@ -537,6 +597,49 @@ namespace Orbits.GeneralProject.BLL.UserService
             await _unitOfWork.CommitAsync();
 
             return output.CreateResponse(true);
+        }
+
+        private bool CanUpdateUser(User requester, User target)
+        {
+            var requesterType = (UserTypesEnum)(requester.UserTypeId ?? 0);
+            var targetType = (UserTypesEnum)(target.UserTypeId ?? 0);
+
+            if (requesterType == UserTypesEnum.Admin)
+                return true;
+
+            if (requester.Id == target.Id)
+                return true;
+
+            if (GetUserRank(requesterType) <= GetUserRank(targetType))
+                return false;
+
+            return requesterType switch
+            {
+                UserTypesEnum.BranchLeader => requester.BranchId.HasValue && requester.BranchId == target.BranchId,
+                UserTypesEnum.Manager => targetType switch
+                {
+                    UserTypesEnum.Teacher => _managerTeacherRepository.GetAll()
+                        .Any(mt => mt.ManagerId == requester.Id && mt.TeacherId == target.Id),
+                    UserTypesEnum.Student => _managerStudentRepository.GetAll()
+                        .Any(ms => ms.ManagerId == requester.Id && ms.StudentId == target.Id),
+                    _ => false
+                },
+                UserTypesEnum.Teacher => targetType == UserTypesEnum.Student && target.TeacherId == requester.Id,
+                _ => false
+            };
+        }
+
+        private static int GetUserRank(UserTypesEnum userType)
+        {
+            return userType switch
+            {
+                UserTypesEnum.Admin => 100,
+                UserTypesEnum.BranchLeader => 80,
+                UserTypesEnum.Manager => 60,
+                UserTypesEnum.Teacher => 40,
+                UserTypesEnum.Student => 20,
+                _ => 0
+            };
         }
 
 
@@ -631,7 +734,7 @@ namespace Orbits.GeneralProject.BLL.UserService
             if (updateProfileDto.BranchId.HasValue)
                 user.BranchId = updateProfileDto.BranchId;
 
-            user.ModefiedAt = DateTime.Now;
+            user.ModefiedAt = BusinessDateTime.UtcNow;
             user.ModefiedBy = userId;
 
             _userRepository.Update(user);
@@ -669,7 +772,7 @@ namespace Orbits.GeneralProject.BLL.UserService
             entity.IsDeleted = false;
             entity.Inactive = false;
             entity.ModefiedBy = userId;
-            entity.ModefiedAt = DateTime.UtcNow;
+            entity.ModefiedAt = BusinessDateTime.UtcNow;
 
             _userRepository.Update(entity);
             await _unitOfWork.CommitAsync();

@@ -11,11 +11,11 @@ namespace Orbits.GeneralProject.DTO.CircleDto
         public int? TeacherId { get; set; }
 
         [JsonPropertyName("days")]
-        public List<CircleDayRequestDto>? Days { get; set; } = new List<CircleDayRequestDto>();
+        public List<CircleDayRequestDto>? Days { get; set; }
 
         public List<int>? Managers { get; set; }
 
-        public List<int>? StudentsIds { get; set; } = new List<int>();
+        public List<int>? StudentsIds { get; set; }
 
         public int? BranchId { get; set; }
     }
