@@ -62,9 +62,12 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 DateTime monthEnd = monthStart.AddMonths(1);
 
+                // Keep invoice generation aligned with the monthly details endpoints,
+                // which only include active (non-deleted) teacher report records.
                 var groupedTeacherRecords = await _teacherReportRepository
                     .Where(record =>
                         record.TeacherId.HasValue &&
+                        record.IsDeleted != true &&
                         record.CreatedAt.HasValue &&
                         record.CreatedAt.Value >= monthStart &&
                         record.CreatedAt.Value < monthEnd)
