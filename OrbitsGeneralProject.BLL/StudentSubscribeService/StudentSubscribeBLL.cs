@@ -246,8 +246,21 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 .ThenByDescending(x => x.Id)
                 .FirstOrDefault();
 
+            bool isMonthlyRenewal = IsMonthlyRenewalAction(model.ActionType);
+
             if (ShouldUpdateCurrentMonthSubscription(currentStudentSubscribe))
             {
+                if (isMonthlyRenewal)
+                {
+                    _logger.LogInformation(
+                        "Monthly renewal skipped because the student already has a subscription for the current Cairo month. StudentId: {StudentId}, CurrentSubscriptionId: {CurrentSubscriptionId}, PaymentId: {PaymentId}",
+                        currentStudentSubscribe!.StudentId,
+                        currentStudentSubscribe.Id,
+                        currentStudentSubscribe.StudentPaymentId);
+
+                    return output.CreateResponse(data: true);
+                }
+
                 await UpdateCurrentMonthSubscriptionAsync(
                     currentStudentSubscribe!,
                     subscribe,
@@ -270,8 +283,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 PayStatue = false,
                 IsCancelled = false,
             };
-            var studentPaymentAdd = await _StudentPaymentRepo.AddAsync(studentPayment);
-            await _unitOfWork.CommitAsync();
+            await _StudentPaymentRepo.AddAsync(studentPayment);
 
             var studentSubscribe = new StudentSubscribe
             {
@@ -282,7 +294,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 RemainingMinutes = subscribe.Minutes,
                 StudentSubscribeTypeId = subscribe.SubscribeTypeId,
                 PayStatus = false,
-                StudentPaymentId = studentPaymentAdd.Id
+                StudentPayment = studentPayment
             };
 
             await _StudentSubscribeRepo.AddAsync(studentSubscribe);
@@ -298,6 +310,137 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                     model.ActionType));
 
             return output.CreateResponse(data: true);
+        }
+
+        public async Task<IResponse<RepairStudentSubscriptionsResultDto>> RepairMissingInvoicesAsync(
+            int? studentId,
+            int? userId)
+        {
+            var output = new Response<RepairStudentSubscriptionsResultDto>();
+            var result = new RepairStudentSubscriptionsResultDto();
+            var now = BusinessDateTime.UtcNow;
+
+            var activeSubscriptions = _StudentSubscribeRepo
+                .GetAll()
+                .Where(x =>
+                    x.StudentId.HasValue &&
+                    x.StudentSubscribeId.HasValue &&
+                    x.Student != null &&
+                    x.Student.IsDeleted == false &&
+                    (!studentId.HasValue || x.StudentId == studentId.Value))
+                .Select(x => new
+                {
+                    x.Id,
+                    StudentId = x.StudentId!.Value,
+                    x.CreatedAt
+                })
+                .ToList();
+
+            if (activeSubscriptions.Count == 0)
+            {
+                return output.CreateResponse(result);
+            }
+
+            var latestSubscriptionIds = activeSubscriptions
+                .GroupBy(x => x.StudentId)
+                .Select(group => group
+                    .OrderByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(x => x.Id)
+                    .Select(x => x.Id)
+                    .First())
+                .ToList();
+
+            var latestSubscriptions = _StudentSubscribeRepo
+                .GetAll()
+                .Where(x => latestSubscriptionIds.Contains(x.Id))
+                .ToList();
+
+            result.ProcessedSubscriptionsCount = latestSubscriptions.Count;
+
+            foreach (var subscription in latestSubscriptions)
+            {
+                try
+                {
+                    bool hasValidPayment = subscription.StudentPaymentId.HasValue &&
+                        _StudentPaymentRepo.GetById(subscription.StudentPaymentId.Value) != null;
+
+                    if (hasValidPayment)
+                    {
+                        result.SkippedSubscriptionsCount++;
+                        continue;
+                    }
+
+                    if (!subscription.StudentSubscribeId.HasValue || !subscription.StudentId.HasValue)
+                    {
+                        result.SkippedSubscriptionsCount++;
+                        continue;
+                    }
+
+                    var subscribe = _SubscribeRepo.GetById(subscription.StudentSubscribeId.Value);
+                    if (subscribe == null)
+                    {
+                        result.SkippedSubscriptionsCount++;
+                        _logger.LogWarning(
+                            "Subscription invoice repair skipped because subscribe plan was not found. SubscriptionRecordId: {SubscriptionRecordId}, StudentId: {StudentId}, SubscribeId: {SubscribeId}",
+                            subscription.Id,
+                            subscription.StudentId,
+                            subscription.StudentSubscribeId);
+                        continue;
+                    }
+
+                    var subscribeGroup = ResolveSubscribeGroup(subscribe);
+                    if (!subscribeGroup.HasValue)
+                    {
+                        result.SkippedSubscriptionsCount++;
+                        _logger.LogWarning(
+                            "Subscription invoice repair skipped because subscribe type group is missing. SubscriptionRecordId: {SubscriptionRecordId}, StudentId: {StudentId}, SubscribeId: {SubscribeId}",
+                            subscription.Id,
+                            subscription.StudentId,
+                            subscription.StudentSubscribeId);
+                        continue;
+                    }
+
+                    var (amount, currency) = ResolvePaymentDetails(subscribe, subscribeGroup.Value);
+
+                    var studentPayment = new StudentPayment
+                    {
+                        CreatedAt = now,
+                        CreatedBy = userId,
+                        StudentId = subscription.StudentId.Value,
+                        StudentSubscribeId = subscription.StudentSubscribeId.Value,
+                        Amount = amount,
+                        CurrencyId = currency,
+                        PayStatue = false,
+                        IsCancelled = false,
+                    };
+
+                    await _StudentPaymentRepo.AddAsync(studentPayment);
+
+                    subscription.StudentPaymentId = null;
+                    subscription.StudentPayment = studentPayment;
+                    subscription.PayStatus = false;
+                    subscription.CreatedAt = now;
+                    subscription.ModefiedAt = now;
+                    subscription.ModefiedBy = userId;
+
+                    _StudentSubscribeRepo.Update(subscription);
+                    await _unitOfWork.CommitAsync();
+
+                    result.RepairedSubscriptionsCount++;
+                }
+                catch (Exception ex)
+                {
+                    result.SkippedSubscriptionsCount++;
+                    _logger.LogError(
+                        ex,
+                        "Subscription invoice repair failed. SubscriptionRecordId: {SubscriptionRecordId}, StudentId: {StudentId}, SubscribeId: {SubscribeId}",
+                        subscription.Id,
+                        subscription.StudentId,
+                        subscription.StudentSubscribeId);
+                }
+            }
+
+            return output.CreateResponse(result);
         }
 
         private SubscribeTypeCategory? ResolveSubscribeGroup(Subscribe subscribe)
@@ -345,6 +488,9 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 currentStudentSubscribe.CreatedAt.Value,
                 BusinessDateTime.UtcNow);
         }
+
+        private static bool IsMonthlyRenewalAction(string? actionType)
+            => string.Equals(actionType?.Trim(), "MonthlyRenewal", StringComparison.OrdinalIgnoreCase);
 
         private async Task UpdateCurrentMonthSubscriptionAsync(
             StudentSubscribe currentStudentSubscribe,

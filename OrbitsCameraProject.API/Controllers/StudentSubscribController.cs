@@ -1,4 +1,5 @@
 using HandlebarsDotNet;
+using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
 using Orbits.GeneralProject.BLL.BaseReponse;
@@ -22,14 +23,14 @@ namespace OrbitsProject.API.Controllers
     {
         //To do Injection for Services BLL
         private readonly IStudentSubscribeBLL _StudentSubscribBLL;
-        private readonly IStudentSubscriptionRenewalJob _studentSubscriptionRenewalJob;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
         public StudentSubscribController(
             IStudentSubscribeBLL StudentSubscribBLL,
-            IStudentSubscriptionRenewalJob studentSubscriptionRenewalJob)
+            IBackgroundJobClient backgroundJobClient)
         {
             _StudentSubscribBLL = StudentSubscribBLL;
-            _studentSubscriptionRenewalJob = studentSubscriptionRenewalJob;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         [HttpGet("GetStudents"), ProducesResponseType(typeof(IResponse<PagedResultDto<ViewStudentSubscribeReDto>>), 200)]
@@ -59,10 +60,18 @@ namespace OrbitsProject.API.Controllers
              User?.Identity?.IsAuthenticated == true ? UserId : null));
 
         [HttpPost("RunMonthlyRenewalNow"), ProducesResponseType(typeof(IResponse<bool>), 200)]
-        public async Task<IActionResult> RunMonthlyRenewalNow()
+        public IActionResult RunMonthlyRenewalNow()
         {
-            await _studentSubscriptionRenewalJob.RenewSubscriptionsAsync();
-            return Ok(new Response<bool>().CreateResponse(true));
+            var jobId = _backgroundJobClient.Enqueue<IStudentSubscriptionRenewalJob>(
+                job => job.RenewSubscriptionsAsync());
+
+            return Ok(new Response<bool>().CreateResponse(!string.IsNullOrWhiteSpace(jobId)));
         }
+
+        [HttpPost("RepairMissingInvoices"), ProducesResponseType(typeof(IResponse<RepairStudentSubscriptionsResultDto>), 200)]
+        public async Task<IActionResult> RepairMissingInvoices([FromQuery] int? studentId)
+            => Ok(await _StudentSubscribBLL.RepairMissingInvoicesAsync(
+                studentId,
+                User?.Identity?.IsAuthenticated == true ? UserId : null));
     }
 }

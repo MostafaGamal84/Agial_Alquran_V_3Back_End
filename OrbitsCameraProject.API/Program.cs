@@ -188,6 +188,7 @@ using (var scope = app.Services.CreateScope())
         BusinessDateTime.CairoTimeZone);
 }
 
+app.UseHangfireDashboard("/hangfire");
 
 // ----- Run
 app.Run();

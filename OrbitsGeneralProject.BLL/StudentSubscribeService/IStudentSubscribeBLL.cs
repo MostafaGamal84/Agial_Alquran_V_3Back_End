@@ -36,5 +36,9 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             FilteredResultRequestDto pagedDto,
             int? studentId);
 
+        Task<IResponse<RepairStudentSubscriptionsResultDto>> RepairMissingInvoicesAsync(
+            int? studentId,
+            int? userId);
+
     }
 }
