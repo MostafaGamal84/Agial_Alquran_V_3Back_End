@@ -14,7 +14,7 @@ namespace Orbits.GeneralProject.DTO.TeacherSallaryDtos
         public int? CircleId { get; set; }
         public int? StudentId { get; set; }
         public string? StudentName { get; set; }
-        public int Minutes { get; set; }
+        public double Minutes { get; set; }
         public double Salary { get; set; }
         public int? AttendStatusId { get; set; }
         public DateTime? RecordCreatedAt { get; set; }

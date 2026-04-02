@@ -19,7 +19,6 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
     public class CircleReportBLL : BaseBLL, ICircleReportBLL
     {
         private readonly IRepository<CircleReport> _circleReportRepository;
-        private readonly IRepository<TeacherReportRecord> _teacherReportRecordRepository;
         private readonly IRepository<StudentSubscribe> _studentSubscribeRecordRepository;
         private readonly IRepository<SubscribeType> _subscribeTypeRepository;
         private readonly IRepository<Nationality> _nationalityRepository;
@@ -31,13 +30,12 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         private readonly IMapper _mapper;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IRepository<User> userRepository, IRepository<TeacherReportRecord> teacherReportRecordRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
+             IRepository<User> userRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _userRepository = userRepository;
-            _teacherReportRecordRepository = teacherReportRecordRepository;
             _studentSubscribeRecordRepository = studentSubscribeRecordRepository;
             _subscribeTypeRepository = subscribeTypeRepository;
             _nationalityRepository = nationalityRepository;
@@ -119,8 +117,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                         (r.Student != null && r.Student.BranchId.HasValue && r.Student.BranchId == me.BranchId))
                     || (isManager &&
                         (r.Student != null && managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == r.StudentId)))
-                    || (isTeacher &&
-                        (r.Student != null && r.Student.TeacherId == me.Id))
+                    || (isTeacher && r.TeacherId == me.Id)
                 )
                 && (!applyBranchRestriction || (r.Circle != null && r.Circle.BranchId.HasValue && r.Circle.BranchId == me.BranchId))
                 && (!circleId.HasValue || r.CircleId == circleId.Value)
@@ -299,6 +296,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         public async Task<IResponse<bool>> AddAsync(CircleReportAddDto model, int userId)
         {
             var output = new Response<bool>();
+            model.CreationTime = BusinessDateTime.NormalizeClientDateTimeToCairoStorage(model.CreationTime);
 
             // 1) Validate DTO
             var validator = new CircleReportValidation();
@@ -318,41 +316,28 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             if (studentSubscribe == null) return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
             //if (studentSubscribe.RemainingMinutes < model.Minutes) return output.CreateResponse(MessageCodes.StudentMinutesNotFound);
 
+            var subscribeType = studentSubscribe.StudentSubscribeType;
+            var teacherSalaryMinutes = ResolveTeacherSalaryMinutes(model.AttendStatueId, model.Minutes);
+            var teacherSalaryAmount = ResolveTeacherSalaryAmount(subscribeType, model.AttendStatueId, model.Minutes);
+            var consumedMinutes = ResolveStudentConsumedMinutes(model.AttendStatueId, model.Minutes);
+
             // 4) Map & create the circle
             var entity = _mapper.Map<CircleReportAddDto, CircleReport>(model);
             entity.CreatedBy = userId;
             entity.StudentId = student.Id;
             entity.Id = 0;
-            entity.CreatedAt = DateTime.UtcNow;
+            entity.CreatedAt = BusinessDateTime.CairoNow;
             entity.IsDeleted = false;
+            entity.TeacherSalaryMinutes = teacherSalaryMinutes;
+            entity.TeacherSalaryAmount = teacherSalaryAmount;
 
-            // 4a) Save circle to get the generated Id
-            var created = await _circleReportRepository.AddAsync(entity);
+            await _circleReportRepository.AddAsync(entity);
 
-
-
-            await _unitOfWork.CommitAsync(); // after this, created.Id is available
-
-            var subscribeType = studentSubscribe.StudentSubscribeType;
-            
-            if (model.Minutes > 0 || model.Minutes is not null)
+            if (consumedMinutes > 0)
             {
-                var hourlyRate = ResolveHourlyRate(subscribeType);
-
-                var teacherReportRecord = new TeacherReportRecord
-                {
-                    CircleReportId = created.Id,
-                    CreatedAt = entity.CreationTime,
-                    CreatedBy = userId,
-                    IsDeleted = false,
-                    Minutes = (int)created.Minutes!.Value,
-                    TeacherId = created.TeacherId,
-                    CircleSallary = CalculateTeacherSalary(hourlyRate , created.Minutes)
-                };
-                _teacherReportRecordRepository.Add(teacherReportRecord);
-                studentSubscribe.ModefiedAt = DateTime.UtcNow;
+                studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
                 studentSubscribe.ModefiedBy = userId;
-                studentSubscribe.RemainingMinutes = studentSubscribe.RemainingMinutes - (int)model.Minutes;
+                studentSubscribe.RemainingMinutes -= consumedMinutes;
             }
            
 
@@ -378,6 +363,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         public async Task<IResponse<bool>> Update(CircleReportAddDto model, int userId)
         {
             var output = new Response<bool>();
+            model.CreationTime = BusinessDateTime.NormalizeClientDateTimeToCairoStorage(model.CreationTime);
 
             // 1) Validate DTO
             var validator = new CircleReportValidation();
@@ -401,64 +387,31 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             if (studentSubscribe == null) return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
 
             // --- ??? ?? ??? ???? ??????? ---
-            int prevMinutes = (int)(report.Minutes ?? 0);
-            int newMinutes = (int)(model.Minutes ?? 0);
-
             int? prevStatusId = report.AttendStatueId;
             int? newStatusId = model.AttendStatueId ?? report.AttendStatueId;
-
-            bool prevCounts = CountsForBilling(prevStatusId);
-            bool newCounts = CountsForBilling(newStatusId);
+            int prevChargedMinutes = ResolveStudentConsumedMinutes(prevStatusId, report.Minutes);
+            int newChargedMinutes = ResolveStudentConsumedMinutes(newStatusId, model.Minutes);
+            decimal newTeacherSalaryMinutes = ResolveTeacherSalaryMinutes(newStatusId, model.Minutes);
 
             // 5) ????? ??????? ??? ??????? ?? ?????? ?????? ?????? ??? ?? ??? ??????
-            int chargedPrevMinutes = prevCounts ? prevMinutes : 0;
-            int chargedNewMinutes = newCounts ? newMinutes : 0;
-            int deltaRemaining = chargedPrevMinutes - chargedNewMinutes;
+            int deltaRemaining = prevChargedMinutes - newChargedMinutes;
           
             studentSubscribe.RemainingMinutes += deltaRemaining;
-            studentSubscribe.ModefiedAt = DateTime.UtcNow;
+            studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
             studentSubscribe.ModefiedBy = userId;
 
             // 6) ????? ??????? ???? (in-place ???? ????? ???? ????)
             _mapper.Map(model, report); // ????? ??????? ???????? ???
             report.ModifiedBy = userId;
-            report.ModifiedAt = DateTime.UtcNow;
+            report.ModifiedAt = BusinessDateTime.CairoNow;
             report.StudentId = student.Id; // ????? ?????
             report.IsDeleted = false;
-            report.Minutes = chargedNewMinutes;
             report.AttendStatueId = newStatusId;
-
-            // 7) ???? ?????? ????? ??? ?????? ??????? ??? (????/???? ???? ???)
-            var teacherReport = _teacherReportRecordRepository
-                .Where(x => x.CircleReportId == model.Id).FirstOrDefault();
+            report.TeacherSalaryMinutes = newTeacherSalaryMinutes;
 
             var subscribeType = studentSubscribe.StudentSubscribeType;
             var pricePerUnit = ResolveHourlyRate(subscribeType);
-            var teacherSalary = CalculateTeacherSalary(pricePerUnit, chargedNewMinutes);
-
-            if (teacherReport != null)
-            {
-                teacherReport.Minutes = chargedNewMinutes;
-                teacherReport.CircleSallary = newCounts ? teacherSalary : 0m;
-
-                teacherReport.ModefiedAt = DateTime.UtcNow;
-                teacherReport.CreatedAt = report.CreationTime;
-                teacherReport.ModefiedBy = userId;
-            }
-            else if (newCounts)
-            {
-                var teacherReportRecord = new TeacherReportRecord
-                {
-                    CreatedAt = report.CreationTime,
-                    TeacherId = teacher.Id,
-                    IsDeleted = false,
-                    Minutes = chargedNewMinutes,
-                    CircleReportId = report.Id,
-                    CircleSallary = teacherSalary
-                };
-
-                _teacherReportRecordRepository.Add(teacherReportRecord);
-            }
+            report.TeacherSalaryAmount = newTeacherSalaryMinutes > 0m ? CalculateTeacherSalary(pricePerUnit, newTeacherSalaryMinutes) : 0m;
 
             // 8) ??? ?? ??? ?????? ?????
             await _unitOfWork.CommitAsync();
@@ -488,27 +441,17 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
             }
 
-            if (CountsForBilling(report.AttendStatueId) && report.Minutes.HasValue)
+            var chargedMinutes = ResolveStudentConsumedMinutes(report.AttendStatueId, report.Minutes);
+            if (chargedMinutes > 0)
             {
-                studentSubscribe.RemainingMinutes += (int)report.Minutes.Value;
-                studentSubscribe.ModefiedAt = DateTime.UtcNow;
+                studentSubscribe.RemainingMinutes += chargedMinutes;
+                studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
                 studentSubscribe.ModefiedBy = userId;
             }
 
             report.IsDeleted = true;
             report.ModifiedBy = userId;
-            report.ModifiedAt = DateTime.UtcNow;
-
-            var teacherReport = _teacherReportRecordRepository
-                .Where(x => x.CircleReportId == id && x.IsDeleted != true)
-                .FirstOrDefault();
-
-            if (teacherReport != null)
-            {
-                teacherReport.IsDeleted = true;
-                teacherReport.ModefiedAt = DateTime.UtcNow;
-                teacherReport.ModefiedBy = userId;
-            }
+            report.ModifiedAt = BusinessDateTime.CairoNow;
 
             await _unitOfWork.CommitAsync();
 
@@ -529,18 +472,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             report.IsDeleted = false;
             report.ModifiedBy = userId;
-            report.ModifiedAt = DateTime.UtcNow;
-
-            var teacherReport = _teacherReportRecordRepository
-                .Where(x => x.CircleReportId == id)
-                .FirstOrDefault();
-
-            if (teacherReport != null)
-            {
-                teacherReport.IsDeleted = false;
-                teacherReport.ModefiedAt = DateTime.UtcNow;
-                teacherReport.ModefiedBy = userId;
-            }
+            report.ModifiedAt = BusinessDateTime.CairoNow;
 
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(true);
@@ -558,7 +490,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             return Math.Round(total, 2, MidpointRounding.AwayFromZero);
         }
 
-        private decimal CalculateTeacherSalary(decimal hourlyRate, int minutes)
+        private decimal CalculateTeacherSalary(decimal hourlyRate, decimal minutes)
         {
             var total = (hourlyRate / 60 )  * minutes;
             return Math.Round(total, 2, MidpointRounding.AwayFromZero);
@@ -572,6 +504,37 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             }
 
             return subscribeType.HourPrice ?? 0m;
+        }
+
+        private static int ResolveStudentConsumedMinutes(int? attendStatusId, double? minutes)
+        {
+            if (!CountsForBilling(attendStatusId) || !minutes.HasValue)
+            {
+                return 0;
+            }
+
+            return Convert.ToInt32(minutes.Value);
+        }
+
+        private static decimal ResolveTeacherSalaryMinutes(int? attendStatusId, double? minutes)
+        {
+            if (!CountsForBilling(attendStatusId) || !minutes.HasValue)
+            {
+                return 0m;
+            }
+
+            return Math.Round(Convert.ToDecimal(minutes.Value), 2, MidpointRounding.AwayFromZero);
+        }
+
+        private decimal ResolveTeacherSalaryAmount(SubscribeType? subscribeType, int? attendStatusId, double? minutes)
+        {
+            var teacherSalaryMinutes = ResolveTeacherSalaryMinutes(attendStatusId, minutes);
+            if (teacherSalaryMinutes <= 0m)
+            {
+                return 0m;
+            }
+
+            return CalculateTeacherSalary(ResolveHourlyRate(subscribeType), teacherSalaryMinutes);
         }
 
     }

@@ -33,7 +33,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual DbSet<StudentSubscribe> StudentSubscribes { get; set; } = null!;
         public virtual DbSet<Subscribe> Subscribes { get; set; } = null!;
         public virtual DbSet<SubscribeType> SubscribeTypes { get; set; } = null!;
-        public virtual DbSet<TeacherReportRecord> TeacherReportRecords { get; set; } = null!;
         public virtual DbSet<TeacherSallary> TeacherSallaries { get; set; } = null!;
         public virtual DbSet<TeacherSchedule> TeacherSchedules { get; set; } = null!;
         public virtual DbSet<User> Users { get; set; } = null!;
@@ -158,6 +157,10 @@ namespace Orbits.GeneralProject.Core.Entities
 
             modelBuilder.Entity<CircleReport>(entity =>
             {
+                entity.Property(e => e.TeacherSalaryMinutes).HasColumnType("decimal(10,2)");
+
+                entity.Property(e => e.TeacherSalaryAmount).HasColumnType("decimal(18,2)");
+
                 entity.HasOne(d => d.Circle)
                     .WithMany(p => p.CircleReports)
                     .HasForeignKey(d => d.CircleId)
@@ -468,27 +471,6 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.HourPrice).HasColumnType("decimal(5, 2)");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
-            });
-
-            modelBuilder.Entity<TeacherReportRecord>(entity =>
-            {
-                entity.ToTable("TeacherReportRecord");
-
-                entity.Property(e => e.CircleSallary).HasColumnType("decimal(18,2)");
-
-                entity.Property(e => e.CreatedAt).HasColumnType("datetime");
-
-                entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
-
-                entity.HasOne(d => d.CircleReport)
-                    .WithMany(p => p.TeacherReportRecords)
-                    .HasForeignKey(d => d.CircleReportId)
-                    .HasConstraintName("FK_TeacherReportRecord_CircleReport");
-
-                entity.HasOne(d => d.Teacher)
-                    .WithMany(p => p.TeacherReportRecords)
-                    .HasForeignKey(d => d.TeacherId)
-                    .HasConstraintName("FK_TeacherReportRecord_Teacher");
             });
 
             modelBuilder.Entity<TeacherSallary>(entity =>

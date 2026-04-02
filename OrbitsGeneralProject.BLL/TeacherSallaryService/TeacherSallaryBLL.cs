@@ -20,7 +20,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         private const int AttendStatusAbsentWithExcuse = 2;
         private const int AttendStatusAbsentWithoutExcuse = 3;
 
-        private readonly IRepository<TeacherReportRecord> _teacherReportRepository;
+        private readonly IRepository<CircleReport> _circleReportRepository;
         private readonly IRepository<TeacherSallary> _teacherSallaryRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<ManagerTeacher> _managerTeacherRepository;
@@ -29,14 +29,14 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
         public TeacherSallaryBLL(
             IMapper mapper,
-            IRepository<TeacherReportRecord> teacherReportRepository,
+            IRepository<CircleReport> circleReportRepository,
             IRepository<TeacherSallary> teacherSallaryRepository,
             IRepository<User> userRepository,
             IRepository<ManagerTeacher> managerTeacherRepository,
             IUnitOfWork unitOfWork,
             IFileServiceBLL fileService) : base(mapper)
         {
-            _teacherReportRepository = teacherReportRepository;
+            _circleReportRepository = circleReportRepository;
             _teacherSallaryRepository = teacherSallaryRepository;
             _userRepository = userRepository;
             _managerTeacherRepository = managerTeacherRepository;
@@ -64,19 +64,18 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 // Keep invoice generation aligned with the monthly details endpoints,
                 // which only include active (non-deleted) teacher report records.
-                var groupedTeacherRecords = await _teacherReportRepository
-                    .Where(record =>
-                        record.TeacherId.HasValue &&
-                        record.IsDeleted != true &&
-                        record.CreatedAt.HasValue &&
-                        record.CreatedAt.Value >= monthStart &&
-                        record.CreatedAt.Value < monthEnd)
-                    .GroupBy(record => record.TeacherId!.Value)
+                var groupedTeacherRecords = await _circleReportRepository
+                    .Where(report =>
+                        report.TeacherId.HasValue &&
+                        !report.IsDeleted &&
+                        report.CreationTime >= monthStart &&
+                        report.CreationTime < monthEnd)
+                    .GroupBy(report => report.TeacherId!.Value)
                     .Select(group => new
                     {
                         TeacherId = group.Key,
-                        TotalMinutes = group.Sum(r => r.Minutes ?? 0),
-                        TotalSalary = group.Sum(r => r.CircleSallary ?? 0m)
+                        TotalMinutes = group.Sum(r => r.TeacherSalaryMinutes ?? 0m),
+                        TotalSalary = group.Sum(r => r.TeacherSalaryAmount ?? 0m)
                     })
                     .ToListAsync();
 
@@ -112,14 +111,14 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 foreach (var group in groupedTeacherRecords)
                 {
-                    if (group.TotalMinutes <= 0)
+                    if (group.TotalMinutes <= 0m)
                     {
                         result.SkippedZeroValueInvoices++;
                         continue;
                     }
 
                     result.TotalTeachers++;
-                    result.TotalMinutes += group.TotalMinutes;
+                    result.TotalMinutes += (double)group.TotalMinutes;
                     var roundedAmount = Math.Round(group.TotalSalary, 2, MidpointRounding.AwayFromZero);
                     var roundedAmountAsDouble = (double)roundedAmount;
                     result.TotalSalary += roundedAmountAsDouble;
@@ -148,7 +147,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                         if (shouldUpdate)
                         {
-                            existingInvoice.ModefiedAt = BusinessDateTime.UtcNow;
+                            existingInvoice.ModefiedAt = BusinessDateTime.CairoNow;
                             existingInvoice.ModefiedBy = createdBy;
                             result.UpdatedInvoices++;
                             hasChanges = true;
@@ -161,7 +160,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                             TeacherId = group.TeacherId,
                             Month = monthStart,
                             Sallary = roundedAmountAsDouble,
-                            CreatedAt = BusinessDateTime.UtcNow,
+                            CreatedAt = BusinessDateTime.CairoNow,
                             CreatedBy = createdBy,
                             IsPayed = false
                         };
@@ -309,19 +308,18 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 DateTime monthEnd = monthStart.AddMonths(1);
 
-                var teacherRecords = await _teacherReportRepository
-                    .Where(record =>
-                        record.TeacherId.HasValue &&
-                        activeTeacherIds.Contains(record.TeacherId.Value) &&
-                        record.IsDeleted != true &&
-                        record.CreatedAt.HasValue &&
-                        record.CreatedAt.Value >= monthStart &&
-                        record.CreatedAt.Value < monthEnd)
-                    .Select(record => new
+                var teacherRecords = await _circleReportRepository
+                    .Where(report =>
+                        report.TeacherId.HasValue &&
+                        activeTeacherIds.Contains(report.TeacherId.Value) &&
+                        !report.IsDeleted &&
+                        report.CreationTime >= monthStart &&
+                        report.CreationTime < monthEnd)
+                    .Select(report => new
                     {
-                        Minutes = record.Minutes ?? 0,
-                        Salary = record.CircleSallary ?? 0m,
-                        AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null
+                        Minutes = (double)(report.TeacherSalaryMinutes ?? 0m),
+                        Salary = report.TeacherSalaryAmount ?? 0m,
+                        AttendStatusId = report.AttendStatueId
                     })
                     .ToListAsync();
 
@@ -378,30 +376,26 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     return response.CreateResponse(MessageCodes.UnAuthorizedAccess);
                 }
 
-                var records = await _teacherReportRepository
-                    .Where(record =>
-                        record.TeacherId == teacherId &&
-                        record.IsDeleted != true &&
-                        record.CreatedAt.HasValue &&
-                        record.CreatedAt.Value >= monthStart &&
-                        record.CreatedAt.Value < monthEnd)
-                    .Include(record => record.Teacher)
-                    .Include(record => record.CircleReport)
-                    .ThenInclude(report => report.Student)
-                    .Select(record => new TeacherMonthlyReportRecordDto
+                var records = await _circleReportRepository
+                    .Where(report =>
+                        report.TeacherId == teacherId &&
+                        !report.IsDeleted &&
+                        report.CreationTime >= monthStart &&
+                        report.CreationTime < monthEnd)
+                    .Select(report => new TeacherMonthlyReportRecordDto
                     {
-                        Id = record.Id,
-                        TeacherId = record.TeacherId ?? 0,
-                        TeacherName = record.Teacher != null ? record.Teacher.FullName : null,
-                        CircleReportId = record.CircleReportId,
-                        CircleId = record.CircleReport != null ? record.CircleReport.CircleId : null,
-                        StudentId = record.CircleReport != null ? record.CircleReport.StudentId : null,
-                        StudentName = record.CircleReport != null && record.CircleReport.Student != null ? record.CircleReport.Student.FullName : null,
-                        Minutes = record.Minutes ?? 0,
-                        Salary = (double)(record.CircleSallary ?? 0m),
-                        AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null,
-                        RecordCreatedAt = record.CreatedAt,
-                        CircleReportCreatedAt = record.CircleReport != null ? record.CircleReport.CreatedAt : null
+                        Id = report.Id,
+                        TeacherId = report.TeacherId ?? 0,
+                        TeacherName = report.Teacher != null ? report.Teacher.FullName : null,
+                        CircleReportId = report.Id,
+                        CircleId = report.CircleId,
+                        StudentId = report.StudentId,
+                        StudentName = report.Student != null ? report.Student.FullName : null,
+                        Minutes = (double)(report.TeacherSalaryMinutes ?? 0m),
+                        Salary = (double)(report.TeacherSalaryAmount ?? 0m),
+                        AttendStatusId = report.AttendStatueId,
+                        RecordCreatedAt = report.CreationTime,
+                        CircleReportCreatedAt = report.CreationTime
                     })
                     .OrderByDescending(record => record.RecordCreatedAt)
                     .ThenByDescending(record => record.Id)
@@ -512,9 +506,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 invoice.IsPayed = dto.IsPayed;
                 invoice.PayedAt = dto.IsPayed
-                    ? dto.PayedAt.HasValue ? BusinessDateTime.NormalizeClientDateTimeToUtc(dto.PayedAt.Value) : BusinessDateTime.UtcNow
+                    ? dto.PayedAt.HasValue ? BusinessDateTime.NormalizeClientDateTimeToCairoStorage(dto.PayedAt.Value) : BusinessDateTime.CairoNow
                     : null;
-                invoice.ModefiedAt = BusinessDateTime.UtcNow;
+                invoice.ModefiedAt = BusinessDateTime.CairoNow;
                 invoice.ModefiedBy = userId;
 
                 await _unitOfWork.CommitAsync();
@@ -550,7 +544,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 }
 
                 invoice.ModefiedBy = userId;
-                invoice.ModefiedAt = BusinessDateTime.UtcNow;
+                invoice.ModefiedAt = BusinessDateTime.CairoNow;
 
                 if (dto.Amount.HasValue)
                 {
@@ -570,7 +564,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     if (dto.PayStatue.HasValue)
                     {
                         invoice.IsPayed = dto.PayStatue.Value;
-                        invoice.PayedAt = dto.PayStatue.Value ? BusinessDateTime.UtcNow : null;
+                        invoice.PayedAt = dto.PayStatue.Value ? BusinessDateTime.CairoNow : null;
                     }
 
                     if (dto.ReceiptPath != null)
@@ -689,24 +683,22 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 };
             }
 
-            var teacherRecords = await _teacherReportRepository
-                .Where(record =>
-                    record.TeacherId == teacherId &&
-                    record.IsDeleted != true &&
-                    record.CreatedAt.HasValue &&
-                    record.CreatedAt.Value >= monthStart &&
-                    record.CreatedAt.Value < monthEnd)
-                .Include(record => record.CircleReport)
-                .Select(record => new
+            var teacherRecords = await _circleReportRepository
+                .Where(report =>
+                    report.TeacherId == teacherId &&
+                    !report.IsDeleted &&
+                    report.CreationTime >= monthStart &&
+                    report.CreationTime < monthEnd)
+                .Select(report => new
                 {
-                    Minutes = record.Minutes ?? 0,
-                    Salary = record.CircleSallary ?? 0m,
-                    AttendStatusId = record.CircleReport != null ? record.CircleReport.AttendStatueId : null
+                    Minutes = (double)(report.TeacherSalaryMinutes ?? 0m),
+                    Salary = report.TeacherSalaryAmount ?? 0m,
+                    AttendStatusId = report.AttendStatueId
                 })
                 .ToListAsync();
 
             int totalReports = teacherRecords.Count;
-            int totalMinutes = teacherRecords.Sum(r => r.Minutes);
+            double totalMinutes = teacherRecords.Sum(r => r.Minutes);
             double totalSalary = (double)Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
 
             int presentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent);

@@ -8,7 +8,7 @@ namespace Orbits.GeneralProject.DTO.TeacherSallaryDtos
         public string? TeacherName { get; set; }
         public DateTime Month { get; set; }
         public int TotalReports { get; set; }
-        public int TotalMinutes { get; set; }
+        public double TotalMinutes { get; set; }
         public int PresentCount { get; set; }
         public int AbsentWithExcuseCount { get; set; }
         public int AbsentWithoutExcuseCount { get; set; }

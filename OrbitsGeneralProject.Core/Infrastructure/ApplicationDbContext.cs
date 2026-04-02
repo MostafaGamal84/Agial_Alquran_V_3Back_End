@@ -43,6 +43,48 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             "PasswordHash"
         };
 
+        private static readonly HashSet<string> CairoCreatedStampProperties = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CreatedAt",
+            "RegisterAt"
+        };
+
+        private static readonly HashSet<string> CairoModifiedStampProperties = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "ModefiedAt",
+            "ModifiedAt"
+        };
+
+        private static readonly HashSet<string> CairoClientDateTimeProperties = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CreationTime",
+            "PaymentDate",
+            "PayedAt"
+        };
+
+        private static readonly HashSet<string> DateOnlyProperties = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Month",
+            "BirthDate",
+            "StartDate",
+            "EndDate",
+            "ScheduleDate",
+            "AttendDate"
+        };
+
+        private static readonly HashSet<string> UtcSecurityProperties = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "ExpiresOn",
+            "CreatedOn",
+            "RevokedOn",
+            "CodeExpirationTime"
+        };
+
+        private static readonly HashSet<string> DateTimeNormalizationIgnoredEntityNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            nameof(RefreshToken)
+        };
+
         private static readonly Dictionary<string, string> PropertyLabels = new(StringComparer.OrdinalIgnoreCase)
         {
             ["FullName"] = "الاسم",
@@ -239,6 +281,8 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             }
 
             ChangeTracker.DetectChanges();
+            NormalizeDateTimeValuesForPersistence();
+            ChangeTracker.DetectChanges();
 
             var pendingAuditEntries = PrepareAuditEntries();
             var result = isAsync
@@ -276,6 +320,120 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             }
 
             return result;
+        }
+
+        private void NormalizeDateTimeValuesForPersistence()
+        {
+            var cairoNow = BusinessDateTime.CairoNow;
+
+            foreach (var entry in ChangeTracker.Entries().Where(e => e.State == EntityState.Added || e.State == EntityState.Modified))
+            {
+                if (DateTimeNormalizationIgnoredEntityNames.Contains(entry.Metadata.ClrType.Name))
+                {
+                    continue;
+                }
+
+                foreach (var property in entry.Properties)
+                {
+                    if (!IsDateTimeProperty(property) || property.Metadata.IsPrimaryKey())
+                    {
+                        continue;
+                    }
+
+                    var propertyName = property.Metadata.Name;
+
+                    if (UtcSecurityProperties.Contains(propertyName))
+                    {
+                        continue;
+                    }
+
+                    if (CairoCreatedStampProperties.Contains(propertyName))
+                    {
+                        if (entry.State == EntityState.Added)
+                        {
+                            var createdValue = TryGetCurrentDateTime(property, out var existingCreatedAt)
+                                ? BusinessDateTime.ToCairo(existingCreatedAt)
+                                : cairoNow;
+
+                            SetDateTimeValue(property, createdValue);
+                        }
+
+                        continue;
+                    }
+
+                    if (CairoModifiedStampProperties.Contains(propertyName))
+                    {
+                        if (entry.State == EntityState.Modified || property.IsModified)
+                        {
+                            var modifiedValue = TryGetCurrentDateTime(property, out var existingModifiedAt)
+                                ? BusinessDateTime.ToCairo(existingModifiedAt)
+                                : cairoNow;
+
+                            SetDateTimeValue(property, modifiedValue);
+                        }
+
+                        continue;
+                    }
+
+                    if (!TryGetCurrentDateTime(property, out var currentValue))
+                    {
+                        continue;
+                    }
+
+                    if (DateOnlyProperties.Contains(propertyName))
+                    {
+                        SetDateTimeValue(property, BusinessDateTime.NormalizeStoredLocalDateTime(currentValue));
+                        continue;
+                    }
+
+                    if (CairoClientDateTimeProperties.Contains(propertyName))
+                    {
+                        SetDateTimeValue(property, BusinessDateTime.NormalizeClientDateTimeToCairoStorage(currentValue));
+                        continue;
+                    }
+
+                    if (entry.State == EntityState.Added || property.IsModified)
+                    {
+                        SetDateTimeValue(property, BusinessDateTime.ToCairo(currentValue));
+                    }
+                }
+            }
+        }
+
+        private static bool IsDateTimeProperty(PropertyEntry property)
+        {
+            var propertyType = Nullable.GetUnderlyingType(property.Metadata.ClrType) ?? property.Metadata.ClrType;
+            return propertyType == typeof(DateTime);
+        }
+
+        private static bool TryGetCurrentDateTime(PropertyEntry property, out DateTime value)
+        {
+            value = default;
+
+            if (property.CurrentValue == null)
+            {
+                return false;
+            }
+
+            if (property.CurrentValue is DateTime dateTimeValue)
+            {
+                if (dateTimeValue == default)
+                {
+                    return false;
+                }
+
+                value = dateTimeValue;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void SetDateTimeValue(PropertyEntry property, DateTime value)
+        {
+            property.CurrentValue = Nullable.GetUnderlyingType(property.Metadata.ClrType) == typeof(DateTime)
+                ? (DateTime?)value
+                : value;
         }
 
         private List<PendingAuditEntry> PrepareAuditEntries()
@@ -439,7 +597,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
                     SourceRoute = NormalizeAuditText(_auditUserContext.SourceRoute),
                     RequestPath = NormalizeAuditText(_auditUserContext.RequestPath),
                     HttpMethod = NormalizeAuditText(_auditUserContext.HttpMethod),
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = BusinessDateTime.CairoNow,
                     ChangesJson = pendingEntry.Changes.Count == 0
                         ? null
                         : JsonSerializer.Serialize(pendingEntry.Changes, AuditJsonOptions),

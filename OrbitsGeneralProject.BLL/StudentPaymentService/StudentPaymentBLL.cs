@@ -60,7 +60,6 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     var me = _UserRepo.GetById(userId);
     if (me == null) return output.AppendError(MessageCodes.NotFound);
 
-    var now = BusinessDateTime.UtcNow;
     var (monthStart, monthEnd) = month.HasValue
         ? BusinessDateTime.GetCairoMonthRangeUtc(month.Value.Year, month.Value.Month)
         : BusinessDateTime.GetCurrentCairoMonthRangeUtc();
@@ -161,7 +160,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     DateTime? dataMonth = null,          // month to report
     DateTime? compareMonth = null)       // month to compare against
         {
-            var now = BusinessDateTime.UtcNow;
+            var now = BusinessDateTime.CairoNow;
             var cairoNow = BusinessDateTime.CairoNow;
             var currentMonthReference = dataMonth.HasValue
                 ? new DateTime(dataMonth.Value.Year, dataMonth.Value.Month, 1)
@@ -310,7 +309,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
             var studentSubscribe = _StudentSubscribeRepo.GetById(entity.StudentSubscribes.Where(x => x.StudentPaymentId == entity.Id).FirstOrDefault().Id);
 
             entity.ModefiedBy = userId;
-            entity.ModefiedAt = BusinessDateTime.UtcNow;
+            entity.ModefiedAt = BusinessDateTime.CairoNow;
             if (dto.PayStatue == true)
             {
 
@@ -318,17 +317,17 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                     ? Math.Round(dto.Amount.Value, 2, MidpointRounding.AwayFromZero)
                     : null;
                 entity.ReceiptPath = dto.ReceiptPath!=null ? _fileService.CreateFileAsync(dto.ReceiptPath,"StudentInvoices/").Result.Data.FilePath : null;
-                entity.PaymentDate = BusinessDateTime.UtcNow;
+                entity.PaymentDate = BusinessDateTime.CairoNow;
                 // ✅ يحدث فقط لو فيها قيمة
                 if (dto.CurrencyId.HasValue)
                 {
                     entity.CurrencyId = dto.CurrencyId.Value;
                 }
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = BusinessDateTime.UtcNow;
+                entity.ModefiedAt = BusinessDateTime.CairoNow;
                 entity.PayStatue = dto.PayStatue;
                 entity.IsCancelled = false;
-                studentSubscribe.ModefiedAt = BusinessDateTime.UtcNow;
+                studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
                 studentSubscribe.ModefiedBy = userId;
                 studentSubscribe.PayStatus = dto.PayStatue;
             }
@@ -338,7 +337,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.IsCancelled = true;
                 entity.PayStatue = false;
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = BusinessDateTime.UtcNow;
+                entity.ModefiedAt = BusinessDateTime.CairoNow;
                 //_StudentSubscribeRepo.Delete(studentSubscribe);
             }
 
@@ -347,7 +346,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.IsCancelled = false;
                 entity.PayStatue = false;
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = BusinessDateTime.UtcNow;
+                entity.ModefiedAt = BusinessDateTime.CairoNow;
             }
 
             await _unitOfWork.CommitAsync();

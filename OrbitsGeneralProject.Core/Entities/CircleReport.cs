@@ -8,7 +8,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public CircleReport()
         {
             StudentSubscribes = new HashSet<StudentSubscribe>();
-            TeacherReportRecords = new HashSet<TeacherReportRecord>();
         }
 
         public int Id { get; set; }
@@ -28,6 +27,8 @@ namespace Orbits.GeneralProject.Core.Entities
         public int? StudentId { get; set; }
         public int? TeacherId { get; set; }
         public int? AttendStatueId { get; set; }
+        public decimal? TeacherSalaryMinutes { get; set; }
+        public decimal? TeacherSalaryAmount { get; set; }
         public bool IsDeleted { get; set; }
         public bool IsPermanentlyDeleted { get; set; }
         public DateTime? CreatedAt { get; set; }
@@ -41,6 +42,5 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual User? Student { get; set; }
         public virtual User? Teacher { get; set; }
         public virtual ICollection<StudentSubscribe> StudentSubscribes { get; set; }
-        public virtual ICollection<TeacherReportRecord> TeacherReportRecords { get; set; }
     }
 }

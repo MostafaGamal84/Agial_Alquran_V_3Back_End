@@ -25,7 +25,6 @@ namespace Orbits.GeneralProject.Core.Entities
             StudentSubscribeHistories = new HashSet<StudentSubscribeHistory>();
             StudentSubscribes = new HashSet<StudentSubscribe>();
             CreatedStudentSubscribeHistories = new HashSet<StudentSubscribeHistory>();
-            TeacherReportRecords = new HashSet<TeacherReportRecord>();
             TeacherSallaries = new HashSet<TeacherSallary>();
             TeacherScheduleStudents = new HashSet<TeacherSchedule>();
             TeacherScheduleTeachers = new HashSet<TeacherSchedule>();
@@ -76,7 +75,6 @@ namespace Orbits.GeneralProject.Core.Entities
         public virtual ICollection<StudentSubscribeHistory> StudentSubscribeHistories { get; set; }
         public virtual ICollection<StudentSubscribe> StudentSubscribes { get; set; }
         public virtual ICollection<StudentSubscribeHistory> CreatedStudentSubscribeHistories { get; set; }
-        public virtual ICollection<TeacherReportRecord> TeacherReportRecords { get; set; }
         public virtual ICollection<TeacherSallary> TeacherSallaries { get; set; }
         public virtual ICollection<TeacherSchedule> TeacherScheduleStudents { get; set; }
         public virtual ICollection<TeacherSchedule> TeacherScheduleTeachers { get; set; }

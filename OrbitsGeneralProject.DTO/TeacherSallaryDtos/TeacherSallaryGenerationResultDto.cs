@@ -32,7 +32,7 @@ namespace Orbits.GeneralProject.DTO.TeacherSallaryDtos
         /// <summary>
         /// Sum of all billable minutes for the requested month.
         /// </summary>
-        public int TotalMinutes { get; set; }
+        public double TotalMinutes { get; set; }
 
         /// <summary>
         /// Sum of all salary amounts calculated for the requested month.

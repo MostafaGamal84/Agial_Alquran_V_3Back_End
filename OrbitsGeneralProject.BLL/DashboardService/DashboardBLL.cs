@@ -1017,10 +1017,10 @@ namespace Orbits.GeneralProject.BLL.DashboardService
             }
 
             DateTime referenceEnd = range?.EndDate.HasValue == true
-                ? BusinessDateTime.NormalizeClientDateTimeToUtc(range.EndDate.Value)
+                ? BusinessDateTime.NormalizeClientDateTimeToCairoStorage(range.EndDate.Value)
                 : utcNow;
             DateTime startCandidate = range?.StartDate.HasValue == true
-                ? BusinessDateTime.NormalizeClientDateTimeToUtc(range.StartDate.Value)
+                ? BusinessDateTime.NormalizeClientDateTimeToCairoStorage(range.StartDate.Value)
                 : referenceEnd.AddDays(-29);
 
             if (startCandidate > referenceEnd)
