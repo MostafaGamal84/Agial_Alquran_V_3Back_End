@@ -25,12 +25,13 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<ManagerTeacher> _managerTeacherRepository;
         private readonly IRepository<ManagerStudent> _managerStudentRepository;
+        private readonly IRepository<TeacherSallary> _teacherSallaryRepository;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IRepository<User> userRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository) : base(mapper)
+             IRepository<User> userRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository, IRepository<TeacherSallary> teacherSallaryRepository) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
@@ -41,6 +42,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _nationalityRepository = nationalityRepository;
             _managerTeacherRepository = managerTeacherRepository;
             _managerStudentRepository = managerStudentRepository;
+            _teacherSallaryRepository = teacherSallaryRepository;
         }
 
 
@@ -312,6 +314,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             if (student == null) return output.CreateResponse(MessageCodes.StudentNotFound);
             var teacher = _userRepository.GetById((int)model.TeacherId!);
             if (teacher == null) return output.CreateResponse(MessageCodes.TeacherNotFound);
+            if (await IsTeacherMonthLockedAsync(model.TeacherId, model.CreationTime))
+                return CreateLockedMonthResponse(output, nameof(model.CreationTime));
             var studentSubscribe = student.StudentSubscribes.LastOrDefault();
             if (studentSubscribe == null) return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
             //if (studentSubscribe.RemainingMinutes < model.Minutes) return output.CreateResponse(MessageCodes.StudentMinutesNotFound);
@@ -360,6 +364,36 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 || attendStatusId == (int)AttendStatus.AbsentWithoutExcuse;
         }
 
+        private static DateTime GetMonthStart(DateTime dateTime)
+        {
+            return new DateTime(dateTime.Year, dateTime.Month, 1);
+        }
+
+        private async Task<bool> IsTeacherMonthLockedAsync(int? teacherId, DateTime creationTime)
+        {
+            if (!teacherId.HasValue)
+            {
+                return false;
+            }
+
+            var monthStart = GetMonthStart(creationTime);
+            return await _teacherSallaryRepository.AnyAsync(x =>
+                x.IsDeleted != true
+                && x.TeacherId == teacherId.Value
+                && x.Month.HasValue
+                && x.Month.Value.Year == monthStart.Year
+                && x.Month.Value.Month == monthStart.Month
+                && x.IsPayed == true);
+        }
+
+        private IResponse<bool> CreateLockedMonthResponse(Response<bool> output, string fieldName)
+        {
+            return output.AppendError(
+                MessageCodes.BusinessValidationError,
+                fieldName,
+                "لا يمكن إضافة أو تعديل أو حذف تقرير في شهر تم تسليم راتبه.");
+        }
+
         public async Task<IResponse<bool>> Update(CircleReportAddDto model, int userId)
         {
             var output = new Response<bool>();
@@ -374,6 +408,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             // 2) Load existing report (tracked)
             var report = await _circleReportRepository.GetByIdAsync(model.Id!.Value);
             if (report == null) return output.AppendError(MessageCodes.NotFound);
+            if (await IsTeacherMonthLockedAsync(report.TeacherId, report.CreationTime))
+                return CreateLockedMonthResponse(output, nameof(model.CreationTime));
 
             // 3) Load student & teacher
             var student = _userRepository.GetById((int)model.StudentId!);
@@ -381,6 +417,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             var teacher = _userRepository.GetById((int)model.TeacherId!);
             if (teacher == null) return output.CreateResponse(MessageCodes.TeacherNotFound);
+            if (await IsTeacherMonthLockedAsync(model.TeacherId, model.CreationTime))
+                return CreateLockedMonthResponse(output, nameof(model.CreationTime));
 
             // 4) Ensure student has a subscription
             var studentSubscribe = student.StudentSubscribes.LastOrDefault();
@@ -429,6 +467,11 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 return output.AppendError(MessageCodes.NotFound);
             }
 
+            if (await IsTeacherMonthLockedAsync(report.TeacherId, report.CreationTime))
+            {
+                return CreateLockedMonthResponse(output, nameof(id));
+            }
+
             var student = _userRepository.GetById(report.StudentId ?? 0);
             if (student == null)
             {
@@ -469,6 +512,9 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             if (!report.IsDeleted)
                 return output.CreateResponse(true);
+
+            if (await IsTeacherMonthLockedAsync(report.TeacherId, report.CreationTime))
+                return CreateLockedMonthResponse(output, nameof(id));
 
             report.IsDeleted = false;
             report.ModifiedBy = userId;

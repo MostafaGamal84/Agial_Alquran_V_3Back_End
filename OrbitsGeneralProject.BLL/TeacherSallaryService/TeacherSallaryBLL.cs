@@ -111,12 +111,6 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 foreach (var group in groupedTeacherRecords)
                 {
-                    if (group.TotalMinutes <= 0m)
-                    {
-                        result.SkippedZeroValueInvoices++;
-                        continue;
-                    }
-
                     result.TotalTeachers++;
                     result.TotalMinutes += (double)group.TotalMinutes;
                     var roundedAmount = Math.Round(group.TotalSalary, 2, MidpointRounding.AwayFromZero);
@@ -152,9 +146,20 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                             result.UpdatedInvoices++;
                             hasChanges = true;
                         }
+
+                        if (group.TotalMinutes <= 0m)
+                        {
+                            result.SkippedZeroValueInvoices++;
+                        }
                     }
                     else
                     {
+                        if (group.TotalMinutes <= 0m)
+                        {
+                            result.SkippedZeroValueInvoices++;
+                            continue;
+                        }
+
                         var invoice = new TeacherSallary
                         {
                             TeacherId = group.TeacherId,
