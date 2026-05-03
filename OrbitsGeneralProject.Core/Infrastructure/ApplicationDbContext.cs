@@ -8,6 +8,7 @@ using EntityFramework.Exceptions.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Orbits.GeneralProject.Core.Entities;
 using Orbits.GeneralProject.Core.Extensions;
 
@@ -43,19 +44,19 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             "PasswordHash"
         };
 
-        private static readonly HashSet<string> CairoCreatedStampProperties = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> UtcCreatedStampProperties = new(StringComparer.OrdinalIgnoreCase)
         {
             "CreatedAt",
             "RegisterAt"
         };
 
-        private static readonly HashSet<string> CairoModifiedStampProperties = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> UtcModifiedStampProperties = new(StringComparer.OrdinalIgnoreCase)
         {
             "ModefiedAt",
             "ModifiedAt"
         };
 
-        private static readonly HashSet<string> CairoClientDateTimeProperties = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> UtcClientDateTimeProperties = new(StringComparer.OrdinalIgnoreCase)
         {
             "CreationTime",
             "PaymentDate",
@@ -159,6 +160,8 @@ namespace Orbits.GeneralProject.Core.Infrastructure
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            ConfigureUtcDateTimeStorage(modelBuilder);
+
             var jsonvalueMethodInfo = typeof(Json).GetRuntimeMethod(nameof(Json.Value), new[] { typeof(string), typeof(string) });
             var translatevalueMethodInfo = typeof(Translate).GetRuntimeMethod(nameof(Translate.Value), new[] { typeof(int), typeof(string), typeof(int) });
 
@@ -234,6 +237,38 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             modelBuilder.ApplyGlobalFilters<IEntityBase>(e => e.IsDeleted == false, "IsDeleted");
 
             base.OnModelCreating(modelBuilder);
+        }
+
+        private static void ConfigureUtcDateTimeStorage(ModelBuilder modelBuilder)
+        {
+            var utcConverter = new ValueConverter<DateTime, DateTime>(
+                value => BusinessDateTime.EnsureUtc(value),
+                value => BusinessDateTime.EnsureUtc(value));
+
+            var nullableUtcConverter = new ValueConverter<DateTime?, DateTime?>(
+                value => value.HasValue ? BusinessDateTime.EnsureUtc(value.Value) : value,
+                value => value.HasValue ? BusinessDateTime.EnsureUtc(value.Value) : value);
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (DateTimeNormalizationIgnoredEntityNames.Contains(entityType.ClrType.Name))
+                {
+                    continue;
+                }
+
+                foreach (var property in entityType.GetProperties())
+                {
+                    var propertyType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+                    if (propertyType != typeof(DateTime) || DateOnlyProperties.Contains(property.Name))
+                    {
+                        continue;
+                    }
+
+                    property.SetValueConverter(property.ClrType == typeof(DateTime)
+                        ? utcConverter
+                        : nullableUtcConverter);
+                }
+            }
         }
 
         [DbFunction(Schema = "dbo")]
@@ -324,7 +359,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
 
         private void NormalizeDateTimeValuesForPersistence()
         {
-            var cairoNow = BusinessDateTime.CairoNow;
+            var utcNow = BusinessDateTime.UtcNow;
 
             foreach (var entry in ChangeTracker.Entries().Where(e => e.State == EntityState.Added || e.State == EntityState.Modified))
             {
@@ -347,13 +382,13 @@ namespace Orbits.GeneralProject.Core.Infrastructure
                         continue;
                     }
 
-                    if (CairoCreatedStampProperties.Contains(propertyName))
+                    if (UtcCreatedStampProperties.Contains(propertyName))
                     {
                         if (entry.State == EntityState.Added)
                         {
                             var createdValue = TryGetCurrentDateTime(property, out var existingCreatedAt)
-                                ? BusinessDateTime.ToCairo(existingCreatedAt)
-                                : cairoNow;
+                                ? BusinessDateTime.EnsureUtc(existingCreatedAt)
+                                : utcNow;
 
                             SetDateTimeValue(property, createdValue);
                         }
@@ -361,13 +396,13 @@ namespace Orbits.GeneralProject.Core.Infrastructure
                         continue;
                     }
 
-                    if (CairoModifiedStampProperties.Contains(propertyName))
+                    if (UtcModifiedStampProperties.Contains(propertyName))
                     {
                         if (entry.State == EntityState.Modified || property.IsModified)
                         {
                             var modifiedValue = TryGetCurrentDateTime(property, out var existingModifiedAt)
-                                ? BusinessDateTime.ToCairo(existingModifiedAt)
-                                : cairoNow;
+                                ? BusinessDateTime.EnsureUtc(existingModifiedAt)
+                                : utcNow;
 
                             SetDateTimeValue(property, modifiedValue);
                         }
@@ -382,19 +417,19 @@ namespace Orbits.GeneralProject.Core.Infrastructure
 
                     if (DateOnlyProperties.Contains(propertyName))
                     {
-                        SetDateTimeValue(property, BusinessDateTime.NormalizeStoredLocalDateTime(currentValue));
+                        SetDateTimeValue(property, BusinessDateTime.EnsureUnspecified(currentValue));
                         continue;
                     }
 
-                    if (CairoClientDateTimeProperties.Contains(propertyName))
+                    if (UtcClientDateTimeProperties.Contains(propertyName))
                     {
-                        SetDateTimeValue(property, BusinessDateTime.NormalizeClientDateTimeToCairoStorage(currentValue));
+                        SetDateTimeValue(property, BusinessDateTime.NormalizeClientDateTimeToUtc(currentValue));
                         continue;
                     }
 
                     if (entry.State == EntityState.Added || property.IsModified)
                     {
-                        SetDateTimeValue(property, BusinessDateTime.ToCairo(currentValue));
+                        SetDateTimeValue(property, BusinessDateTime.EnsureUtc(currentValue));
                     }
                 }
             }
@@ -597,7 +632,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
                     SourceRoute = NormalizeAuditText(_auditUserContext.SourceRoute),
                     RequestPath = NormalizeAuditText(_auditUserContext.RequestPath),
                     HttpMethod = NormalizeAuditText(_auditUserContext.HttpMethod),
-                    CreatedAt = BusinessDateTime.CairoNow,
+                    CreatedAt = BusinessDateTime.UtcNow,
                     ChangesJson = pendingEntry.Changes.Count == 0
                         ? null
                         : JsonSerializer.Serialize(pendingEntry.Changes, AuditJsonOptions),

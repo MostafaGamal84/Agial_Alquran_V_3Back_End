@@ -15,7 +15,11 @@ namespace Orbits.GeneralProject.Core.Extensions
         public static void ApplyGlobalFilters<TInterface>(this ModelBuilder modelBuilder, Expression<Func<TInterface, bool>> expression, string columnName) where TInterface : class
         {
 
-            var entities = modelBuilder.Model.GetEntityTypes().Where(e => e.ClrType.GetInterface(typeof(TInterface).Name) != null && e.FindProperty(columnName) != null).Select(e => e.ClrType);
+            var entities = modelBuilder.Model.GetEntityTypes()
+                .Where(e =>
+                    e.ClrType.GetInterface(typeof(TInterface).Name) != null &&
+                    e.FindProperty(columnName) != null)
+                .Select(e => e.ClrType);
             foreach (var entity in entities)
             {
 

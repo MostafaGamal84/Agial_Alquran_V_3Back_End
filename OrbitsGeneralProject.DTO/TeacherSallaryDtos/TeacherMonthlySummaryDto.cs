@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Orbits.GeneralProject.DTO.TeacherSallaryDtos
 {
@@ -13,6 +14,7 @@ namespace Orbits.GeneralProject.DTO.TeacherSallaryDtos
         public int AbsentWithExcuseCount { get; set; }
         public int AbsentWithoutExcuseCount { get; set; }
         public double TotalSalary { get; set; }
+        public List<TeacherSalarySectionBreakdownDto> SectionBreakdown { get; set; } = new();
         public TeacherInvoiceDto? Invoice { get; set; }
     }
 }

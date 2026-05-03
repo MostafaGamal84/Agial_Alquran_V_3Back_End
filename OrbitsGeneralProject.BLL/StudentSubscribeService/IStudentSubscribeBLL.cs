@@ -32,6 +32,11 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             FilteredResultRequestDto pagedDto,
             int? studentId,
             int? nationalityId);
+        IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetActiveStudentsBySubscribe(
+            FilteredResultRequestDto pagedDto,
+            int userId,
+            int subscribeId,
+            int? nationalityId);
         IResponse<PagedResultDto<StudentSubscribeHistoryReDto>> GetStudentSubscribeHistory(
             FilteredResultRequestDto pagedDto,
             int? studentId);

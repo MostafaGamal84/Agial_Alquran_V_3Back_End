@@ -12,6 +12,9 @@ namespace Orbits.GeneralProject.DTO.StudentSubscribDtos
         public bool? PayStatus { get; set; }
         public string? Plan { get; set; }
         public int? RemainingMinutes { get; set; }
+        public int? ConsumedMinutes { get; set; }
+        public int? ConsumedSessionsCount { get; set; }
+        public decimal? ConsumedHours { get; set; }
         public DateTime? StartDate { get; set; }
         public int? StudentPaymentId { get; set; }
         public SubscribeTypeCategory? SubscribeTypeGroup { get; set; }

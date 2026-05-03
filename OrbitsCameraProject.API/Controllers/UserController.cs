@@ -38,6 +38,10 @@ namespace OrbitsProject.API.Controllers
         [HttpGet("DisableUser"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> DisableUser(int id, bool statue) => Ok(await _userBLL.DisableUser(id, statue));
 
+        [HttpPost("BulkDisableUsers"), ProducesResponseType(typeof(IResponse<BulkDisableUsersResultDto>), 200)]
+        public async Task<IActionResult> BulkDisableUsers([FromBody] BulkDisableUsersDto model)
+            => Ok(await _userBLL.DisableUsersBulk(model, UserId));
+
         [HttpPost("Restore"), ProducesResponseType(typeof(IResponse<bool>), 200)]
         public async Task<IActionResult> Restore(int id) => Ok(await _userBLL.Restore(id, UserId));
 

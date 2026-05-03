@@ -803,6 +803,78 @@ namespace Orbits.GeneralProject.BLL.UserService
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(true);
         }
+
+        public async Task<IResponse<BulkDisableUsersResultDto>> DisableUsersBulk(BulkDisableUsersDto model, int userId)
+        {
+            var output = new Response<BulkDisableUsersResultDto>();
+            var requestedIds = (model?.UserIds ?? new List<int>())
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            if (requestedIds.Count == 0)
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(BulkDisableUsersDto.UserIds),
+                    "At least one user must be selected.");
+            }
+
+            var allowedTypes = new[]
+            {
+                (int)UserTypesEnum.Student,
+                (int)UserTypesEnum.Teacher,
+                (int)UserTypesEnum.Manager,
+                (int)UserTypesEnum.BranchLeader
+            };
+
+            var entities = await _userRepository
+                .DisableFilter(nameof(DynamicFilters.IsDeleted))
+                .Where(x => requestedIds.Contains(x.Id))
+                .ToListAsync();
+
+            var nowUtc = BusinessDateTime.UtcNow;
+            var result = new BulkDisableUsersResultDto
+            {
+                RequestedCount = requestedIds.Count
+            };
+
+            foreach (var entity in entities)
+            {
+                if (!entity.UserTypeId.HasValue || !allowedTypes.Contains(entity.UserTypeId.Value))
+                {
+                    result.SkippedUserIds.Add(entity.Id);
+                    continue;
+                }
+
+                if (entity.IsDeleted && entity.Inactive)
+                {
+                    result.SkippedUserIds.Add(entity.Id);
+                    continue;
+                }
+
+                entity.Inactive = true;
+                entity.IsDeleted = true;
+                entity.ModefiedBy = userId;
+                entity.ModefiedAt = nowUtc;
+
+                _userRepository.Update(entity);
+                result.DisabledUserIds.Add(entity.Id);
+            }
+
+            var foundIds = entities.Select(x => x.Id).ToHashSet();
+            result.SkippedUserIds.AddRange(requestedIds.Where(id => !foundIds.Contains(id)));
+            result.SkippedUserIds = result.SkippedUserIds.Distinct().ToList();
+            result.DisabledUserIds = result.DisabledUserIds.Distinct().ToList();
+            result.DisabledCount = result.DisabledUserIds.Count;
+
+            if (result.DisabledCount > 0)
+            {
+                await _unitOfWork.CommitAsync();
+            }
+
+            return output.CreateResponse(result);
+        }
         // ------------------ Helpers ------------------
 
 

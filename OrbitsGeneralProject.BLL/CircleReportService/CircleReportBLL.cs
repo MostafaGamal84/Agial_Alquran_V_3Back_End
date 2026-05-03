@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using AutoMapper;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
@@ -29,9 +30,10 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<CircleReportBLL> _logger;
         public CircleReportBLL(IMapper mapper, IRepository<CircleReport> circleReportRepository,
              IUnitOfWork unitOfWork,
-             IRepository<User> userRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository, IRepository<TeacherSallary> teacherSallaryRepository) : base(mapper)
+             IRepository<User> userRepository, IRepository<StudentSubscribe> studentSubscribeRecordRepository, IRepository<SubscribeType> subscribeTypeRepository, IRepository<Nationality> nationalityRepository, IRepository<ManagerTeacher> managerTeacherRepository, IRepository<ManagerStudent> managerStudentRepository, IRepository<TeacherSallary> teacherSallaryRepository, ILogger<CircleReportBLL> logger) : base(mapper)
         {
             _circleReportRepository = circleReportRepository;
             _unitOfWork = unitOfWork;
@@ -43,6 +45,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             _managerTeacherRepository = managerTeacherRepository;
             _managerStudentRepository = managerStudentRepository;
             _teacherSallaryRepository = teacherSallaryRepository;
+            _logger = logger;
         }
 
 
@@ -108,8 +111,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
             var managerStudentsQuery = _managerStudentRepository.GetAll();
-            var fromDate = pagedDto.FromDate?.Date;
-            var toDateExclusive = pagedDto.ToDate?.Date.AddDays(1);
+            var fromDate = pagedDto.FromDate.HasValue ? BusinessDateTime.GetCairoDayRangeUtc(pagedDto.FromDate.Value).StartUtc : (DateTime?)null;
+            var toDateExclusive = pagedDto.ToDate.HasValue ? BusinessDateTime.GetCairoDayRangeUtc(pagedDto.ToDate.Value).EndUtc : (DateTime?)null;
 
             Expression<Func<CircleReport, bool>> predicate = r =>
                 !r.IsDeleted &&
@@ -188,6 +191,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                     StudentName = r.Student != null ? r.Student.FullName : null,
                     TeacherName = r.Teacher != null ? r.Teacher.FullName : null,
                     AttendStatueId = r.AttendStatueId,
+                    TeacherSalaryMinutes = r.TeacherSalaryMinutes,
+                    TeacherSalaryAmount = r.TeacherSalaryAmount,
                     IsVisual = r.IsVisual,
                     NextCircleOrder = r.NextCircleOrder
                 })
@@ -262,8 +267,8 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepository.GetAll(), residentGroup);
             bool applyResidentFilter = residentIdsFilter != null;
             var managerTeachersQuery = _managerTeacherRepository.GetAll();
-            var fromDate = pagedDto?.FromDate?.Date;
-            var toDateExclusive = pagedDto?.ToDate?.Date.AddDays(1);
+            var fromDate = pagedDto?.FromDate.HasValue == true ? BusinessDateTime.GetCairoDayRangeUtc(pagedDto.FromDate!.Value).StartUtc : (DateTime?)null;
+            var toDateExclusive = pagedDto?.ToDate.HasValue == true ? BusinessDateTime.GetCairoDayRangeUtc(pagedDto.ToDate!.Value).EndUtc : (DateTime?)null;
 
             return _circleReportRepository.Where(r =>
                 !r.IsDeleted
@@ -298,7 +303,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         public async Task<IResponse<bool>> AddAsync(CircleReportAddDto model, int userId)
         {
             var output = new Response<bool>();
-            model.CreationTime = BusinessDateTime.NormalizeClientDateTimeToCairoStorage(model.CreationTime);
+            model.CreationTime = BusinessDateTime.NormalizeClientDateTimeToUtc(model.CreationTime);
 
             // 1) Validate DTO
             var validator = new CircleReportValidation();
@@ -307,7 +312,11 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 return output.AppendErrors(validationResult.Errors);
 
             // 2) Name unique?
-            if (await _circleReportRepository.AnyAsync(x => x.StudentId == model.StudentId && x.CreationTime.Date == model.CreationTime.Date))
+            var reportDayRange = BusinessDateTime.GetCairoDayRangeUtc(BusinessDateTime.ToCairo(model.CreationTime));
+            if (await _circleReportRepository.AnyAsync(x =>
+                x.StudentId == model.StudentId &&
+                x.CreationTime >= reportDayRange.StartUtc &&
+                x.CreationTime < reportDayRange.EndUtc))
                 return output.CreateResponse(MessageCodes.ReportAlreadyExists);
 
             var student = _userRepository.GetById((int)model.StudentId!);
@@ -316,11 +325,31 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             if (teacher == null) return output.CreateResponse(MessageCodes.TeacherNotFound);
             if (await IsTeacherMonthLockedAsync(model.TeacherId, model.CreationTime))
                 return CreateLockedMonthResponse(output, nameof(model.CreationTime));
-            var studentSubscribe = student.StudentSubscribes.LastOrDefault();
-            if (studentSubscribe == null) return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
-            //if (studentSubscribe.RemainingMinutes < model.Minutes) return output.CreateResponse(MessageCodes.StudentMinutesNotFound);
+            var matchedStudentSubscribe = await GetStudentSubscriptionForReportMonthAsync(student.Id, model.CreationTime);
+            var pricingStudentSubscribe = matchedStudentSubscribe ?? await GetLatestStudentSubscriptionAsync(student.Id);
+            var requiresSubscription = RequiresSubscriptionForReportMonth(model.CreationTime);
+            if (requiresSubscription && pricingStudentSubscribe == null)
+            {
+                _logger.LogWarning(
+                    "Rejecting circle report creation because no student subscription was found for required month. StudentId {StudentId}, TeacherId {TeacherId}, ReportCreationTimeUtc {ReportCreationTimeUtc:o}, ReportMonth {ReportMonth:yyyy-MM}.",
+                    student.Id,
+                    teacher.Id,
+                    BusinessDateTime.EnsureUtc(model.CreationTime),
+                    BusinessDateTime.ToCairo(model.CreationTime));
+                return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
+            }
+            if (!requiresSubscription && pricingStudentSubscribe == null)
+            {
+                _logger.LogInformation(
+                    "Creating past-month circle report without student subscription deduction. StudentId {StudentId}, TeacherId {TeacherId}, ReportCreationTimeUtc {ReportCreationTimeUtc:o}, ReportMonth {ReportMonth:yyyy-MM}.",
+                    student.Id,
+                    teacher.Id,
+                    BusinessDateTime.EnsureUtc(model.CreationTime),
+                    BusinessDateTime.ToCairo(model.CreationTime));
+            }
+            //if (matchedStudentSubscribe?.RemainingMinutes < model.Minutes) return output.CreateResponse(MessageCodes.StudentMinutesNotFound);
 
-            var subscribeType = studentSubscribe.StudentSubscribeType;
+            var subscribeType = pricingStudentSubscribe?.StudentSubscribeType;
             var teacherSalaryMinutes = ResolveTeacherSalaryMinutes(model.AttendStatueId, model.Minutes);
             var teacherSalaryAmount = ResolveTeacherSalaryAmount(subscribeType, model.AttendStatueId, model.Minutes);
             var consumedMinutes = ResolveStudentConsumedMinutes(model.AttendStatueId, model.Minutes);
@@ -330,7 +359,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             entity.CreatedBy = userId;
             entity.StudentId = student.Id;
             entity.Id = 0;
-            entity.CreatedAt = BusinessDateTime.CairoNow;
+            entity.CreatedAt = BusinessDateTime.UtcNow;
             entity.IsDeleted = false;
             entity.TeacherSalaryMinutes = teacherSalaryMinutes;
             entity.TeacherSalaryAmount = teacherSalaryAmount;
@@ -339,9 +368,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             if (consumedMinutes > 0)
             {
-                studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
-                studentSubscribe.ModefiedBy = userId;
-                studentSubscribe.RemainingMinutes -= consumedMinutes;
+                ApplyRemainingMinutesAdjustment(matchedStudentSubscribe, -consumedMinutes, userId, BusinessDateTime.UtcNow);
             }
            
 
@@ -366,7 +393,16 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
         private static DateTime GetMonthStart(DateTime dateTime)
         {
-            return new DateTime(dateTime.Year, dateTime.Month, 1);
+            var businessMonth = BusinessDateTime.ToCairo(dateTime);
+            return new DateTime(businessMonth.Year, businessMonth.Month, 1);
+        }
+
+        private static bool RequiresSubscriptionForReportMonth(DateTime reportCreationTime)
+        {
+            var reportMonthStart = GetMonthStart(reportCreationTime);
+            var currentMonthStart = GetMonthStart(BusinessDateTime.UtcNow);
+
+            return reportMonthStart >= currentMonthStart;
         }
 
         private async Task<bool> IsTeacherMonthLockedAsync(int? teacherId, DateTime creationTime)
@@ -397,7 +433,7 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
         public async Task<IResponse<bool>> Update(CircleReportAddDto model, int userId)
         {
             var output = new Response<bool>();
-            model.CreationTime = BusinessDateTime.NormalizeClientDateTimeToCairoStorage(model.CreationTime);
+            model.CreationTime = BusinessDateTime.NormalizeClientDateTimeToUtc(model.CreationTime);
 
             // 1) Validate DTO
             var validator = new CircleReportValidation();
@@ -420,9 +456,35 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             if (await IsTeacherMonthLockedAsync(model.TeacherId, model.CreationTime))
                 return CreateLockedMonthResponse(output, nameof(model.CreationTime));
 
-            // 4) Ensure student has a subscription
-            var studentSubscribe = student.StudentSubscribes.LastOrDefault();
-            if (studentSubscribe == null) return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
+            // 4) Resolve the subscription that matches the report month.
+            var previousStudentSubscribe = report.StudentId.HasValue
+                ? await GetStudentSubscriptionForReportMonthAsync(report.StudentId.Value, report.CreationTime)
+                : null;
+
+            var newStudentSubscribe = await GetStudentSubscriptionForReportMonthAsync(student.Id, model.CreationTime);
+            var pricingStudentSubscribe = newStudentSubscribe ?? await GetLatestStudentSubscriptionAsync(student.Id);
+            var requiresSubscription = RequiresSubscriptionForReportMonth(model.CreationTime);
+            if (requiresSubscription && pricingStudentSubscribe == null)
+            {
+                _logger.LogWarning(
+                    "Rejecting circle report update because no student subscription was found for required month. ReportId {ReportId}, StudentId {StudentId}, TeacherId {TeacherId}, ReportCreationTimeUtc {ReportCreationTimeUtc:o}, ReportMonth {ReportMonth:yyyy-MM}.",
+                    report.Id,
+                    student.Id,
+                    teacher.Id,
+                    BusinessDateTime.EnsureUtc(model.CreationTime),
+                    BusinessDateTime.ToCairo(model.CreationTime));
+                return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
+            }
+            if (!requiresSubscription && pricingStudentSubscribe == null)
+            {
+                _logger.LogInformation(
+                    "Updating past-month circle report without student subscription deduction. ReportId {ReportId}, StudentId {StudentId}, TeacherId {TeacherId}, ReportCreationTimeUtc {ReportCreationTimeUtc:o}, ReportMonth {ReportMonth:yyyy-MM}.",
+                    report.Id,
+                    student.Id,
+                    teacher.Id,
+                    BusinessDateTime.EnsureUtc(model.CreationTime),
+                    BusinessDateTime.ToCairo(model.CreationTime));
+            }
 
             // --- ??? ?? ??? ???? ??????? ---
             int? prevStatusId = report.AttendStatueId;
@@ -431,23 +493,28 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             int newChargedMinutes = ResolveStudentConsumedMinutes(newStatusId, model.Minutes);
             decimal newTeacherSalaryMinutes = ResolveTeacherSalaryMinutes(newStatusId, model.Minutes);
 
-            // 5) ????? ??????? ??? ??????? ?? ?????? ?????? ?????? ??? ?? ??? ??????
-            int deltaRemaining = prevChargedMinutes - newChargedMinutes;
-          
-            studentSubscribe.RemainingMinutes += deltaRemaining;
-            studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
-            studentSubscribe.ModefiedBy = userId;
+            // 5) Restore minutes to the old matching subscription, then deduct them from the new matching subscription.
+            var nowUtc = BusinessDateTime.UtcNow;
+            if (previousStudentSubscribe != null && newStudentSubscribe != null && previousStudentSubscribe.Id == newStudentSubscribe.Id)
+            {
+                ApplyRemainingMinutesAdjustment(previousStudentSubscribe, prevChargedMinutes - newChargedMinutes, userId, nowUtc);
+            }
+            else
+            {
+                ApplyRemainingMinutesAdjustment(previousStudentSubscribe, prevChargedMinutes, userId, nowUtc);
+                ApplyRemainingMinutesAdjustment(newStudentSubscribe, -newChargedMinutes, userId, nowUtc);
+            }
 
             // 6) ????? ??????? ???? (in-place ???? ????? ???? ????)
             _mapper.Map(model, report); // ????? ??????? ???????? ???
             report.ModifiedBy = userId;
-            report.ModifiedAt = BusinessDateTime.CairoNow;
+            report.ModifiedAt = BusinessDateTime.UtcNow;
             report.StudentId = student.Id; // ????? ?????
             report.IsDeleted = false;
             report.AttendStatueId = newStatusId;
             report.TeacherSalaryMinutes = newTeacherSalaryMinutes;
 
-            var subscribeType = studentSubscribe.StudentSubscribeType;
+            var subscribeType = pricingStudentSubscribe?.StudentSubscribeType;
             var pricePerUnit = ResolveHourlyRate(subscribeType);
             report.TeacherSalaryAmount = newTeacherSalaryMinutes > 0m ? CalculateTeacherSalary(pricePerUnit, newTeacherSalaryMinutes) : 0m;
 
@@ -478,23 +545,16 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
                 return output.CreateResponse(MessageCodes.StudentNotFound);
             }
 
-            var studentSubscribe = student.StudentSubscribes.LastOrDefault();
-            if (studentSubscribe == null)
-            {
-                return output.CreateResponse(MessageCodes.StudentSubscribeNotFound);
-            }
-
             var chargedMinutes = ResolveStudentConsumedMinutes(report.AttendStatueId, report.Minutes);
             if (chargedMinutes > 0)
             {
-                studentSubscribe.RemainingMinutes += chargedMinutes;
-                studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
-                studentSubscribe.ModefiedBy = userId;
+                var matchedStudentSubscribe = await GetStudentSubscriptionForReportMonthAsync(student.Id, report.CreationTime);
+                ApplyRemainingMinutesAdjustment(matchedStudentSubscribe, chargedMinutes, userId, BusinessDateTime.UtcNow);
             }
 
             report.IsDeleted = true;
             report.ModifiedBy = userId;
-            report.ModifiedAt = BusinessDateTime.CairoNow;
+            report.ModifiedAt = BusinessDateTime.UtcNow;
 
             await _unitOfWork.CommitAsync();
 
@@ -518,7 +578,14 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
 
             report.IsDeleted = false;
             report.ModifiedBy = userId;
-            report.ModifiedAt = BusinessDateTime.CairoNow;
+            report.ModifiedAt = BusinessDateTime.UtcNow;
+
+            var chargedMinutes = ResolveStudentConsumedMinutes(report.AttendStatueId, report.Minutes);
+            if (chargedMinutes > 0 && report.StudentId.HasValue)
+            {
+                var matchedStudentSubscribe = await GetStudentSubscriptionForReportMonthAsync(report.StudentId.Value, report.CreationTime);
+                ApplyRemainingMinutesAdjustment(matchedStudentSubscribe, -chargedMinutes, userId, report.ModifiedAt ?? BusinessDateTime.UtcNow);
+            }
 
             await _unitOfWork.CommitAsync();
             return output.CreateResponse(true);
@@ -581,6 +648,74 @@ namespace Orbits.GeneralProject.BLL.CircleReportService
             }
 
             return CalculateTeacherSalary(ResolveHourlyRate(subscribeType), teacherSalaryMinutes);
+        }
+
+        private async Task<StudentSubscribe?> GetLatestStudentSubscriptionAsync(int studentId)
+        {
+            return await _studentSubscribeRecordRepository
+                .GetAll()
+                .Include(x => x.StudentSubscribeType)
+                .Where(x => x.StudentId == studentId)
+                .OrderByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                .ThenByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+        }
+
+        private async Task<StudentSubscribe?> GetStudentSubscriptionForReportMonthAsync(int studentId, DateTime reportCreationTime)
+        {
+            var reportTimeInCairo = BusinessDateTime.ToCairo(reportCreationTime);
+            var (monthStartUtc, monthEndUtc) = BusinessDateTime.GetCairoMonthRangeUtc(reportTimeInCairo.Year, reportTimeInCairo.Month);
+            try
+            {
+                var matchedSubscribe = await _studentSubscribeRecordRepository
+                    .GetAll()
+                    .Include(x => x.StudentSubscribeType)
+                    .Where(x =>
+                        x.StudentId == studentId &&
+                        x.CreatedAt.HasValue &&
+                        x.CreatedAt.Value >= monthStartUtc &&
+                        x.CreatedAt.Value < monthEndUtc)
+                    .OrderByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(x => x.Id)
+                    .FirstOrDefaultAsync();
+
+                if (matchedSubscribe == null)
+                {
+                    _logger.LogWarning(
+                        "No monthly student subscription match was found. StudentId {StudentId}, ReportCreationTimeUtc {ReportCreationTimeUtc:o}, ReportMonth {ReportMonth:yyyy-MM}, MonthStartUtc {MonthStartUtc:o}, MonthEndUtc {MonthEndUtc:o}.",
+                        studentId,
+                        BusinessDateTime.EnsureUtc(reportCreationTime),
+                        reportTimeInCairo,
+                        monthStartUtc,
+                        monthEndUtc);
+                }
+
+                return matchedSubscribe;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to resolve monthly student subscription. StudentId {StudentId}, ReportCreationTimeUtc {ReportCreationTimeUtc:o}, ReportMonth {ReportMonth:yyyy-MM}, MonthStartUtc {MonthStartUtc:o}, MonthEndUtc {MonthEndUtc:o}.",
+                    studentId,
+                    BusinessDateTime.EnsureUtc(reportCreationTime),
+                    reportTimeInCairo,
+                    monthStartUtc,
+                    monthEndUtc);
+                throw;
+            }
+        }
+
+        private static void ApplyRemainingMinutesAdjustment(StudentSubscribe? studentSubscribe, int deltaMinutes, int userId, DateTime changedAtUtc)
+        {
+            if (studentSubscribe == null || deltaMinutes == 0)
+            {
+                return;
+            }
+
+            studentSubscribe.RemainingMinutes = (studentSubscribe.RemainingMinutes ?? 0) + deltaMinutes;
+            studentSubscribe.ModefiedAt = changedAtUtc;
+            studentSubscribe.ModefiedBy = userId;
         }
 
     }

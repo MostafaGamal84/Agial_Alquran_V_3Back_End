@@ -160,7 +160,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
     DateTime? dataMonth = null,          // month to report
     DateTime? compareMonth = null)       // month to compare against
         {
-            var now = BusinessDateTime.CairoNow;
+            var now = BusinessDateTime.UtcNow;
             var cairoNow = BusinessDateTime.CairoNow;
             var currentMonthReference = dataMonth.HasValue
                 ? new DateTime(dataMonth.Value.Year, dataMonth.Value.Month, 1)
@@ -309,7 +309,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
             var studentSubscribe = _StudentSubscribeRepo.GetById(entity.StudentSubscribes.Where(x => x.StudentPaymentId == entity.Id).FirstOrDefault().Id);
 
             entity.ModefiedBy = userId;
-            entity.ModefiedAt = BusinessDateTime.CairoNow;
+            entity.ModefiedAt = BusinessDateTime.UtcNow;
             if (dto.PayStatue == true)
             {
 
@@ -317,17 +317,17 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                     ? Math.Round(dto.Amount.Value, 2, MidpointRounding.AwayFromZero)
                     : null;
                 entity.ReceiptPath = dto.ReceiptPath!=null ? _fileService.CreateFileAsync(dto.ReceiptPath,"StudentInvoices/").Result.Data.FilePath : null;
-                entity.PaymentDate = BusinessDateTime.CairoNow;
+                entity.PaymentDate = BusinessDateTime.UtcNow;
                 // ✅ يحدث فقط لو فيها قيمة
                 if (dto.CurrencyId.HasValue)
                 {
                     entity.CurrencyId = dto.CurrencyId.Value;
                 }
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = BusinessDateTime.CairoNow;
+                entity.ModefiedAt = BusinessDateTime.UtcNow;
                 entity.PayStatue = dto.PayStatue;
                 entity.IsCancelled = false;
-                studentSubscribe.ModefiedAt = BusinessDateTime.CairoNow;
+                studentSubscribe.ModefiedAt = BusinessDateTime.UtcNow;
                 studentSubscribe.ModefiedBy = userId;
                 studentSubscribe.PayStatus = dto.PayStatue;
             }
@@ -337,7 +337,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.IsCancelled = true;
                 entity.PayStatue = false;
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = BusinessDateTime.CairoNow;
+                entity.ModefiedAt = BusinessDateTime.UtcNow;
                 //_StudentSubscribeRepo.Delete(studentSubscribe);
             }
 
@@ -346,7 +346,7 @@ namespace Orbits.GeneralProject.BLL.StudentPaymentService
                 entity.IsCancelled = false;
                 entity.PayStatue = false;
                 entity.ModefiedBy = userId;
-                entity.ModefiedAt = BusinessDateTime.CairoNow;
+                entity.ModefiedAt = BusinessDateTime.UtcNow;
             }
 
             await _unitOfWork.CommitAsync();

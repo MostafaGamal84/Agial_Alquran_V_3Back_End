@@ -328,6 +328,8 @@ namespace Orbits.GeneralProject.Core.Entities
                 entity.Property(e => e.CreatedAt).HasColumnType("datetime");
 
                 entity.Property(e => e.ModefiedAt).HasColumnType("datetime");
+
+                entity.Property(e => e.Name).HasMaxLength(200);
             });
 
             modelBuilder.Entity<RefreshToken>(entity =>

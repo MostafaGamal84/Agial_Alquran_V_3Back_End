@@ -30,6 +30,8 @@ namespace Orbits.GeneralProject.DTO.CircleReportDtos
         public string? StudentName { get; set; }
         public string? TeacherName { get; set; }
         public int? AttendStatueId { get; set; }
+        public decimal? TeacherSalaryMinutes { get; set; }
+        public decimal? TeacherSalaryAmount { get; set; }
         public bool? IsVisual { get; set; }
         public string? NextCircleOrder { get; set; }
       

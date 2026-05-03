@@ -47,6 +47,13 @@ namespace OrbitsProject.API.Controllers
             [FromQuery] int? nationalityId)
              => Ok(_StudentSubscribBLL.GetStudentSubscribesWithPayment(paginationFilterModel, studentId, nationalityId));
 
+        [HttpGet("GetActiveStudentsBySubscribe"), ProducesResponseType(typeof(IResponse<PagedResultDto<ViewStudentSubscribeReDto>>), 200)]
+        public async Task<IActionResult> GetActiveStudentsBySubscribe(
+            [FromQuery] FilteredResultRequestDto paginationFilterModel,
+            [FromQuery] int subscribeId,
+            [FromQuery] int? nationalityId)
+             => Ok(_StudentSubscribBLL.GetActiveStudentsBySubscribe(paginationFilterModel, UserId, subscribeId, nationalityId));
+
         [HttpGet("GetStudentSubscribeHistory"), ProducesResponseType(typeof(IResponse<PagedResultDto<StudentSubscribeHistoryReDto>>), 200)]
         public async Task<IActionResult> GetStudentSubscribeHistory(
             [FromQuery] FilteredResultRequestDto paginationFilterModel,

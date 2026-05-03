@@ -276,7 +276,7 @@ namespace Orbits.GeneralProject.BLL.AuditLogService
                 SourceRoute = projection.SourceRoute,
                 RequestPath = projection.RequestPath,
                 HttpMethod = projection.HttpMethod,
-                CreatedAt = BusinessDateTime.NormalizeStoredLocalDateTime(projection.CreatedAt),
+                CreatedAt = BusinessDateTime.EnsureUtc(projection.CreatedAt),
                 Changes = DeserializeChanges(projection.ChangesJson),
                 Participants = projection.Participants
             };

@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orbits.GeneralProject.BLL.BaseReponse;
 using Orbits.GeneralProject.BLL.Constants;
@@ -28,13 +29,14 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
         private readonly IRepository<StudentPayment> _StudentPaymentRepo;
         private readonly IRepository<Subscribe> _SubscribeRepo;
         private readonly IRepository<SubscribeType> _SubscribeTypeRepo;
+        private readonly IRepository<CircleReport> _CircleReportRepo;
         private readonly IRepository<Nationality> _nationalityRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRepository<ManagerStudent> _managerStudentRepo;
         private readonly ILogger<StudentSubscribeBLL> _logger;
 
 
-        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<StudentSubscribeHistory> studentSubscribeHistoryRepo, IRepository<Subscribe> subscribeRepo, IRepository<SubscribeType> subscribeTypeRepo, IRepository<StudentPayment> studentPaymentRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork, IRepository<ManagerStudent> managerStudentRepo, ILogger<StudentSubscribeBLL> logger) : base(mapper)
+        public StudentSubscribeBLL(IMapper mapper, IRepository<User> UserRepo, IRepository<StudentSubscribe> studentSubscribeRepo, IRepository<StudentSubscribeHistory> studentSubscribeHistoryRepo, IRepository<Subscribe> subscribeRepo, IRepository<SubscribeType> subscribeTypeRepo, IRepository<StudentPayment> studentPaymentRepo, IRepository<CircleReport> circleReportRepo, IRepository<Nationality> nationalityRepo, IUnitOfWork unitOfWork, IRepository<ManagerStudent> managerStudentRepo, ILogger<StudentSubscribeBLL> logger) : base(mapper)
         {
             _mapper = mapper;
             _UserRepo = UserRepo;
@@ -43,6 +45,7 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
             _SubscribeRepo = subscribeRepo;
             _SubscribeTypeRepo = subscribeTypeRepo;
             _StudentPaymentRepo = studentPaymentRepo;
+            _CircleReportRepo = circleReportRepo;
             _nationalityRepo = nationalityRepo;
             _unitOfWork = unitOfWork;
             _managerStudentRepo = managerStudentRepo;
@@ -152,11 +155,92 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
                 excluededColumns: null
             );
 
+            PopulateMonthlyConsumption(paged?.Items);
+
             //// If you want NotFound when there are no items:
             //if (paged == null || paged.Items == null || paged.Items.Count == 0)
             //    return output.CreateResponse(MessageCodes.NotFound);
 
             return output.CreateResponse(paged);
+        }
+
+        public IResponse<PagedResultDto<ViewStudentSubscribeReDto>> GetActiveStudentsBySubscribe(
+            FilteredResultRequestDto pagedDto,
+            int userId,
+            int subscribeId,
+            int? nationalityId)
+        {
+            var output = new Response<PagedResultDto<ViewStudentSubscribeReDto>>();
+
+            if (subscribeId <= 0)
+            {
+                return output.CreateResponse(new PagedResultDto<ViewStudentSubscribeReDto>(0, new List<ViewStudentSubscribeReDto>()));
+            }
+
+            var me = _UserRepo.GetById(userId);
+            if (me == null)
+            {
+                return output.AppendError(MessageCodes.NotFound);
+            }
+
+            var searchWord = pagedDto.SearchTerm?.Trim();
+            var sw = searchWord?.ToLower();
+            var residentGroup = ResidentGroupFilterHelper.Parse(pagedDto?.ResidentGroup);
+            var residentIdsFilter = ResidentGroupFilterHelper.ResolveResidentIds(_nationalityRepo.GetAll(), residentGroup);
+            bool applyResidentFilter = residentIdsFilter != null;
+            var managerStudentsQuery = _managerStudentRepo.GetAll();
+
+            var baseQuery = _StudentSubscribeRepo
+                .GetAll()
+                .AsNoTracking()
+                .Where(x =>
+                    x.StudentId.HasValue &&
+                    x.StudentSubscribeId.HasValue &&
+                    x.Student != null &&
+                    x.Student.IsDeleted == false &&
+                    x.Student.UserTypeId == (int)UserTypesEnum.Student &&
+                    (x.StudentPayment == null || x.StudentPayment.IsCancelled != true) &&
+                    (!(nationalityId.HasValue && nationalityId.Value > 0) || x.Student.NationalityId == nationalityId.Value) &&
+                    (!(me.UserTypeId == (int)UserTypesEnum.BranchLeader) || x.Student.BranchId == me.BranchId) &&
+                    (!(me.UserTypeId == (int)UserTypesEnum.Manager) || managerStudentsQuery.Any(ms => ms.ManagerId == me.Id && ms.StudentId == x.StudentId)) &&
+                    (!(me.UserTypeId == (int)UserTypesEnum.Teacher) || x.Student.TeacherId == me.Id) &&
+                    (!applyResidentFilter || (x.Student.ResidentId.HasValue && residentIdsFilter!.Contains(x.Student.ResidentId.Value))) &&
+                    (
+                        string.IsNullOrEmpty(sw) ||
+                        (x.Student.FullName != null && x.Student.FullName.ToLower().Contains(sw)) ||
+                        (x.Student.Mobile != null && x.Student.Mobile.ToLower().Contains(sw)) ||
+                        (x.Student.Email != null && x.Student.Email.ToLower().Contains(sw))
+                    ));
+
+            var latestSubscriptionIdsQuery = baseQuery
+                .GroupBy(x => x.StudentId!.Value)
+                .Select(group => group
+                    .OrderByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(x => x.Id)
+                    .Select(x => x.Id)
+                    .First());
+
+            var latestSubscriptionsQuery = _StudentSubscribeRepo
+                .GetAll()
+                .AsNoTracking()
+                .Include(x => x.Student)
+                .Include(x => x.StudentSubscribeNavigation)
+                .Include(x => x.StudentSubscribeType)
+                .Where(x =>
+                    latestSubscriptionIdsQuery.Contains(x.Id) &&
+                    x.StudentSubscribeId == subscribeId);
+
+            int totalCount = latestSubscriptionsQuery.Count();
+
+            var items = latestSubscriptionsQuery
+                .OrderBy(x => x.Student != null ? x.Student.FullName : string.Empty)
+                .ThenByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                .Skip(pagedDto.SkipCount)
+                .Take(pagedDto.MaxResultCount)
+                .ToList();
+
+            var mappedItems = _mapper.Map<List<ViewStudentSubscribeReDto>>(items);
+            return output.CreateResponse(new PagedResultDto<ViewStudentSubscribeReDto>(totalCount, mappedItems));
         }
 
         public IResponse<PagedResultDto<StudentSubscribeHistoryReDto>> GetStudentSubscribeHistory(
@@ -462,6 +546,140 @@ namespace Orbits.GeneralProject.BLL.StudentSubscribeService
 
         private static SubscribeTypeCategory? ConvertGroup(int? groupValue)
             => groupValue.HasValue ? (SubscribeTypeCategory?)groupValue.Value : null;
+
+        private void PopulateMonthlyConsumption(IReadOnlyList<ViewStudentSubscribeReDto>? items)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return;
+            }
+
+            var subscriptionMonths = items
+                .Where(x => x.StudentId.HasValue && x.StartDate.HasValue)
+                .Select(x =>
+                {
+                    var cairoStart = BusinessDateTime.ToCairo(x.StartDate!.Value);
+                    var (monthStartUtc, monthEndUtc) = BusinessDateTime.GetCairoMonthRangeUtc(cairoStart.Year, cairoStart.Month);
+
+                    return new
+                    {
+                        StudentId = x.StudentId!.Value,
+                        MonthKey = BuildMonthlyConsumptionKey(x.StudentId.Value, cairoStart.Year, cairoStart.Month),
+                        MonthStartUtc = monthStartUtc,
+                        MonthEndUtc = monthEndUtc
+                    };
+                })
+                .GroupBy(x => x.MonthKey)
+                .Select(x => x.First())
+                .ToList();
+
+            if (subscriptionMonths.Count == 0)
+            {
+                return;
+            }
+
+            var studentIds = subscriptionMonths
+                .Select(x => x.StudentId)
+                .Distinct()
+                .ToList();
+
+            var requestedMonthKeys = subscriptionMonths
+                .Select(x => x.MonthKey)
+                .ToHashSet(StringComparer.Ordinal);
+
+            var overallStartUtc = subscriptionMonths.Min(x => x.MonthStartUtc);
+            var overallEndUtc = subscriptionMonths.Max(x => x.MonthEndUtc);
+
+            var reports = _CircleReportRepo
+                .GetAll()
+                .AsNoTracking()
+                .Where(x =>
+                    x.StudentId.HasValue &&
+                    studentIds.Contains(x.StudentId.Value) &&
+                    x.CreationTime >= overallStartUtc &&
+                    x.CreationTime < overallEndUtc &&
+                    x.IsDeleted == false)
+                .Select(x => new
+                {
+                    StudentId = x.StudentId!.Value,
+                    x.CreationTime,
+                    x.Minutes,
+                    x.AttendStatueId
+                })
+                .ToList();
+
+            var consumptionLookup = reports
+                .Select(x =>
+                {
+                    var cairoCreationTime = BusinessDateTime.ToCairo(x.CreationTime);
+                    int consumedMinutes = ResolveConsumedMinutes(x.AttendStatueId, x.Minutes);
+
+                    return new
+                    {
+                        MonthKey = BuildMonthlyConsumptionKey(x.StudentId, cairoCreationTime.Year, cairoCreationTime.Month),
+                        ConsumedMinutes = consumedMinutes
+                    };
+                })
+                .Where(x => requestedMonthKeys.Contains(x.MonthKey))
+                .GroupBy(x => x.MonthKey)
+                .ToDictionary(
+                    x => x.Key,
+                    x =>
+                    {
+                        int consumedMinutes = x.Sum(y => y.ConsumedMinutes);
+                        int sessionsCount = x.Count(y => y.ConsumedMinutes > 0);
+                        decimal consumedHours = Math.Round(consumedMinutes / 60m, 2, MidpointRounding.AwayFromZero);
+
+                        return new
+                        {
+                            ConsumedMinutes = consumedMinutes,
+                            ConsumedSessionsCount = sessionsCount,
+                            ConsumedHours = consumedHours
+                        };
+                    },
+                    StringComparer.Ordinal);
+
+            foreach (var item in items)
+            {
+                if (!item.StudentId.HasValue || !item.StartDate.HasValue)
+                {
+                    continue;
+                }
+
+                var cairoStart = BusinessDateTime.ToCairo(item.StartDate.Value);
+                var monthKey = BuildMonthlyConsumptionKey(item.StudentId.Value, cairoStart.Year, cairoStart.Month);
+
+                if (!consumptionLookup.TryGetValue(monthKey, out var usage))
+                {
+                    item.ConsumedMinutes = 0;
+                    item.ConsumedSessionsCount = 0;
+                    item.ConsumedHours = 0m;
+                    continue;
+                }
+
+                item.ConsumedMinutes = usage.ConsumedMinutes;
+                item.ConsumedSessionsCount = usage.ConsumedSessionsCount;
+                item.ConsumedHours = usage.ConsumedHours;
+            }
+        }
+
+        private static int ResolveConsumedMinutes(int? attendStatusId, double? minutes)
+        {
+            if (!CountsForConsumption(attendStatusId) || !minutes.HasValue)
+            {
+                return 0;
+            }
+
+            return Convert.ToInt32(minutes.Value);
+        }
+
+        private static bool CountsForConsumption(int? attendStatusId)
+        {
+            return attendStatusId == 1 || attendStatusId == 3;
+        }
+
+        private static string BuildMonthlyConsumptionKey(int studentId, int year, int month)
+            => $"{studentId}:{year:D4}-{month:D2}";
 
         private static (decimal Amount, int Currency) ResolvePaymentDetails(Subscribe subscribe, SubscribeTypeCategory group)
         {

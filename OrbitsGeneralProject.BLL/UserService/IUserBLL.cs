@@ -17,6 +17,7 @@ namespace Orbits.GeneralProject.BLL.UserService
         Task<IResponse<ProfileDto>> GetProfile(int userId);
         Task<IResponse<bool>> UpdateProfile(UpdateProfileDto updateProfileDto, int userId);
         Task<IResponse<bool>> DisableUser(int id, bool statue);
+        Task<IResponse<BulkDisableUsersResultDto>> DisableUsersBulk(BulkDisableUsersDto model, int userId);
         Task<IResponse<bool>> Restore(int id, int userId);
 
 

@@ -5,14 +5,17 @@ namespace Orbits.GeneralProject.Core.Infrastructure
         private static readonly Lazy<TimeZoneInfo> CairoTimeZoneResolver = new(ResolveCairoTimeZone);
         private static readonly Lazy<TimeZoneInfo> SaudiTimeZoneResolver = new(ResolveSaudiTimeZone);
 
+        public const string CairoTimeZoneId = "Africa/Cairo";
+        public const string SaudiTimeZoneId = "Asia/Riyadh";
+
         public static TimeZoneInfo CairoTimeZone => CairoTimeZoneResolver.Value;
         public static TimeZoneInfo SaudiTimeZone => SaudiTimeZoneResolver.Value;
 
         public static DateTime UtcNow => DateTime.UtcNow;
 
-        public static DateTime CairoNow => NormalizeStoredLocalDateTime(TimeZoneInfo.ConvertTimeFromUtc(UtcNow, CairoTimeZone));
+        public static DateTime CairoNow => ConvertUtcToTimeZone(UtcNow, CairoTimeZone);
 
-        public static DateTime SaudiNow => NormalizeStoredLocalDateTime(TimeZoneInfo.ConvertTimeFromUtc(UtcNow, SaudiTimeZone));
+        public static DateTime SaudiNow => ConvertUtcToTimeZone(UtcNow, SaudiTimeZone);
 
         public static DateTime EnsureUtc(DateTime value)
         {
@@ -24,41 +27,80 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             };
         }
 
+        public static DateTime EnsureUnspecified(DateTime value)
+        {
+            return value.Kind == DateTimeKind.Unspecified
+                ? value
+                : DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
+        }
+
         public static DateTime ToCairo(DateTime value)
         {
-            return value.Kind switch
-            {
-                DateTimeKind.Unspecified => NormalizeStoredLocalDateTime(value),
-                DateTimeKind.Utc => NormalizeStoredLocalDateTime(TimeZoneInfo.ConvertTimeFromUtc(value, CairoTimeZone)),
-                _ => NormalizeStoredLocalDateTime(TimeZoneInfo.ConvertTime(value, CairoTimeZone))
-            };
+            return ConvertUtcToTimeZone(EnsureUtc(value), CairoTimeZone);
+        }
+
+        public static DateTime ToSaudi(DateTime value)
+        {
+            return ConvertUtcToTimeZone(EnsureUtc(value), SaudiTimeZone);
+        }
+
+        public static DateTime ConvertUtcToTimeZone(DateTime utcValue, TimeZoneInfo timeZone)
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(EnsureUtc(utcValue), timeZone);
+        }
+
+        public static DateTime ConvertLocalTimeToUtc(DateTime localValue, TimeZoneInfo timeZone)
+        {
+            var unspecifiedLocal = EnsureUnspecified(localValue);
+            var normalizedLocal = MoveToFirstValidLocalTime(unspecifiedLocal, timeZone);
+            return TimeZoneInfo.ConvertTimeToUtc(normalizedLocal, timeZone);
         }
 
         public static DateTime ToUtcFromCairoLocal(DateTime value)
         {
-            return NormalizeStoredLocalDateTime(value);
+            return ConvertLocalTimeToUtc(value, CairoTimeZone);
+        }
+
+        public static DateTime ToUtcFromSaudiLocal(DateTime value)
+        {
+            return ConvertLocalTimeToUtc(value, SaudiTimeZone);
         }
 
         public static DateTime NormalizeClientDateTimeToCairoStorage(DateTime value)
         {
-            return value.Kind switch
-            {
-                DateTimeKind.Utc => ToCairo(value),
-                DateTimeKind.Local => ToCairo(value),
-                _ => ToCairoFromSaudiLocal(value)
-            };
+            return NormalizeClientDateTimeToUtc(value);
         }
 
         public static DateTime NormalizeClientDateTimeToUtc(DateTime value)
         {
-            return NormalizeClientDateTimeToCairoStorage(value);
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => ToUtcFromSaudiLocal(value)
+            };
+        }
+
+        public static (DateTime StartUtc, DateTime EndUtc) GetDayRangeUtc(DateTime localDate, TimeZoneInfo timeZone)
+        {
+            var normalizedLocal = EnsureUnspecified(localDate);
+            var startLocal = new DateTime(normalizedLocal.Year, normalizedLocal.Month, normalizedLocal.Day, 0, 0, 0, DateTimeKind.Unspecified);
+            var endLocal = startLocal.AddDays(1);
+
+            return (ConvertLocalTimeToUtc(startLocal, timeZone), ConvertLocalTimeToUtc(endLocal, timeZone));
+        }
+
+        public static (DateTime StartUtc, DateTime EndUtc) GetMonthRangeUtc(int year, int month, TimeZoneInfo timeZone)
+        {
+            var startLocal = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Unspecified);
+            var endLocal = startLocal.AddMonths(1);
+
+            return (ConvertLocalTimeToUtc(startLocal, timeZone), ConvertLocalTimeToUtc(endLocal, timeZone));
         }
 
         public static (DateTime StartUtc, DateTime EndUtc) GetCairoDayRangeUtc(DateTime cairoDate)
         {
-            var localValue = NormalizeStoredLocalDateTime(cairoDate);
-            var startLocal = new DateTime(localValue.Year, localValue.Month, localValue.Day, 0, 0, 0, DateTimeKind.Unspecified);
-            return (startLocal, startLocal.AddDays(1));
+            return GetDayRangeUtc(cairoDate, CairoTimeZone);
         }
 
         public static (DateTime StartUtc, DateTime EndUtc) GetCurrentCairoMonthRangeUtc()
@@ -69,8 +111,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
 
         public static (DateTime StartUtc, DateTime EndUtc) GetCairoMonthRangeUtc(int year, int month)
         {
-            var startLocal = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Unspecified);
-            return (startLocal, startLocal.AddMonths(1));
+            return GetMonthRangeUtc(year, month, CairoTimeZone);
         }
 
         public static bool IsInSameCairoMonth(DateTime firstValue, DateTime secondValue)
@@ -84,26 +125,40 @@ namespace Orbits.GeneralProject.Core.Infrastructure
 
         public static DateTime ToCairoFromSaudiLocal(DateTime value)
         {
-            var saudiLocalValue = value.Kind == DateTimeKind.Unspecified
-                ? value
-                : DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
-
-            var cairoValue = TimeZoneInfo.ConvertTime(saudiLocalValue, SaudiTimeZone, CairoTimeZone);
-            return NormalizeStoredLocalDateTime(cairoValue);
+            var utcValue = ToUtcFromSaudiLocal(value);
+            return ToCairo(utcValue);
         }
 
         public static DateTime NormalizeStoredLocalDateTime(DateTime value)
         {
-            return value.Kind == DateTimeKind.Unspecified
-                ? value
-                : DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
+            return EnsureUtc(value);
+        }
+
+        private static DateTime MoveToFirstValidLocalTime(DateTime localValue, TimeZoneInfo timeZone)
+        {
+            if (!timeZone.IsInvalidTime(localValue))
+            {
+                return localValue;
+            }
+
+            var adjustedValue = localValue;
+
+            // Some business ranges start exactly at local midnight. When DST starts at 00:00
+            // (for example Cairo on Friday, April 24, 2026), that wall-clock time does not exist.
+            // Move forward until we reach the first valid local instant instead of throwing.
+            while (timeZone.IsInvalidTime(adjustedValue))
+            {
+                adjustedValue = adjustedValue.AddMinutes(1);
+            }
+
+            return adjustedValue;
         }
 
         private static TimeZoneInfo ResolveCairoTimeZone()
         {
             string[] preferredTimeZoneIds =
             {
-                "Africa/Cairo",
+                CairoTimeZoneId,
                 "Egypt Standard Time"
             };
 
@@ -128,7 +183,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
         {
             string[] preferredTimeZoneIds =
             {
-                "Asia/Riyadh",
+                SaudiTimeZoneId,
                 "Arab Standard Time"
             };
 

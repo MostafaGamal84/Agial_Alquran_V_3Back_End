@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.Concurrent;
+using System.Threading;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Orbits.GeneralProject.BLL.BaseReponse;
@@ -19,6 +21,11 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
         private const int AttendStatusPresent = 1;
         private const int AttendStatusAbsentWithExcuse = 2;
         private const int AttendStatusAbsentWithoutExcuse = 3;
+        private const string FoundationSectionName = "تأسيس";
+        private const string RepetitionSectionName = "ترديد";
+        private const string MemorizationSectionName = "حفظ";
+        private const string OtherSectionName = "أخرى";
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> GenerationLocks = new();
 
         private readonly IRepository<CircleReport> _circleReportRepository;
         private readonly IRepository<TeacherSallary> _teacherSallaryRepository;
@@ -60,133 +67,204 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     monthStart = monthStart.AddMonths(-1);
                 }
 
-                DateTime monthEnd = monthStart.AddMonths(1);
+                var generationKey = $"{monthStart.Year:D4}-{monthStart.Month:D2}";
+                var generationLock = GenerationLocks.GetOrAdd(generationKey, _ => new SemaphoreSlim(1, 1));
+                await generationLock.WaitAsync();
 
-                // Keep invoice generation aligned with the monthly details endpoints,
-                // which only include active (non-deleted) teacher report records.
-                var groupedTeacherRecords = await _circleReportRepository
-                    .Where(report =>
-                        report.TeacherId.HasValue &&
-                        !report.IsDeleted &&
-                        report.CreationTime >= monthStart &&
-                        report.CreationTime < monthEnd)
-                    .GroupBy(report => report.TeacherId!.Value)
-                    .Select(group => new
+                try
+                {
+                    var (monthStartUtc, monthEndUtc) = BusinessDateTime.GetCairoMonthRangeUtc(monthStart.Year, monthStart.Month);
+                    await BackfillMissingSalarySnapshotsAsync(monthStartUtc, monthEndUtc);
+
+                    // Keep invoice generation aligned with the monthly details endpoints,
+                    // which only include active (non-deleted) teacher report records.
+                    var reportSnapshots = await _circleReportRepository
+                        .Where(report =>
+                            report.TeacherId.HasValue &&
+                            !report.IsDeleted &&
+                            report.CreationTime >= monthStartUtc &&
+                            report.CreationTime < monthEndUtc)
+                        .Select(report => new
+                        {
+                            TeacherId = report.TeacherId!.Value,
+                            AttendStatusId = report.AttendStatueId,
+                            RawMinutes = report.Minutes,
+                            SnapshotMinutes = report.TeacherSalaryMinutes,
+                            SnapshotSalary = report.TeacherSalaryAmount,
+                            HourPrice = report.Student != null
+                                ? report.Student.StudentSubscribes
+                                    .Where(s =>
+                                        s.CreatedAt.HasValue &&
+                                        s.CreatedAt.Value >= monthStartUtc &&
+                                        s.CreatedAt.Value < monthEndUtc)
+                                    .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                    .ThenByDescending(s => s.Id)
+                                    .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                    .FirstOrDefault()
+                                : null,
+                            FallbackHourPrice = report.Student != null
+                                ? report.Student.StudentSubscribes
+                                    .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                    .ThenByDescending(s => s.Id)
+                                    .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                    .FirstOrDefault()
+                                : null
+                        })
+                        .ToListAsync();
+
+                    var groupedTeacherRecords = reportSnapshots
+                        .GroupBy(report => report.TeacherId)
+                        .Select(group => new
+                        {
+                            TeacherId = group.Key,
+                            TotalMinutes = group.Sum(r => ResolveSalaryMinutes(r.AttendStatusId, r.RawMinutes, r.SnapshotMinutes)),
+                            TotalSalary = group.Sum(r => ResolveSalaryAmount(
+                                r.AttendStatusId,
+                                r.RawMinutes,
+                                r.SnapshotMinutes,
+                                r.SnapshotSalary,
+                                r.HourPrice ?? r.FallbackHourPrice))
+                        })
+                        .ToList();
+
+                    var result = new TeacherSallaryGenerationResultDto
                     {
-                        TeacherId = group.Key,
-                        TotalMinutes = group.Sum(r => r.TeacherSalaryMinutes ?? 0m),
-                        TotalSalary = group.Sum(r => r.TeacherSalaryAmount ?? 0m)
-                    })
-                    .ToListAsync();
+                        Month = monthStart
+                    };
 
-                var result = new TeacherSallaryGenerationResultDto
-                {
-                    Month = monthStart
-                };
-
-                if (groupedTeacherRecords.Count == 0)
-                {
-                    return response.CreateResponse(result);
-                }
-
-                var existingInvoices = await _teacherSallaryRepository
-                    .Where(invoice =>
-                        invoice.TeacherId.HasValue &&
-                        invoice.Month.HasValue &&
-                        invoice.Month.Value.Year == monthStart.Year &&
-                        invoice.Month.Value.Month == monthStart.Month)
-                    .ToListAsync();
-
-                var existingByTeacher = new Dictionary<int, TeacherSallary>();
-                foreach (var invoice in existingInvoices)
-                {
-                    if (invoice.TeacherId.HasValue && !existingByTeacher.ContainsKey(invoice.TeacherId.Value))
+                    if (groupedTeacherRecords.Count == 0)
                     {
-                        existingByTeacher.Add(invoice.TeacherId.Value, invoice);
+                        return response.CreateResponse(result);
                     }
-                }
 
-                var newInvoices = new List<TeacherSallary>();
-                bool hasChanges = false;
+                    var expectedSalaryByTeacher = groupedTeacherRecords.ToDictionary(
+                        group => group.TeacherId,
+                        group => (double)Math.Round(group.TotalSalary, 2, MidpointRounding.AwayFromZero));
 
-                foreach (var group in groupedTeacherRecords)
-                {
-                    result.TotalTeachers++;
-                    result.TotalMinutes += (double)group.TotalMinutes;
-                    var roundedAmount = Math.Round(group.TotalSalary, 2, MidpointRounding.AwayFromZero);
-                    var roundedAmountAsDouble = (double)roundedAmount;
-                    result.TotalSalary += roundedAmountAsDouble;
+                    var existingInvoices = await FilterActiveInvoices(_teacherSallaryRepository
+                        .Where(invoice =>
+                            invoice.TeacherId.HasValue &&
+                            invoice.Month.HasValue &&
+                            invoice.Month.Value.Year == monthStart.Year &&
+                            invoice.Month.Value.Month == monthStart.Month))
+                        .OrderByDescending(invoice => invoice.IsPayed == true)
+                        .ThenByDescending(invoice => invoice.ModefiedAt ?? invoice.CreatedAt ?? DateTime.MinValue)
+                        .ThenByDescending(invoice => invoice.Id)
+                        .ToListAsync();
 
-                    if (existingByTeacher.TryGetValue(group.TeacherId, out var existingInvoice))
+                    var duplicateInvoices = new List<TeacherSallary>();
+                    var existingByTeacher = new Dictionary<int, TeacherSallary>();
+                    foreach (var teacherGroup in existingInvoices
+                        .Where(invoice => invoice.TeacherId.HasValue)
+                        .GroupBy(invoice => invoice.TeacherId!.Value))
                     {
-                        if (existingInvoice.IsPayed == true)
+                        expectedSalaryByTeacher.TryGetValue(teacherGroup.Key, out var expectedSalary);
+                        var canonicalInvoice = SelectCanonicalInvoice(
+                            teacherGroup,
+                            expectedSalaryByTeacher.ContainsKey(teacherGroup.Key) ? expectedSalary : (double?)null);
+
+                        existingByTeacher[teacherGroup.Key] = canonicalInvoice;
+
+                        foreach (var duplicateInvoice in teacherGroup.Where(invoice => invoice.Id != canonicalInvoice.Id))
                         {
-                            result.SkippedPaidInvoices++;
-                            continue;
+                            duplicateInvoices.Add(duplicateInvoice);
                         }
+                    }
 
-                        bool shouldUpdate = false;
+                    var newInvoices = new List<TeacherSallary>();
+                    bool hasChanges = false;
 
-                        if (!existingInvoice.Month.HasValue || existingInvoice.Month.Value.Date != monthStart.Date)
+                    foreach (var duplicateInvoice in duplicateInvoices)
+                    {
+                        if (TryMarkInvoiceAsDeleted(duplicateInvoice, createdBy))
                         {
-                            existingInvoice.Month = monthStart;
-                            shouldUpdate = true;
-                        }
-
-                        if (existingInvoice.Sallary == null || Math.Abs(existingInvoice.Sallary.Value - roundedAmountAsDouble) > 0.01)
-                        {
-                            existingInvoice.Sallary = roundedAmountAsDouble;
-                            shouldUpdate = true;
-                        }
-
-                        if (shouldUpdate)
-                        {
-                            existingInvoice.ModefiedAt = BusinessDateTime.CairoNow;
-                            existingInvoice.ModefiedBy = createdBy;
-                            result.UpdatedInvoices++;
                             hasChanges = true;
                         }
-
-                        if (group.TotalMinutes <= 0m)
-                        {
-                            result.SkippedZeroValueInvoices++;
-                        }
                     }
-                    else
+
+                    foreach (var group in groupedTeacherRecords)
                     {
-                        if (group.TotalMinutes <= 0m)
+                        result.TotalTeachers++;
+                        result.TotalMinutes += (double)group.TotalMinutes;
+                        var roundedAmount = Math.Round(group.TotalSalary, 2, MidpointRounding.AwayFromZero);
+                        var roundedAmountAsDouble = (double)roundedAmount;
+                        result.TotalSalary += roundedAmountAsDouble;
+
+                        if (existingByTeacher.TryGetValue(group.TeacherId, out var existingInvoice))
                         {
-                            result.SkippedZeroValueInvoices++;
-                            continue;
+                            if (existingInvoice.IsPayed == true)
+                            {
+                                result.SkippedPaidInvoices++;
+                                continue;
+                            }
+
+                            bool shouldUpdate = false;
+
+                            if (!existingInvoice.Month.HasValue || existingInvoice.Month.Value.Date != monthStart.Date)
+                            {
+                                existingInvoice.Month = monthStart;
+                                shouldUpdate = true;
+                            }
+
+                            if (existingInvoice.Sallary == null || Math.Abs(existingInvoice.Sallary.Value - roundedAmountAsDouble) > 0.01)
+                            {
+                                existingInvoice.Sallary = roundedAmountAsDouble;
+                                shouldUpdate = true;
+                            }
+
+                            if (shouldUpdate)
+                            {
+                                existingInvoice.ModefiedAt = BusinessDateTime.UtcNow;
+                                existingInvoice.ModefiedBy = createdBy;
+                                result.UpdatedInvoices++;
+                                hasChanges = true;
+                            }
+
+                            if (group.TotalMinutes <= 0m)
+                            {
+                                result.SkippedZeroValueInvoices++;
+                            }
                         }
-
-                        var invoice = new TeacherSallary
+                        else
                         {
-                            TeacherId = group.TeacherId,
-                            Month = monthStart,
-                            Sallary = roundedAmountAsDouble,
-                            CreatedAt = BusinessDateTime.CairoNow,
-                            CreatedBy = createdBy,
-                            IsPayed = false
-                        };
+                            if (group.TotalMinutes <= 0m)
+                            {
+                                result.SkippedZeroValueInvoices++;
+                                continue;
+                            }
 
-                        newInvoices.Add(invoice);
-                        result.CreatedInvoices++;
-                        hasChanges = true;
+                            var invoice = new TeacherSallary
+                            {
+                                TeacherId = group.TeacherId,
+                                Month = monthStart,
+                                Sallary = roundedAmountAsDouble,
+                                CreatedAt = BusinessDateTime.UtcNow,
+                                CreatedBy = createdBy,
+                                IsPayed = false
+                            };
+
+                            newInvoices.Add(invoice);
+                            result.CreatedInvoices++;
+                            hasChanges = true;
+                        }
                     }
-                }
 
-                if (newInvoices.Count > 0)
+                    if (newInvoices.Count > 0)
+                    {
+                        _teacherSallaryRepository.Add(newInvoices);
+                    }
+
+                    if (hasChanges)
+                    {
+                        await _unitOfWork.CommitAsync();
+                    }
+
+                    return response.CreateResponse(result);
+                }
+                finally
                 {
-                    _teacherSallaryRepository.Add(newInvoices);
+                    generationLock.Release();
                 }
-
-                if (hasChanges)
-                {
-                    await _unitOfWork.CommitAsync();
-                }
-
-                return response.CreateResponse(result);
             }
             catch (Exception ex)
             {
@@ -200,14 +278,21 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
             try
             {
+                if (month.HasValue)
+                {
+                    await GenerateMonthlyInvoicesAsync(month, requesterUserId);
+                }
+
                 var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
                 if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
                 {
                     return response.AppendErrors(scopeResponse.Errors);
                 }
 
-                var query = ApplyInvoiceScope(_teacherSallaryRepository
-                    .Where(x => x.TeacherId != null), scopeResponse.Data);
+                var query = ApplyInvoiceScope(
+                    FilterActiveInvoices(_teacherSallaryRepository
+                        .Where(x => x.TeacherId != null)),
+                    scopeResponse.Data);
 
                 if (teacherId.HasValue)
                 {
@@ -224,6 +309,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                         invoice.Month.Value >= monthStart &&
                         invoice.Month.Value < monthEnd);
                 }
+
+                query = SelectCanonicalInvoices(query);
 
                 var invoices = await ProjectInvoices(query)
                     .OrderByDescending(invoice => invoice.Month)
@@ -252,6 +339,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 {
                     return response.CreateResponse(MessageCodes.Failed);
                 }
+
+                await GenerateMonthlyInvoicesAsync(monthStart, requesterUserId);
 
                 if (teacherId.HasValue)
                 {
@@ -307,42 +396,98 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                         AbsentWithExcuseCount = 0,
                         AbsentWithoutExcuseCount = 0,
                         TotalSalary = 0,
+                        SectionBreakdown = BuildSectionBreakdown(Array.Empty<(string? SectionName, decimal Minutes, decimal Salary)>()),
                         Invoice = null
                     });
                 }
 
-                DateTime monthEnd = monthStart.AddMonths(1);
+                var (monthStartUtc, monthEndUtc) = BusinessDateTime.GetCairoMonthRangeUtc(monthStart.Year, monthStart.Month);
+                await BackfillMissingSalarySnapshotsAsync(monthStartUtc, monthEndUtc, teacherId);
 
                 var teacherRecords = await _circleReportRepository
                     .Where(report =>
                         report.TeacherId.HasValue &&
                         activeTeacherIds.Contains(report.TeacherId.Value) &&
                         !report.IsDeleted &&
-                        report.CreationTime >= monthStart &&
-                        report.CreationTime < monthEnd)
+                        report.CreationTime >= monthStartUtc &&
+                        report.CreationTime < monthEndUtc)
                     .Select(report => new
                     {
-                        Minutes = (double)(report.TeacherSalaryMinutes ?? 0m),
-                        Salary = report.TeacherSalaryAmount ?? 0m,
+                        RawMinutes = report.Minutes,
+                        SnapshotMinutes = report.TeacherSalaryMinutes,
+                        SnapshotSalary = report.TeacherSalaryAmount,
+                        SectionName = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .Where(s =>
+                                    s.CreatedAt.HasValue &&
+                                    s.CreatedAt.Value >= monthStartUtc &&
+                                    s.CreatedAt.Value < monthEndUtc)
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.Name : null)
+                                .FirstOrDefault()
+                            : null,
+                        FallbackSectionName = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.Name : null)
+                                .FirstOrDefault()
+                            : null,
+                        HourPrice = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .Where(s =>
+                                    s.CreatedAt.HasValue &&
+                                    s.CreatedAt.Value >= monthStartUtc &&
+                                    s.CreatedAt.Value < monthEndUtc)
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                .FirstOrDefault()
+                            : null,
+                        FallbackHourPrice = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                .FirstOrDefault()
+                            : null,
                         AttendStatusId = report.AttendStatueId
                     })
                     .ToListAsync();
 
-                var totalSalary = (double)Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
+                var normalizedTeacherRecords = teacherRecords
+                    .Select(record => new
+                    {
+                        Minutes = ResolveSalaryMinutes(record.AttendStatusId, record.RawMinutes, record.SnapshotMinutes),
+                        Salary = ResolveSalaryAmount(
+                            record.AttendStatusId,
+                            record.RawMinutes,
+                            record.SnapshotMinutes,
+                            record.SnapshotSalary,
+                            record.HourPrice ?? record.FallbackHourPrice),
+                        record.AttendStatusId,
+                        SectionName = ResolveTeachingSectionName(record.SectionName ?? record.FallbackSectionName)
+                    })
+                    .ToList();
+
+                var totalSalary = (double)Math.Round(normalizedTeacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
 
                 var aggregateSummary = new TeacherMonthlySummaryDto
                 {
                     TeacherId = 0,
                     TeacherName = null,
                     Month = monthStart,
-                    TotalReports = teacherRecords.Count,
-                    TotalMinutes = teacherRecords.Sum(r => r.Minutes),
-                    PresentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent),
-                    AbsentWithExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse),
-                    AbsentWithoutExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse),
+                    TotalReports = normalizedTeacherRecords.Count,
+                    TotalMinutes = normalizedTeacherRecords.Sum(r => (double)r.Minutes),
+                    PresentCount = normalizedTeacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent),
+                    AbsentWithExcuseCount = normalizedTeacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse),
+                    AbsentWithoutExcuseCount = normalizedTeacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse),
                     TotalSalary = totalSalary,
-                    Invoice = null
-                };
+                SectionBreakdown = BuildSectionBreakdown(
+                    normalizedTeacherRecords.Select(record => ((string?)record.SectionName, record.Minutes, record.Salary))),
+                Invoice = null
+            };
 
                 return response.CreateResponse(aggregateSummary);
             }
@@ -365,7 +510,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 }
 
                 DateTime monthStart = new(month.Value.Year, month.Value.Month, 1);
-                DateTime monthEnd = monthStart.AddMonths(1);
+                await GenerateMonthlyInvoicesAsync(monthStart, requesterUserId);
+                var (monthStartUtc, monthEndUtc) = BusinessDateTime.GetCairoMonthRangeUtc(monthStart.Year, monthStart.Month);
+                await BackfillMissingSalarySnapshotsAsync(monthStartUtc, monthEndUtc, teacherId);
 
                 var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
                 if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
@@ -385,9 +532,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     .Where(report =>
                         report.TeacherId == teacherId &&
                         !report.IsDeleted &&
-                        report.CreationTime >= monthStart &&
-                        report.CreationTime < monthEnd)
-                    .Select(report => new TeacherMonthlyReportRecordDto
+                        report.CreationTime >= monthStartUtc &&
+                        report.CreationTime < monthEndUtc)
+                    .Select(report => new
                     {
                         Id = report.Id,
                         TeacherId = report.TeacherId ?? 0,
@@ -396,22 +543,124 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                         CircleId = report.CircleId,
                         StudentId = report.StudentId,
                         StudentName = report.Student != null ? report.Student.FullName : null,
-                        Minutes = (double)(report.TeacherSalaryMinutes ?? 0m),
-                        Salary = (double)(report.TeacherSalaryAmount ?? 0m),
+                        SectionName = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .Where(s =>
+                                    s.CreatedAt.HasValue &&
+                                    s.CreatedAt.Value >= monthStartUtc &&
+                                    s.CreatedAt.Value < monthEndUtc)
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.Name : null)
+                                .FirstOrDefault()
+                            : null,
+                        FallbackSectionName = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.Name : null)
+                                .FirstOrDefault()
+                            : null,
+                        RawMinutes = report.Minutes,
+                        SnapshotMinutes = report.TeacherSalaryMinutes,
+                        SnapshotSalary = report.TeacherSalaryAmount,
+                        HourPrice = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .Where(s =>
+                                    s.CreatedAt.HasValue &&
+                                    s.CreatedAt.Value >= monthStartUtc &&
+                                    s.CreatedAt.Value < monthEndUtc)
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                .FirstOrDefault()
+                            : null,
+                        FallbackHourPrice = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                .FirstOrDefault()
+                            : null,
                         AttendStatusId = report.AttendStatueId,
                         RecordCreatedAt = report.CreationTime,
                         CircleReportCreatedAt = report.CreationTime
                     })
-                    .OrderByDescending(record => record.RecordCreatedAt)
-                    .ThenByDescending(record => record.Id)
                     .ToListAsync();
 
-                return response.CreateResponse(records);
+                var normalizedRecords = records
+                    .Select(record => new TeacherMonthlyReportRecordDto
+                    {
+                        Id = record.Id,
+                        TeacherId = record.TeacherId,
+                        TeacherName = record.TeacherName,
+                        CircleReportId = record.CircleReportId,
+                        CircleId = record.CircleId,
+                        StudentId = record.StudentId,
+                        StudentName = record.StudentName,
+                        SectionName = ResolveTeachingSectionName(record.SectionName ?? record.FallbackSectionName),
+                        Minutes = (double)ResolveSalaryMinutes(record.AttendStatusId, record.RawMinutes, record.SnapshotMinutes),
+                        Salary = (double)ResolveSalaryAmount(
+                            record.AttendStatusId,
+                            record.RawMinutes,
+                            record.SnapshotMinutes,
+                            record.SnapshotSalary,
+                            record.HourPrice ?? record.FallbackHourPrice),
+                        AttendStatusId = record.AttendStatusId,
+                        RecordCreatedAt = record.RecordCreatedAt,
+                        CircleReportCreatedAt = record.CircleReportCreatedAt
+                    })
+                    .OrderByDescending(record => record.RecordCreatedAt)
+                    .ThenByDescending(record => record.Id)
+                    .ToList();
+
+                return response.CreateResponse(normalizedRecords);
             }
             catch (Exception ex)
             {
                 return response.CreateResponse(ex);
             }
+        }
+
+        private static bool CountsForBilling(int? attendStatusId)
+        {
+            return attendStatusId == AttendStatusPresent || attendStatusId == AttendStatusAbsentWithoutExcuse;
+        }
+
+        private static decimal ResolveSalaryMinutes(int? attendStatusId, double? rawMinutes, decimal? snapshotMinutes)
+        {
+            if (snapshotMinutes.HasValue)
+            {
+                return snapshotMinutes.Value;
+            }
+
+            if (!CountsForBilling(attendStatusId) || !rawMinutes.HasValue)
+            {
+                return 0m;
+            }
+
+            return Math.Round(Convert.ToDecimal(rawMinutes.Value), 2, MidpointRounding.AwayFromZero);
+        }
+
+        private static decimal ResolveSalaryAmount(
+            int? attendStatusId,
+            double? rawMinutes,
+            decimal? snapshotMinutes,
+            decimal? snapshotSalary,
+            decimal? hourPrice)
+        {
+            if (snapshotSalary.HasValue)
+            {
+                return snapshotSalary.Value;
+            }
+
+            var minutes = ResolveSalaryMinutes(attendStatusId, rawMinutes, snapshotMinutes);
+            if (minutes <= 0m || !hourPrice.HasValue)
+            {
+                return 0m;
+            }
+
+            return Math.Round((hourPrice.Value / 60m) * minutes, 2, MidpointRounding.AwayFromZero);
         }
 
         public async Task<IResponse<TeacherSallaryDetailsDto>> GetInvoiceDetailsAsync(int requesterUserId, int invoiceId)
@@ -426,8 +675,10 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     return response.AppendErrors(scopeResponse.Errors);
                 }
 
-                var invoiceData = await ApplyInvoiceScope(_teacherSallaryRepository
-                    .Where(invoice => invoice.Id == invoiceId), scopeResponse.Data)
+                var invoiceData = await ApplyInvoiceScope(
+                        FilterActiveInvoices(_teacherSallaryRepository
+                            .Where(invoice => invoice.Id == invoiceId)),
+                        scopeResponse.Data)
 
                     .Select(invoice => new
                     {
@@ -498,8 +749,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
             try
             {
-                var invoice = await _teacherSallaryRepository
-                    .Where(i => i.Id == invoiceId)
+                var invoice = await FilterActiveInvoices(_teacherSallaryRepository
+                    .Where(i => i.Id == invoiceId))
 
                     .Include(i => i.Teacher)
                     .FirstOrDefaultAsync();
@@ -511,15 +762,15 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
                 invoice.IsPayed = dto.IsPayed;
                 invoice.PayedAt = dto.IsPayed
-                    ? dto.PayedAt.HasValue ? BusinessDateTime.NormalizeClientDateTimeToCairoStorage(dto.PayedAt.Value) : BusinessDateTime.CairoNow
+                    ? dto.PayedAt.HasValue ? BusinessDateTime.NormalizeClientDateTimeToUtc(dto.PayedAt.Value) : BusinessDateTime.UtcNow
                     : null;
-                invoice.ModefiedAt = BusinessDateTime.CairoNow;
+                invoice.ModefiedAt = BusinessDateTime.UtcNow;
                 invoice.ModefiedBy = userId;
 
                 await _unitOfWork.CommitAsync();
 
                 var updated = await ProjectInvoices(
-                        _teacherSallaryRepository.Where(i => i.Id == invoice.Id))
+                        FilterActiveInvoices(_teacherSallaryRepository.Where(i => i.Id == invoice.Id)))
 
                     .FirstOrDefaultAsync();
 
@@ -543,13 +794,13 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             try
             {
                 var invoice = await _teacherSallaryRepository.GetByIdAsync(dto.Id);
-                if (invoice == null || invoice.IsDeleted.Value)
+                if (invoice == null || IsInvoiceDeleted(invoice))
                 {
                     return response.CreateResponse(MessageCodes.NotFound);
                 }
 
                 invoice.ModefiedBy = userId;
-                invoice.ModefiedAt = BusinessDateTime.CairoNow;
+                invoice.ModefiedAt = BusinessDateTime.UtcNow;
 
                 if (dto.Amount.HasValue)
                 {
@@ -569,7 +820,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     if (dto.PayStatue.HasValue)
                     {
                         invoice.IsPayed = dto.PayStatue.Value;
-                        invoice.PayedAt = dto.PayStatue.Value ? BusinessDateTime.CairoNow : null;
+                        invoice.PayedAt = dto.PayStatue.Value ? BusinessDateTime.UtcNow : null;
                     }
 
                     if (dto.ReceiptPath != null)
@@ -611,9 +862,11 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                     return response.AppendErrors(scopeResponse.Errors);
                 }
 
-                var invoice = await ApplyInvoiceScope(_teacherSallaryRepository.Where(i => i.Id == invoiceId), scopeResponse.Data)
+                var invoice = await ApplyInvoiceScope(
+                        FilterActiveInvoices(_teacherSallaryRepository.Where(i => i.Id == invoiceId)),
+                        scopeResponse.Data)
                     .FirstOrDefaultAsync();
-                if (invoice == null || invoice.IsDeleted.Value)
+                if (invoice == null)
                 {
                     return response.CreateResponse(MessageCodes.NotFound);
                 }
@@ -644,7 +897,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 }
 
                 var invoice = await ProjectInvoices(
-                        ApplyInvoiceScope(_teacherSallaryRepository.Where(invoice => invoice.Id == invoiceId), scopeResponse.Data))
+                        ApplyInvoiceScope(
+                            FilterActiveInvoices(_teacherSallaryRepository.Where(invoice => invoice.Id == invoiceId)),
+                            scopeResponse.Data))
 
                     .FirstOrDefaultAsync();
 
@@ -663,7 +918,9 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
 
         private async Task<TeacherMonthlySummaryDto> BuildMonthlySummaryAsync(int teacherId, string? teacherName, DateTime monthStart, int requesterUserId)
         {
-            DateTime monthEnd = monthStart.AddMonths(1);
+            await GenerateMonthlyInvoicesAsync(monthStart, requesterUserId);
+            var (monthStartUtc, monthEndUtc) = BusinessDateTime.GetCairoMonthRangeUtc(monthStart.Year, monthStart.Month);
+            await BackfillMissingSalarySnapshotsAsync(monthStartUtc, monthEndUtc, teacherId);
 
             var scopeResponse = await ResolveSalaryAccessScopeAsync(requesterUserId);
             if (!scopeResponse.IsSuccess || scopeResponse.Data == null)
@@ -688,36 +945,89 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 };
             }
 
-            var teacherRecords = await _circleReportRepository
-                .Where(report =>
-                    report.TeacherId == teacherId &&
-                    !report.IsDeleted &&
-                    report.CreationTime >= monthStart &&
-                    report.CreationTime < monthEnd)
-                .Select(report => new
+                var teacherRecords = await _circleReportRepository
+                    .Where(report =>
+                        report.TeacherId == teacherId &&
+                        !report.IsDeleted &&
+                        report.CreationTime >= monthStartUtc &&
+                        report.CreationTime < monthEndUtc)
+                    .Select(report => new
+                    {
+                        RawMinutes = report.Minutes,
+                        SnapshotMinutes = report.TeacherSalaryMinutes,
+                        SnapshotSalary = report.TeacherSalaryAmount,
+                        SectionName = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .Where(s =>
+                                    s.CreatedAt.HasValue &&
+                                    s.CreatedAt.Value >= monthStartUtc &&
+                                    s.CreatedAt.Value < monthEndUtc)
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.Name : null)
+                                .FirstOrDefault()
+                            : null,
+                        FallbackSectionName = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.Name : null)
+                                .FirstOrDefault()
+                            : null,
+                        HourPrice = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .Where(s =>
+                                    s.CreatedAt.HasValue &&
+                                    s.CreatedAt.Value >= monthStartUtc &&
+                                    s.CreatedAt.Value < monthEndUtc)
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                .FirstOrDefault()
+                            : null,
+                        FallbackHourPrice = report.Student != null
+                            ? report.Student.StudentSubscribes
+                                .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                                .ThenByDescending(s => s.Id)
+                                .Select(s => s.StudentSubscribeType != null ? s.StudentSubscribeType.HourPrice : null)
+                                .FirstOrDefault()
+                            : null,
+                        AttendStatusId = report.AttendStatueId
+                    })
+                    .ToListAsync();
+
+            var normalizedTeacherRecords = teacherRecords
+                .Select(record => new
                 {
-                    Minutes = (double)(report.TeacherSalaryMinutes ?? 0m),
-                    Salary = report.TeacherSalaryAmount ?? 0m,
-                    AttendStatusId = report.AttendStatueId
+                    Minutes = ResolveSalaryMinutes(record.AttendStatusId, record.RawMinutes, record.SnapshotMinutes),
+                    Salary = ResolveSalaryAmount(
+                        record.AttendStatusId,
+                        record.RawMinutes,
+                        record.SnapshotMinutes,
+                        record.SnapshotSalary,
+                        record.HourPrice ?? record.FallbackHourPrice),
+                    record.AttendStatusId,
+                    SectionName = ResolveTeachingSectionName(record.SectionName ?? record.FallbackSectionName)
                 })
-                .ToListAsync();
+                .ToList();
 
-            int totalReports = teacherRecords.Count;
-            double totalMinutes = teacherRecords.Sum(r => r.Minutes);
-            double totalSalary = (double)Math.Round(teacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
+            int totalReports = normalizedTeacherRecords.Count;
+            double totalMinutes = normalizedTeacherRecords.Sum(r => (double)r.Minutes);
+            double totalSalary = (double)Math.Round(normalizedTeacherRecords.Sum(r => r.Salary), 2, MidpointRounding.AwayFromZero);
 
-            int presentCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent);
-            int absentWithExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse);
-            int absentWithoutExcuseCount = teacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse);
+            int presentCount = normalizedTeacherRecords.Count(r => r.AttendStatusId == AttendStatusPresent);
+            int absentWithExcuseCount = normalizedTeacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithExcuse);
+            int absentWithoutExcuseCount = normalizedTeacherRecords.Count(r => r.AttendStatusId == AttendStatusAbsentWithoutExcuse);
 
             var invoice = await ProjectInvoices(
-                    ApplyInvoiceScope(
-                        _teacherSallaryRepository.Where(invoice =>
-                            invoice.TeacherId == teacherId &&
-                            invoice.Month.HasValue &&
-                            invoice.Month.Value.Year == monthStart.Year &&
-                            invoice.Month.Value.Month == monthStart.Month),
-                        scopeResponse.Data))
+                    SelectCanonicalInvoices(
+                        ApplyInvoiceScope(
+                            FilterActiveInvoices(_teacherSallaryRepository.Where(invoice =>
+                                invoice.TeacherId == teacherId &&
+                                invoice.Month.HasValue &&
+                                invoice.Month.Value.Year == monthStart.Year &&
+                                invoice.Month.Value.Month == monthStart.Month)),
+                            scopeResponse.Data)))
                 .FirstOrDefaultAsync();
 
             if (invoice != null && string.IsNullOrWhiteSpace(invoice.TeacherName))
@@ -736,8 +1046,166 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 AbsentWithExcuseCount = absentWithExcuseCount,
                 AbsentWithoutExcuseCount = absentWithoutExcuseCount,
                 TotalSalary = totalSalary,
+                SectionBreakdown = BuildSectionBreakdown(
+                    normalizedTeacherRecords.Select(record => ((string?)record.SectionName, record.Minutes, record.Salary))),
                 Invoice = invoice
             };
+        }
+
+        private static List<TeacherSalarySectionBreakdownDto> BuildSectionBreakdown(
+            IEnumerable<(string? SectionName, decimal Minutes, decimal Salary)> records)
+        {
+            var grouped = records
+                .GroupBy(record => ResolveTeachingSectionName(record.SectionName))
+                .ToDictionary(
+                    group => group.Key,
+                    group => new
+                    {
+                        Minutes = group.Sum(item => item.Minutes),
+                        Salary = group.Sum(item => item.Salary)
+                    });
+
+            var results = new List<TeacherSalarySectionBreakdownDto>();
+            foreach (var knownSection in GetOrderedSectionNames())
+            {
+                grouped.TryGetValue(knownSection, out var totals);
+                results.Add(CreateSectionBreakdown(knownSection, totals?.Minutes ?? 0m, totals?.Salary ?? 0m));
+            }
+
+            foreach (var extraSection in grouped.Keys
+                .Except(GetOrderedSectionNames(), StringComparer.Ordinal)
+                .OrderBy(name => name, StringComparer.Ordinal))
+            {
+                var totals = grouped[extraSection];
+                results.Add(CreateSectionBreakdown(extraSection, totals.Minutes, totals.Salary));
+            }
+
+            return results;
+        }
+
+        private static TeacherSalarySectionBreakdownDto CreateSectionBreakdown(string sectionName, decimal totalMinutes, decimal totalSalary)
+        {
+            var roundedMinutes = Math.Round(totalMinutes, 2, MidpointRounding.AwayFromZero);
+            var roundedHours = Math.Round(roundedMinutes / 60m, 2, MidpointRounding.AwayFromZero);
+            var roundedSalary = Math.Round(totalSalary, 2, MidpointRounding.AwayFromZero);
+
+            return new TeacherSalarySectionBreakdownDto
+            {
+                SectionName = sectionName,
+                TotalMinutes = (double)roundedMinutes,
+                TotalHours = (double)roundedHours,
+                TotalSalary = (double)roundedSalary
+            };
+        }
+
+        private static string ResolveTeachingSectionName(string? sectionName)
+        {
+            if (string.IsNullOrWhiteSpace(sectionName))
+            {
+                return OtherSectionName;
+            }
+
+            var normalized = sectionName.Trim();
+            if (normalized.IndexOf(FoundationSectionName, StringComparison.OrdinalIgnoreCase) >= 0
+                || normalized.IndexOf("foundation", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return FoundationSectionName;
+            }
+
+            if (normalized.IndexOf(RepetitionSectionName, StringComparison.OrdinalIgnoreCase) >= 0
+                || normalized.IndexOf("repeat", StringComparison.OrdinalIgnoreCase) >= 0
+                || normalized.IndexOf("repetition", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return RepetitionSectionName;
+            }
+
+            if (normalized.IndexOf(MemorizationSectionName, StringComparison.OrdinalIgnoreCase) >= 0
+                || normalized.IndexOf("memor", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return MemorizationSectionName;
+            }
+
+            return normalized;
+        }
+
+        private static IReadOnlyList<string> GetOrderedSectionNames()
+        {
+            return new[]
+            {
+                FoundationSectionName,
+                RepetitionSectionName,
+                MemorizationSectionName,
+                OtherSectionName
+            };
+        }
+
+        private async Task BackfillMissingSalarySnapshotsAsync(DateTime monthStartUtc, DateTime monthEndUtc, int? teacherId = null)
+        {
+            var businessMonthStart = BusinessDateTime.ToCairo(monthStartUtc);
+
+            var paidTeacherIds = await FilterActiveInvoices(_teacherSallaryRepository
+                .Where(invoice =>
+                    invoice.TeacherId.HasValue &&
+                    invoice.IsPayed == true &&
+                    invoice.Month.HasValue &&
+                    invoice.Month.Value.Year == businessMonthStart.Year &&
+                    invoice.Month.Value.Month == businessMonthStart.Month &&
+                    (!teacherId.HasValue || invoice.TeacherId == teacherId.Value)))
+                .Select(invoice => invoice.TeacherId!.Value)
+                .Distinct()
+                .ToListAsync();
+
+            if (teacherId.HasValue && paidTeacherIds.Contains(teacherId.Value))
+            {
+                return;
+            }
+
+            var reportsQuery = _circleReportRepository
+                .Where(report =>
+                    report.TeacherId.HasValue &&
+                    !report.IsDeleted &&
+                    report.CreationTime >= monthStartUtc &&
+                    report.CreationTime < monthEndUtc &&
+                    (!teacherId.HasValue || report.TeacherId == teacherId.Value) &&
+                    !paidTeacherIds.Contains(report.TeacherId.Value) &&
+                    (!report.TeacherSalaryMinutes.HasValue || !report.TeacherSalaryAmount.HasValue))
+                .Include(report => report.Student)
+                    .ThenInclude(student => student.StudentSubscribes)
+                        .ThenInclude(subscribe => subscribe.StudentSubscribeType);
+
+            var reportsToBackfill = await reportsQuery.ToListAsync();
+            if (reportsToBackfill.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var report in reportsToBackfill)
+            {
+                var subscribeType = report.Student?.StudentSubscribes?
+                    .Where(s =>
+                        s.CreatedAt.HasValue &&
+                        s.CreatedAt.Value >= monthStartUtc &&
+                        s.CreatedAt.Value < monthEndUtc)
+                    .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(s => s.Id)
+                    .Select(s => s.StudentSubscribeType)
+                    .FirstOrDefault()
+                    ?? report.Student?.StudentSubscribes?
+                    .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(s => s.Id)
+                    .Select(s => s.StudentSubscribeType)
+                    .FirstOrDefault();
+
+                report.TeacherSalaryMinutes = ResolveSalaryMinutes(report.AttendStatueId, report.Minutes, report.TeacherSalaryMinutes);
+                report.TeacherSalaryAmount = ResolveSalaryAmount(
+                    report.AttendStatueId,
+                    report.Minutes,
+                    report.TeacherSalaryMinutes,
+                    report.TeacherSalaryAmount,
+                    subscribeType?.HourPrice);
+            }
+
+            await _unitOfWork.CommitAsync();
         }
 
 
@@ -827,6 +1295,77 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
             return query;
         }
 
+        private static IQueryable<TeacherSallary> FilterActiveInvoices(IQueryable<TeacherSallary> query)
+        {
+            return query.Where(invoice => !EF.Property<bool>(invoice, nameof(EntityBase.IsDeleted)));
+        }
+
+        private static bool IsInvoiceDeleted(TeacherSallary invoice)
+        {
+            return ((EntityBase)invoice).IsDeleted;
+        }
+
+        private static IQueryable<TeacherSallary> SelectCanonicalInvoices(IQueryable<TeacherSallary> query)
+        {
+            var activeQuery = FilterActiveInvoices(query);
+
+            return activeQuery.Where(invoice => !activeQuery.Any(other =>
+                other.Id != invoice.Id &&
+                other.TeacherId == invoice.TeacherId &&
+                (
+                    (!other.Month.HasValue && !invoice.Month.HasValue) ||
+                    (other.Month.HasValue &&
+                     invoice.Month.HasValue &&
+                     other.Month.Value.Year == invoice.Month.Value.Year &&
+                     other.Month.Value.Month == invoice.Month.Value.Month)
+                ) &&
+                (
+                    ((other.IsPayed == true) && (invoice.IsPayed != true)) ||
+                    ((other.IsPayed == true) == (invoice.IsPayed == true) &&
+                     (
+                         (other.ModefiedAt ?? other.CreatedAt ?? DateTime.MinValue) >
+                         (invoice.ModefiedAt ?? invoice.CreatedAt ?? DateTime.MinValue) ||
+                         ((other.ModefiedAt ?? other.CreatedAt ?? DateTime.MinValue) ==
+                          (invoice.ModefiedAt ?? invoice.CreatedAt ?? DateTime.MinValue) &&
+                          other.Id > invoice.Id)
+                     ))
+                )));
+        }
+
+        private static TeacherSallary SelectCanonicalInvoice(IEnumerable<TeacherSallary> invoices, double? expectedSalary = null)
+        {
+            var activeInvoices = invoices
+                .Where(invoice => !IsInvoiceDeleted(invoice))
+                .ToList();
+
+            var candidateInvoices = activeInvoices.Count > 0 ? activeInvoices : invoices.ToList();
+
+            return candidateInvoices
+                .OrderByDescending(invoice => invoice.IsPayed == true)
+                .ThenByDescending(invoice =>
+                    expectedSalary.HasValue &&
+                    invoice.Sallary.HasValue &&
+                    Math.Abs(invoice.Sallary.Value - expectedSalary.Value) <= 0.01d)
+                .ThenByDescending(invoice => invoice.ModefiedAt ?? invoice.CreatedAt ?? DateTime.MinValue)
+                .ThenByDescending(invoice => invoice.Id)
+                .First();
+        }
+
+        private static bool TryMarkInvoiceAsDeleted(TeacherSallary invoice, int? modifiedBy)
+        {
+            if (IsInvoiceDeleted(invoice))
+            {
+                return false;
+            }
+
+            var baseInvoice = (EntityBase)invoice;
+            baseInvoice.IsDeleted = true;
+            invoice.IsDeleted = true;
+            invoice.ModefiedAt = BusinessDateTime.UtcNow;
+            invoice.ModefiedBy = modifiedBy;
+            return true;
+        }
+
         private sealed class SalaryAccessScope
         {
             public SalaryAccessMode Mode { get; set; }
@@ -847,6 +1386,7 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 Id = invoice.Id,
                 TeacherId = invoice.TeacherId,
                 TeacherName = invoice.Teacher != null ? invoice.Teacher.FullName : null,
+                TeacherMobile = invoice.Teacher != null ? invoice.Teacher.Mobile : null,
                 Month = invoice.Month,
                 Salary = invoice.Sallary,
                 IsPayed = invoice.IsPayed,
