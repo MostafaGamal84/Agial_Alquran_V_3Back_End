@@ -14,6 +14,8 @@ namespace Orbits.GeneralProject.DTO.LockUpDtos
         public string? Email { get; set; }
         public string? Mobile { get; set; }
         public string? SecondMobile { get; set; }
+        public int? SalaryReceiveMethodId { get; set; }
+        public int? EducationSystemTypeId { get; set; }
         public string? Nationality { get; set; }
         public int? NationalityId { get; set; }
         public string? Resident { get; set; }

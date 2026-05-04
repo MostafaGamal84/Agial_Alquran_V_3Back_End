@@ -6,6 +6,8 @@ namespace Orbits.GeneralProject.DTO.UserDtos
         public string? Email { get; set; }
         public string? Mobile { get; set; }
         public string? SecondMobile { get; set; }
+        public int? SalaryReceiveMethodId { get; set; }
+        public int? EducationSystemTypeId { get; set; }
         public int? NationalityId { get; set; }
         public int? ResidentId { get; set; }
         public int? GovernorateId { get; set; }

@@ -93,6 +93,7 @@ namespace Orbits.GeneralProject.Core.Infrastructure
             ["Email"] = "البريد الإلكتروني",
             ["Mobile"] = "الجوال",
             ["SecondMobile"] = "الجوال الإضافي",
+            ["SalaryReceiveMethodId"] = "طريقة استلام الراتب",
             ["ResidentId"] = "الإقامة",
             ["NationalityId"] = "الجنسية",
             ["GovernorateId"] = "المحافظة",

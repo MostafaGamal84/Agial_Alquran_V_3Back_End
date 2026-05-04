@@ -8,6 +8,8 @@ namespace Orbits.GeneralProject.DTO.TeacherSallaryDtos
         public int? TeacherId { get; set; }
         public string? TeacherName { get; set; }
         public string? TeacherMobile { get; set; }
+        public string? TeacherSecondMobile { get; set; }
+        public int? SalaryReceiveMethodId { get; set; }
         public DateTime? Month { get; set; }
         public double? Salary { get; set; }
         public bool? IsPayed { get; set; }

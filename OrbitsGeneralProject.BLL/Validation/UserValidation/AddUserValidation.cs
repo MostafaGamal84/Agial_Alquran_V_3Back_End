@@ -18,6 +18,9 @@ namespace Orbits.GeneralProject.BLL.Validation.UserValidation
         public AddUserValidation() 
         {
             RuleFor(l => l.UserTypeId).NotNull().WithMessage(UserValidationReponseConstants.UserTypeRequired).NotEmpty().WithMessage(UserValidationReponseConstants.UserTypeRequired);
+            RuleFor(l => l.EducationSystemTypeId)
+                .NotNull().WithMessage("يجب تحديد انتماء المستخدم للنظام.")
+                .InclusiveBetween(1, 3).WithMessage("انتماء المستخدم للنظام غير صحيح.");
             RuleFor(l => l.Email)
             .Must((u, e) =>
             {
@@ -32,6 +35,10 @@ namespace Orbits.GeneralProject.BLL.Validation.UserValidation
      .NotEmpty().WithMessage(UserValidationReponseConstants.PhoneNumberLength)
      .Matches(new Regex(@"^\+?[0-9]{10,15}$"))
          .WithMessage(UserValidationReponseConstants.ValidPhoneNumber);
+            RuleFor(l => l.SecondMobile)
+     .Matches(new Regex(@"^\+?[0-9]{10,15}$"))
+         .WithMessage(UserValidationReponseConstants.ValidPhoneNumber)
+     .When(l => !string.IsNullOrWhiteSpace(l.SecondMobile));
         }
 
     }

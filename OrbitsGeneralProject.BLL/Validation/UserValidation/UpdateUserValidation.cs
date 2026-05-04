@@ -16,11 +16,18 @@ namespace Orbits.GeneralProject.BLL.Validation.UserValidation
         {
             RuleFor(l => l.FullName).NotNull().NotEmpty().WithMessage(UserValidationReponseConstants.UserNameNotNullOrEmpty);
             RuleFor(l => l.FullName).MaximumLength(250).WithMessage(UserValidationReponseConstants.UserNameMaxLength);
+            RuleFor(l => l.EducationSystemTypeId)
+                .NotNull().WithMessage("يجب تحديد انتماء المستخدم للنظام.")
+                .InclusiveBetween(1, 3).WithMessage("انتماء المستخدم للنظام غير صحيح.");
             RuleFor(l => l.Mobile)
      .NotNull().WithMessage(UserValidationReponseConstants.PhoneNumberLength)
      .NotEmpty().WithMessage(UserValidationReponseConstants.PhoneNumberLength)
      .Matches(new Regex(@"^\+?[0-9]{10,15}$"))
          .WithMessage(UserValidationReponseConstants.ValidPhoneNumber);
+            RuleFor(l => l.SecondMobile)
+     .Matches(new Regex(@"^\+?[0-9]{10,15}$"))
+         .WithMessage(UserValidationReponseConstants.ValidPhoneNumber)
+     .When(l => !string.IsNullOrWhiteSpace(l.SecondMobile));
         }
     }
 }

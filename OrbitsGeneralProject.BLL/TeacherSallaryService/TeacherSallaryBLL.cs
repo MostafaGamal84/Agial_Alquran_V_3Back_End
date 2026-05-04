@@ -1387,6 +1387,8 @@ namespace Orbits.GeneralProject.BLL.TeacherSallaryService
                 TeacherId = invoice.TeacherId,
                 TeacherName = invoice.Teacher != null ? invoice.Teacher.FullName : null,
                 TeacherMobile = invoice.Teacher != null ? invoice.Teacher.Mobile : null,
+                TeacherSecondMobile = invoice.Teacher != null ? invoice.Teacher.SecondMobile : null,
+                SalaryReceiveMethodId = invoice.Teacher != null ? invoice.Teacher.SalaryReceiveMethodId : null,
                 Month = invoice.Month,
                 Salary = invoice.Sallary,
                 IsPayed = invoice.IsPayed,

@@ -76,6 +76,34 @@ namespace Orbits.GeneralProject.BLL.UserService
             if (!governorateValid)
                 return output.AppendError(MessageCodes.InputValidationError, nameof(DTO.UserDto.CreateUserDto.GovernorateId), governorateError ?? string.Empty);
 
+            var createdUserType = (UserTypesEnum)(createUserDto.UserTypeId ?? 0);
+            var educationSystemType = EducationSystemTypeHelper.Parse(createUserDto.EducationSystemTypeId);
+            if (!educationSystemType.HasValue)
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(DTO.UserDto.CreateUserDto.EducationSystemTypeId),
+                    "انتماء المستخدم للنظام غير صحيح.");
+            }
+            var requestedSalaryReceiveMethod = ParseTeacherSalaryReceiveMethod(createUserDto.SalaryReceiveMethodId);
+            if (createUserDto.SalaryReceiveMethodId.HasValue && !requestedSalaryReceiveMethod.HasValue)
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(DTO.UserDto.CreateUserDto.SalaryReceiveMethodId),
+                    "طريقة استلام الراتب غير صحيحة.");
+            }
+
+            if (createdUserType == UserTypesEnum.Teacher
+                && requestedSalaryReceiveMethod == TeacherSalaryReceiveMethod.Wallet
+                && string.IsNullOrWhiteSpace(createUserDto.SecondMobile))
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(DTO.UserDto.CreateUserDto.SecondMobile),
+                    "رقم المحفظة مطلوب عند اختيار استلام الراتب عبر المحفظة.");
+            }
+
             // Create User
             var user = _mapper.Map<User>(createUserDto);
             user.RegisterAt = BusinessDateTime.UtcNow;
@@ -177,6 +205,36 @@ namespace Orbits.GeneralProject.BLL.UserService
             }
 
             var userType = (UserTypesEnum)(existedUser.UserTypeId ?? 0);
+            var requestedEducationSystemType = EducationSystemTypeHelper.Parse(updateUserDto.EducationSystemTypeId);
+            if (!requestedEducationSystemType.HasValue)
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(UpdateUserDto.EducationSystemTypeId),
+                    "انتماء المستخدم للنظام غير صحيح.");
+            }
+            var requestedUpdateSalaryReceiveMethod = ParseTeacherSalaryReceiveMethod(updateUserDto.SalaryReceiveMethodId);
+            if (updateUserDto.SalaryReceiveMethodId.HasValue && !requestedUpdateSalaryReceiveMethod.HasValue)
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(UpdateUserDto.SalaryReceiveMethodId),
+                    "طريقة استلام الراتب غير صحيحة.");
+            }
+
+            var effectiveSalaryReceiveMethod = ParseTeacherSalaryReceiveMethod(
+                updateUserDto.SalaryReceiveMethodId ?? existedUser.SalaryReceiveMethodId);
+            var effectiveWalletNumber = updateUserDto.SecondMobile ?? existedUser.SecondMobile;
+            if (userType == UserTypesEnum.Teacher
+                && effectiveSalaryReceiveMethod == TeacherSalaryReceiveMethod.Wallet
+                && string.IsNullOrWhiteSpace(effectiveWalletNumber))
+            {
+                return output.AppendError(
+                    MessageCodes.InputValidationError,
+                    nameof(UpdateUserDto.SecondMobile),
+                    "رقم المحفظة مطلوب عند اختيار استلام الراتب عبر المحفظة.");
+            }
+
             var isManager = userType == UserTypesEnum.Manager;
             var isTeacher = userType == UserTypesEnum.Teacher;
             var isStudent = userType == UserTypesEnum.Student;
@@ -629,6 +687,18 @@ namespace Orbits.GeneralProject.BLL.UserService
             };
         }
 
+        private static TeacherSalaryReceiveMethod? ParseTeacherSalaryReceiveMethod(int? value)
+        {
+            if (!value.HasValue)
+            {
+                return null;
+            }
+
+            return Enum.IsDefined(typeof(TeacherSalaryReceiveMethod), value.Value)
+                ? (TeacherSalaryReceiveMethod)value.Value
+                : null;
+        }
+
         private static int GetUserRank(UserTypesEnum userType)
         {
             return userType switch
@@ -733,6 +803,18 @@ namespace Orbits.GeneralProject.BLL.UserService
 
             if (updateProfileDto.BranchId.HasValue)
                 user.BranchId = updateProfileDto.BranchId;
+
+            if (updateProfileDto.EducationSystemTypeId.HasValue)
+            {
+                var profileEducationSystemType = EducationSystemTypeHelper.Parse(updateProfileDto.EducationSystemTypeId);
+                if (!profileEducationSystemType.HasValue)
+                    return output.AppendError(
+                        MessageCodes.InputValidationError,
+                        nameof(UpdateProfileDto.EducationSystemTypeId),
+                        "انتماء المستخدم للنظام غير صحيح.");
+
+                user.EducationSystemTypeId = updateProfileDto.EducationSystemTypeId;
+            }
 
             user.ModefiedAt = BusinessDateTime.UtcNow;
             user.ModefiedBy = userId;

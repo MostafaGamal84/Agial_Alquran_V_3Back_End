@@ -35,6 +35,7 @@ namespace Orbits.GeneralProject.Core.Entities
         public string? Email { get; set; }
         public string? Mobile { get; set; }
         public string? SecondMobile { get; set; }
+        public int? SalaryReceiveMethodId { get; set; }
         public DateTime? RegisterAt { get; set; }
         public string? PasswordHash { get; set; }
         public int? UserTypeId { get; set; }
